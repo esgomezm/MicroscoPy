@@ -2,7 +2,6 @@ import numpy as np
 import os
 import torch
 from torch.utils.data import Dataset
-from skimage import img_as_float32
 from skimage import io
 
 #from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -13,7 +12,7 @@ from skimage import transform
 from crappifiers import apply_crappifier
 
 def read_image(filename):
-    return img_as_float32(io.imread(filename))
+    return io.imread(filename)
 
 def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     
@@ -90,6 +89,45 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
     final_hr_patches = np.concatenate(final_hr_patches)
 
     return final_lr_patches, final_hr_patches
+
+def normalization(data):
+    maximum_value = np.iinfo(data.dtype).max
+    norm_data = data / maximum_value
+    norm_data = norm_data.astype(np.float32)
+    return norm_data
+
+def undo_normalization(data, original_type):
+    maximum_value = np.iinfo(original_type).max
+    norm_data = data * maximum_value
+    norm_data = norm_data.astype(original_type)
+    return norm_data
+
+def standarization(data, mean, std):
+    # CAUTION: using standarization can loss precision in your data
+    #          due to the appñied division and the floating-point values
+    return (data - mean)/std
+
+def undo_standarization(data, mean, std):
+    return data*std + mean
+
+def normalize_standarize_data(data):
+    # CAUTION: using standarization can loss precision in your data
+    #          due to the appñied division and the floating-point values
+    data_mean = np.mean(data)
+    data_std = np.std(data)
+    data_original_type = data.dtype
+
+    normalized_data = normalization(data)
+    standarized_data = standarization(normalized_data, data_mean, data_std)
+
+    return  standarized_data, data_mean, data_std, data_original_type
+
+def undo_normalize_standarize_data(data, mean, std, original_type):
+
+    unstandardized_data = undo_standarization(data, mean, std)
+    denormalized_data = undo_normalization(unstandardized_data, original_type)
+
+    return  denormalized_data
 
 # Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
