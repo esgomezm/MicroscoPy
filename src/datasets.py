@@ -5,146 +5,91 @@ from torch.utils.data import Dataset
 from skimage import img_as_float32
 from skimage import io
 
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
+#from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from skimage import transform
 
-from utils import hr_to_lr
+from crappifiers import apply_crappifier
 
-#### Tensorflow dataset ####
+def read_image(filename):
+    return img_as_float32(io.imread(filename))
 
-def create_patches(lr_path, hr_path, only_hr, type_hr_data,
-                   only_hr_path, down_factor, num_x_patches, 
-                   num_y_patches):
+def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     
-    ''' Create a list of images patches out of a list of images
-    Args:
-        lr_path (string): low resolution (LR) image path (input images).
-        hr_path (string): high resolution (HR) image path (ground truth images).
-        only_hr (boolean): indicates if only HR images will be used.
-        type_hr_data (string): in case only HR images would be used, what type of data they would be (Electron microscopy or Fluorescence).
-        only_hr_path (string): in case only HR images would be used, HR image path (ground truth images).
-        down_factor (int): scale factor between LR and HR images. Example: 2.
-        num_x_patches (int): number of patches extracted in the X axis.
-        num_y_patches (int): number of patches extracted in the y axis.
-        
-    Returns:
-        list of image patches (LR) and patches of corresponding labels (HR)
-    '''
-    if only_hr:
-        used_hr_path = only_hr_path
+    if scale_factor is None:
+        raise ValueError('A scale factor has to be given.')
+    
+    hr_img = read_image(hr_filename)
+
+    if lr_filename is None:
+        # If no path to the LR images is given, they will be artificially generated
+        lr_img = apply_crappifier(hr_img, scale_factor, crappifier_name)
+    else:
+        lr_img = read_image(lr_filename)
+
+    actual_scale_factor = hr_img.shape[0]//lr_img.shape[0]
+
+    if scale_factor > actual_scale_factor:
+        lr_img = apply_crappifier(lr_img, scale_factor//actual_scale_factor, "downsampleonly")
+
+    return hr_img, lr_img
+
+def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor, 
+                                      crappifier_name, lr_patch_shape, num_patches):
+
+    hr_img, lr_img = read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name)
+    
+    if lr_img.shape[0] < lr_patch_shape[0] or hr_img.shape[0] < lr_patch_shape[0] * scale_factor:
+        raise ValueError('Patch size is bigger than the given images.')
+
+    if lr_patch_shape is None:
+        lr_patch_size_width = lr_img.shape[0]
+        lr_patch_size_height = lr_img.shape[1]
     else: 
-        used_hr_path = hr_path
+        lr_patch_size_width = lr_patch_shape[0]
+        lr_patch_size_height = lr_patch_shape[1]
 
-    _, extension = os.path.splitext(os.listdir(used_hr_path)[0])
-    filenames = [x for x in os.listdir(used_hr_path) if x.endswith(extension)]
-    filenames.sort()
+    hr_patch_size_width = lr_patch_size_width * scale_factor
+    hr_patch_size_height = lr_patch_size_height * scale_factor
 
-    # read training images
-    hr_img = img_as_float32(io.imread(os.path.join(used_hr_path, filenames[0])))
+    lr_patches = []
+    hr_patches = []
 
-    hr_size = hr_img.shape
+    for _ in range(num_patches):
+        lr_idx_width = np.random.randint(0, max(1, lr_img.shape[0] - lr_patch_size_width))
+        lr_idx_height = np.random.randint(0, max(1, lr_img.shape[1] - lr_patch_size_height))
+        hr_idx_width = lr_idx_width * scale_factor
+        hr_idx_height = lr_idx_height * scale_factor
+        
+        lr_patches.append(lr_img[lr_idx_width : lr_idx_width + lr_patch_size_width,
+                                 lr_idx_height : lr_idx_height + lr_patch_size_height])
+        hr_patches.append(hr_img[hr_idx_width : hr_idx_width + hr_patch_size_width,
+                                 hr_idx_height : hr_idx_height + hr_patch_size_height])
+
+    return np.array(lr_patches), np.array(hr_patches)
+
+def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, scale_factor, 
+                                      crappifier_name, lr_patch_shape, num_patches):
     
-    hr_patch_width = hr_size[0] // num_x_patches
-    hr_patch_height = hr_size[1] // num_y_patches
-
-    # Size of the LR images
-    lr_patch_width = hr_patch_width // down_factor
-    lr_patch_height = hr_patch_height // down_factor
-
-    input_patches = []
-    output_patches = []
+    final_lr_patches = []
+    final_hr_patches = []
     
-    for n in range(0, len(filenames)):
-        if only_hr:
-            # If no path to the LR images is given, they will be artificially generated
-            lr_img = hr_to_lr(hr_img, down_factor, type_hr_data)
+    for f in filenames:
+        hr_image_path = os.path.join(hr_data_path, f)
+        if lr_data_path is not None:
+            lr_image_path = os.path.join(lr_data_path, f)
         else:
-            lr_img = img_as_float32(io.imread(lr_path + '/' + filenames[n]))
+            lr_image_path = None
+        lr_patches, hr_patches = extract_random_patches_from_image(hr_image_path, lr_image_path, scale_factor, 
+                                                                   crappifier_name, lr_patch_shape, num_patches)
+        final_lr_patches.append(lr_patches)
+        final_hr_patches.append(hr_patches)
 
-        for i in range(num_x_patches):
-            for j in range(num_y_patches):
-                output_patches.append(hr_img[i * hr_patch_width : (i+1) * hr_patch_width,
-                                       j * hr_patch_height : (j+1) * hr_patch_height])
+    final_lr_patches = np.concatenate(final_lr_patches)
+    final_hr_patches = np.concatenate(final_hr_patches)
 
-                input_patches.append(lr_img[i * lr_patch_width : (i+1) * lr_patch_width,
-                                      j * lr_patch_height : (j+1) * lr_patch_height])
-    return input_patches, output_patches
-
-
-def create_random_patches( lr_path, hr_path, only_hr, type_hr_data,
-                           only_hr_path, down_factor, lr_patch_size_width, 
-                           lr_patch_size_height):
-    ''' Create a list of images patches out of a list of images
-    Args:
-        lr_path (string): low resolution (LR) image path (input images).
-        hr_path (string): high resolution (HR) image path (ground truth images).
-        only_hr (boolean): indicates if only HR images will be used.
-        type_hr_data (string): in case only HR images would be used, what type of data they would be (Electron microscopy or Fluorescence).
-        only_hr_path (string): in case only HR images would be used, HR image path (ground truth images).
-        down_factor (int): scale factor between LR and HR images. Example: 2.
-        lr_patch_size_width (int): width of the LR patches.
-        lr_patch_size_height (int): height of the LR patches.
-        
-    Returns:
-        list of image patches (LR) and patches of corresponding labels (HR)
-    '''
-    if only_hr:
-        used_hr_path = only_hr_path
-    else: 
-        used_hr_path = hr_path
-
-    _, extension = os.path.splitext(os.listdir(used_hr_path)[0])
-    filenames = [x for x in os.listdir(used_hr_path) if x.endswith(extension)]
-    filenames.sort()
-
-    input_patches = []
-    output_patches = []
-    for n in range(0, len(filenames)):
-        hr_img = img_as_float32(io.imread( used_hr_path + '/' + filenames[n]))
-        if only_hr:
-            # If no path to the LR images is given, they will be artificially generated
-            lr_img = hr_to_lr(hr_img, down_factor, type_hr_data)
-        else:
-            lr_img = img_as_float32(io.imread( lr_path + '/' + filenames[n]))
-        
-        if lr_patch_size_width is None:
-            lr_patch_size_width = lr_img.shape[0]
-        if lr_patch_size_height is None:
-            lr_patch_size_height = lr_img.shape[1]
-
-        for _ in range((lr_img.shape[0] // lr_patch_size_width)**2):
-            lr_idx_width = np.random.randint(0, max(1, lr_img.shape[0] - lr_patch_size_width))
-            lr_idx_height = np.random.randint(0, max(1, lr_img.shape[1] - lr_patch_size_height))
-            hr_idx_width = lr_idx_width * down_factor
-            hr_idx_height = lr_idx_height * down_factor
-            
-            input_patches.append(lr_img[lr_idx_width : lr_idx_width + lr_patch_size_width,
-                                        lr_idx_height : lr_idx_height + lr_patch_size_height])
-            output_patches.append(hr_img[hr_idx_width : hr_idx_width + lr_patch_size_width * down_factor,
-                                        hr_idx_height : hr_idx_height + lr_patch_size_height * down_factor])
-
-    return input_patches, output_patches
-
-def create_complete_images( lr_path, hr_path, only_hr, 
-                           type_hr_data, only_hr_path, down_factor):
-    ''' Create a list of images patches out of a list of images
-    Args:
-        lr_path (string): low resolution (LR) image path (input images).
-        hr_path (string): high resolution (HR) image path (ground truth images).
-        only_hr (boolean): indicates if only HR images will be used.
-        type_hr_data (string): in case only HR images would be used, what type of data they would be (Electron microscopy or Fluorescence).
-        only_hr_path (string): in case only HR images would be used, HR image path (ground truth images).
-        down_factor (int): scale factor between LR and HR images. Example: 2.
-        
-    Returns:
-        list of image patches (LR) and patches of corresponding labels (HR)
-    '''
-
-    return create_random_patches(lr_path, hr_path, only_hr, type_hr_data,
-                                only_hr_path, down_factor, None, None)
-
+    return final_lr_patches, final_hr_patches
 
 # Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
@@ -279,96 +224,38 @@ class PytorchDataset(Dataset):
         the training batch, reducing the required RAM memory during 
         and after the training.
     '''
-    def __init__(self, 
-                 lr_patch_size_x, 
-                 lr_patch_size_y,
-                 down_factor,
-                 transf=None, 
-                 validation=False, 
-                 validation_split=None,
-                 hr_imgs_basedir="", 
-                 lr_imgs_basedir="",
-                 only_high_resolution_data=False,
-                 only_hr_imgs_basedir="",
-                 type_of_data="Electron microscopy"):
+    def __init__(self, hr_data_path, lr_data_path, filenames, 
+                 scale_factor, crappifier_name, lr_patch_shape, num_patches, 
+                 transformations):
 
-        if only_high_resolution_data:
-            used_hr_imgs_basedir = only_hr_imgs_basedir 
-        else: 
-            used_hr_imgs_basedir = hr_imgs_basedir
+        self.hr_data_path = hr_data_path
+        self.lr_data_path = lr_data_path
+        self.filenames = filenames
 
-        _, hr_extension = os.path.splitext(os.listdir(used_hr_imgs_basedir)[0])
+        self.transformations = transformations
+        self.scale_factor = scale_factor
+        self.crappifier_name = crappifier_name
+        self.lr_patch_shape = lr_patch_shape
 
-        hr_filenames = [used_hr_imgs_basedir + '/' + x for x in os.listdir(used_hr_imgs_basedir) if x.endswith(hr_extension)]
-        hr_filenames.sort()
-
-        if validation_split is not None:
-            val_files = int(len(hr_filenames) * validation_split)
-            if validation:
-                self.hr_img_names = hr_filenames[:val_files]
-            else:
-                self.hr_img_names = hr_filenames[val_files:]
-        else:
-            self.hr_img_names = hr_filenames
-
-        if not only_high_resolution_data:
-            _, lr_extension = os.path.splitext(os.listdir(lr_imgs_basedir)[0])
-
-            lr_filenames = [lr_imgs_basedir + '/' + x for x in os.listdir(lr_imgs_basedir) if x.endswith(lr_extension)]
-            lr_filenames.sort()
-
-            if validation_split is not None:
-                val_lr_files = int(len(lr_filenames) * validation_split)
-                if validation:
-                    self.lr_img_names = lr_filenames[:val_lr_files]
-                else:
-                    self.lr_img_names = lr_filenames[val_lr_files:]
-            else:
-                self.lr_img_names = lr_filenames
-
-        self.only_high_resolution_data = only_high_resolution_data
-
-        self.transf = transf
-        self.down_factor = down_factor
-        self.type_of_data = type_of_data
-
-        self.lr_patch_size_x = lr_patch_size_x
-        self.lr_patch_size_y = lr_patch_size_y
-        self.hr_patch_size_x = lr_patch_size_x * down_factor
-        self.hr_patch_size_y = lr_patch_size_y * down_factor
-
-        self.lr_shape = io.imread(self.hr_img_names[0]).shape[0]//down_factor
+        self.num_patches = num_patches
 
     def __len__(self):
-        return len(self.hr_img_names) * (self.lr_shape//self.lr_patch_size_x)**2
+        return self.num_patches * len(self.filenames)
 
     def __getitem__(self, idx):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img_idx = idx // (self.lr_shape//self.lr_patch_size_x)**2
-        
-        hr_img = img_as_float32(io.imread(self.hr_img_names[img_idx]))
-        
-        if self.only_high_resolution_data:
-            lr_img = hr_to_lr(hr_img, self.down_factor, self.type_of_data)
-        else:
-            lr_img = img_as_float32(io.imread(self.lr_img_names[img_idx]))
+        filename_idx = idx // self.num_patches
+        hr_filename = os.path.join(self.hr_data_path, self.filenames[filename_idx])
+        lr_filename = os.path.join(self.lr_data_path, self.filenames[filename_idx])
 
-        lr_idx_x = np.random.randint(0, max(1, lr_img.shape[0] - self.lr_patch_size_x))
-        lr_idx_y = np.random.randint(0, max(1, lr_img.shape[1] - self.lr_patch_size_y))
+        hr_img, lr_img = extract_random_patches_from_image(hr_filename, lr_filename, 
+                                    self.scale_factor, self.crappifier_name, 
+                                    self.lr_patch_shape, 1)
 
-        lr_patch = lr_img[lr_idx_x : lr_idx_x + self.lr_patch_size_x, 
-                          lr_idx_y : lr_idx_y + self.lr_patch_size_y]
-        lr_patch = lr_patch[:,:,np.newaxis]
-
-        hr_idx_x = lr_idx_x * self.down_factor
-        hr_idx_y = lr_idx_y * self.down_factor
-
-        hr_patch = hr_img[hr_idx_x : hr_idx_x + self.hr_patch_size_x, 
-                          hr_idx_y : hr_idx_y + self.hr_patch_size_x]
-
-        hr_patch = hr_patch[:,:,np.newaxis]
+        lr_patch = np.expand_dims(lr_patch[0], axis=-1)
+        hr_patch = np.expand_dims(hr_patch[0], axis=-1)
 
         sample = {'hr': hr_patch, 'lr': lr_patch}
 

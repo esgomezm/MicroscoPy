@@ -90,26 +90,6 @@ def send_email(user, pwd, recipient, subject, body):
     except:
         print("failed to send mail")
 
-# Create corresponding training patches synthetically by adding noise
-# and downsampling the images (see https://www.biorxiv.org/content/10.1101/740548v3)
-def em_crappify(img, scale):
-    img = filters.gaussian(img, sigma=3) + 1e-6
-    return transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
-
-def fluo_crappify(img,scale):
-    img = random_noise(img, mode='salt', amount=0.005)
-    img = random_noise(img, mode='pepper', amount=0.005)
-    img = filters.gaussian(img, sigma=5) + 1e-10
-    return transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
-
-def hr_to_lr(hr_img, down_factor, type_of_data):
-    if type_of_data == "Electron microscopy":
-        lr_img = em_crappify(hr_img, down_factor)
-    else:
-        lr_img = fluo_crappify(hr_img, down_factor)
-    return lr_img
-
-
 def get_emb(sin_inp):
     """
     Gets a base embedding for one dimension with sin and cos intertwined
