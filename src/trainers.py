@@ -170,7 +170,7 @@ class TensorflowTrainer(ModelsTrainer):
                  verbose=0
                 ):
         
-        super().__init__(self, data_name, 
+        super().__init__(data_name, 
                  train_lr_path, train_hr_path, 
                  val_lr_path, val_hr_path,
                  test_lr_path, test_hr_path,
@@ -418,7 +418,7 @@ class PytorchTrainer(ModelsTrainer):
                  verbose=0, gpu_id=0
                 ):
         
-        super().__init__(self, data_name, 
+        super().__init__(data_name, 
                  train_lr_path, train_hr_path, 
                  val_lr_path, val_hr_path,
                  test_lr_path, test_hr_path,
@@ -625,7 +625,7 @@ def train_configuration(data_name,
                 ):
     
     if model_name in ['wgan', 'esrganplus']:
-        model_trainer = PytorchTrainer(self, data_name, 
+        model_trainer = PytorchTrainer(data_name, 
                  train_lr_path, train_hr_path, 
                  val_lr_path, val_hr_path,
                  test_lr_path, test_hr_path,
@@ -642,7 +642,7 @@ def train_configuration(data_name,
                  verbose=verbose, gpu_id=gpu_id
                 )
     elif model_name in ['rcan', 'dfcan', 'wdsr', 'unet']:
-        model_trainer = TensorflowTrainer(self, data_name, 
+        model_trainer = TensorflowTrainer(data_name, 
                  train_lr_path, train_hr_path, 
                  val_lr_path, val_hr_path,
                  test_lr_path, test_hr_path,
