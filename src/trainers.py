@@ -5,6 +5,7 @@ import os
 
 from skimage import io
 
+import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
 
@@ -280,9 +281,9 @@ class TensorflowTrainer(ModelsTrainer):
         self.val_generator=val_generator
     
     def configure_model(self):
-        
         self.optim = select_optimizer(library_name=self.library_name, optimizer_name=self.optimizer_name, 
-                                      learning_rate=self.learning_rate, additional_configuration=self.model_configuration)
+                                      learning_rate=self.learning_rate, check_point=None,
+                                      parameters=None, additional_configuration=self.model_configuration)
             
         model = select_model(model_name=self.model_name, input_shape=self.input_data_shape, output_channels=self.output_data_shape[-1], 
                              scale_factor=self.scale_factor, model_configuration=self.model_configuration)
@@ -305,10 +306,10 @@ class TensorflowTrainer(ModelsTrainer):
     
     
     def train_model(self):
-        
         lr_schedule = select_lr_schedule(library_name=self.library_name, lr_scheduler_name=self.lr_scheduler_name, 
                                          input_shape=self.input_data_shape, batch_size=self.batch_size, 
                                          number_of_epochs=self.number_of_epochs, learning_rate=self.learning_rate,
+                                         monitor_loss=None, name=None, optimizer=None, frequency=None,
                                          additional_configuration=self.model_configuration)
         
         model_checkpoint = tf_ModelCheckpoint(os.path.join(self.saving_path, 'weights_best.h5'), 
@@ -367,7 +368,8 @@ class TensorflowTrainer(ModelsTrainer):
             lr_images = concatenate_encoding(lr_images, self.model_configuration['others']['positional_encoding_channels'])
             
         optim = select_optimizer(library_name=self.library_name, optimizer_name=self.optimizer_name, 
-                                      learning_rate=self.learning_rate, additional_configuration=self.model_configuration)
+                                 learning_rate=self.learning_rate, check_point=None,
+                                 parameters=None, additional_configuration=self.model_configuration)
 
         model = select_model(model_name=self.model_name, input_shape=lr_images.shape, output_channels=hr_images.shape[-1],
                              scale_factor=self.scale_factor, batch_size=self.batch_size, 
