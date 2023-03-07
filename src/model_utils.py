@@ -5,6 +5,8 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau
 from model import rcan, dfcan, wdsr, unet, wgan, esrganplus
 from tensorflow_callbacks import OneCycleScheduler, MultiStepScheduler
 
+import torch
+
 ######
   
 
@@ -98,11 +100,11 @@ def select_model(model_name, input_shape, output_channels, scale_factor, model_c
 
 #######
 
-def select_optimizer(library_name, optimizer_name, learning_rate, additional_configuration):
+def select_optimizer(library_name, optimizer_name, learning_rate, check_point, parameters, additional_configuration):
     if library_name == 'tensorflow':
         return select_tensorflow_optimizer(optimizer_name, learning_rate, additional_configuration)
     elif library_name == 'pytorch':
-        return select_pytorch_optimizer(optimizer_name, learning_rate, additional_configuration)
+        return select_pytorch_optimizer(optimizer_name, learning_rate, check_point, parameters, additional_configuration)
     else:
         raise Exception("Wrong library name.")
         
@@ -131,32 +133,49 @@ def select_tensorflow_optimizer(optimizer_name, learning_rate, additional_config
     else:
         raise Exception("No available optimizer.")
 
-def select_pytorch_optimizer(optimizer_name, learning_rate, additional_configuration):
-    pass
+def select_pytorch_optimizer(optimizer_name, learning_rate, check_point, parameters, additional_configuration):
+    
+    if check_point is None:
+        if optimizer_name == 'Adam':
+            return torch.optim.Adam(parameters, lr=learning_rate, betas=(additional_configuration['optim']['adam']['beta1'],
+                                                                         additional_configuration['optim']['adam']['beta2']))
+        elif optimizer_name == 'RMSprop':
+            return torch.optim.RMSprop(parameters, lr=learning_rate)
+        else:
+            raise Exception("No available optimizer.")
+    else:
+        if optimizer_name == 'Adam':
+            return torch.optim.Adam(parameters)
+        elif optimizer_name == 'RMSprop':
+            return torch.optim.RMSprop(parameters)
+        else:
+            raise Exception("No available optimizer.")
 
 #######
 
-def select_lr_schedule(library_name, lr_scheduler_name, input_shape, batch_size, number_of_epochs, learning_rate, additional_configuration):
+def select_lr_schedule(library_name, lr_scheduler_name, data_len, number_of_epochs, learning_rate, 
+                       monitor_loss, name, optimizer, frequency, additional_configuration):
     if library_name == 'tensorflow':
-        return select_tensorflow_lr_schedule(lr_scheduler_name, input_shape, batch_size, number_of_epochs, learning_rate, additional_configuration)
+        return select_tensorflow_lr_schedule(lr_scheduler_name, data_len, number_of_epochs, learning_rate, 
+                                             monitor_loss, additional_configuration)
     elif library_name == 'pytorch':
-        return select_pytorch_lr_schedule(lr_scheduler_name, input_shape, batch_size, number_of_epochs, learning_rate, additional_configuration)
+        return select_pytorch_lr_schedule(lr_scheduler_name, data_len, number_of_epochs, learning_rate, 
+                                          monitor_loss, name, optimizer, frequency, additional_configuration)
     else:
         raise Exception("Wrong library name.")
 
-
-def select_tensorflow_lr_schedule(lr_scheduler_name, input_shape, batch_size, number_of_epochs, 
-                                  learning_rate, additional_configuration):
+def select_tensorflow_lr_schedule(lr_scheduler_name, data_len, number_of_epochs, 
+                                  learning_rate, monitor_loss, additional_configuration):
     if lr_scheduler_name == 'OneCycle':
-        steps = np.ceil(input_shape[0] / batch_size) * number_of_epochs
+        steps = data_len * number_of_epochs
         return OneCycleScheduler(learning_rate, steps)
     elif lr_scheduler_name == 'ReduceOnPlateau':
-        return ReduceLROnPlateau(monitor=additional_configuration['optim']['ReduceOnPlateau']['monitor'],
+        return ReduceLROnPlateau(monitor=monitor_loss,
         			factor=additional_configuration['optim']['ReduceOnPlateau']['factor'], 
         			patience=additional_configuration['optim']['ReduceOnPlateau']['patience'], 
-                    		min_lr=(learning_rate/10))
+                    min_lr=(learning_rate/10))
     elif lr_scheduler_name == 'CosineDecay':
-        decay_steps = np.ceil(input_shape[0] / batch_size) * number_of_epochs
+        decay_steps = data_len * number_of_epochs
         return tf.keras.optimizers.schedules.CosineDecay(learning_rate, decay_steps, alpha=0.0, name=None)
     elif lr_scheduler_name == 'MultiStepScheduler':
         return MultiStepScheduler(learning_rate,
@@ -165,7 +184,34 @@ def select_tensorflow_lr_schedule(lr_scheduler_name, input_shape, batch_size, nu
     elif lr_scheduler_name is None:
         return None
     else:
-        raise Exception("Not available LR Scheduler.")  
+        raise Exception("Not available Learning rate Scheduler.")  
 
-def select_pytorch_lr_schedule(lr_scheduler_name, input_shape, batch_size, number_of_epochs, learning_rate, additional_configuration):
-    pass
+def select_pytorch_lr_schedule(lr_scheduler_name, data_len, number_of_epochs, 
+                               learning_rate, monitor_loss, name, optimizer, frequency, additional_configuration):
+    
+    if lr_scheduler_name == 'OneCycle':
+        return {'scheduler': torch.optim.lr_scheduler.OneCycleLR(
+                optimizer, 
+				learning_rate, 
+				epochs=number_of_epochs, 
+				steps_per_epoch=data_len//frequency
+				),
+                'interval': 'step',
+                'name': name,
+                'frequency': frequency
+				}
+    elif lr_scheduler_name == 'ReduceOnPlateau':
+        return {'scheduler': torch.optim.lr_scheduler.ReduceLROnPlateau(
+                optimizer,
+                mode='min',
+                factor=additional_configuration['optim']['ReduceOnPlateau']['factor'],
+                patience=additional_configuration['optim']['ReduceOnPlateau']['patience'],
+                min_lr=(learning_rate/10)
+                ),
+                'interval': 'epoch',
+                'name': name,
+                'monitor': monitor_loss,
+                'frequency': frequency
+				}
+    else:
+        raise Exception("Not available Learning rate Scheduler.")  

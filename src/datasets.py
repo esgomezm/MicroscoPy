@@ -39,15 +39,15 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 
     hr_img, lr_img = read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name)
     
-    if lr_img.shape[0] < lr_patch_shape[0] or hr_img.shape[0] < lr_patch_shape[0] * scale_factor:
-        raise ValueError('Patch size is bigger than the given images.')
-
     if lr_patch_shape is None:
         lr_patch_size_width = lr_img.shape[0]
         lr_patch_size_height = lr_img.shape[1]
     else: 
         lr_patch_size_width = lr_patch_shape[0]
         lr_patch_size_height = lr_patch_shape[1]
+
+    if lr_img.shape[0] < lr_patch_shape[0] or hr_img.shape[0] < lr_patch_shape[0] * scale_factor:
+        raise ValueError('Patch size is bigger than the given images.')
 
     hr_patch_size_width = lr_patch_size_width * scale_factor
     hr_patch_size_height = lr_patch_size_height * scale_factor

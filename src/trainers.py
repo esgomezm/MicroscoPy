@@ -565,30 +565,24 @@ class PytorchTrainer(ModelsTrainer):
         
     def predict_images(self):
         
-        _, extension = os.path.splitext(os.listdir(self.test_path)[0])
-    
-        filenames = [x for x in os.listdir(self.test_path) if x.endswith(extension)]
-        filenames.sort()
-        
-        hr_images = np.array([io.imread( self.test_path + '/' + fil) for fil in filenames])
+        hr_images = np.array([io.imread(os.paath.join(self.test_hr_path, fil)) for fil in self.test_filenames])
     
         trainer = Trainer(gpus=1)
-    
-        dataset = PytorchDataset(lr_patch_size_x=hr_images.shape[1]//self.scale_factor, 
-                                lr_patch_size_y=hr_images.shape[2]//self.scale_factor, 
-                                scale_factor=self.scale_factor, transf=ToTensor(), 
-                                validation=False, 
-                                validation_split=0.0001, 
-                                only_high_resolution_data=True, 
-                                only_hr_imgs_basedir=self.test_path,
-                                type_of_data=self.type_of_data)
+
+        dataset = PytorchDataset(hr_data_path=self.test_hr_path,
+                                 lr_data_path=self.test_lr_path, 
+                                 filenames=self.test_filenames, 
+                                 scale_factor=self.scale_factor, 
+                                 crappifier_name=self.crappifier_method, 
+                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
+                                 num_patches=self.num_patches, 
+                                 transformations=ToTensor())
+
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
         
         data = iter(dataloader).next()
         predictions = trainer.predict(self.model, dataloaders=dataloader)
-        
-        susus = [np.expand_dims(np.squeeze(image.detach().numpy()),axis=-1) for image in predictions]
-        print(np.array(susus).shape)
+        predictions = np.array([np.expand_dims(np.squeeze(e.detach().numpy()),axis=-1) for e in predictions])
         
         if self.verbose:
             print_info('predict_images() - lr', data['lr'])
@@ -598,13 +592,13 @@ class PytorchTrainer(ModelsTrainer):
         os.makedirs(os.path.join(self.saving_path, 'predicted_images'), exist_ok=True)
                 
         for i, image  in enumerate(predictions):
-            image = np.expand_dims(np.squeeze(image.detach().numpy()),axis=-1)
-            tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+filenames[i], image, data_format=None, file_format=None)
+            tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+self.test_filenames[i], 
+                                                  image, data_format=None, file_format=None)
         print('Predicted images have been saved in: ' + self.saving_path + '/predicted_images')
         
-        self.Y_test = np.expand_dims(hr_images, axis=-1) / 255.0
-        self.predictions = np.array([np.clip(np.expand_dims(np.squeeze(e.detach().numpy()),axis=-1), a_min=0, a_max=1 ) for e in predictions])
-        
+        self.Y_test = np.expand_dims(hr_images, axis=-1)
+        self.predictions = predictions
+
         if self.verbose:
             print_info('predict_images() - self.Y_test', self.Y_test)
             print_info('predict_images() - self.predictions', self.predictions)

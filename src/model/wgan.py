@@ -8,6 +8,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
+from model_utils import select_optimizer, select_lr_schedule
+
 from pytorch_lightning.core import LightningModule
 from datasets import PytorchDataset, ToTensor
 from datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
@@ -37,7 +39,7 @@ class UpsampleBlock(nn.Module):
         return self.net(x)
         
 class GeneratorUpsample(nn.Module):
-    def __init__(self, n_residual=8, down_factor=4):
+    def __init__(self, n_residual=8, scale_factor=4):
         super(GeneratorUpsample, self).__init__()
         self.n_residual = n_residual
         self.conv1 = nn.Sequential(
@@ -53,7 +55,7 @@ class GeneratorUpsample(nn.Module):
             nn.PReLU()
         )
         
-        upsamples = [UpsampleBlock(64, 2) for x in range(int(np.log2(down_factor)))]
+        upsamples = [UpsampleBlock(64, 2) for x in range(int(np.log2(scale_factor)))]
         
         self.upsample = nn.Sequential(
             *upsamples,
@@ -74,12 +76,12 @@ class GeneratorUpsample(nn.Module):
         return torch.tanh(y)
 
 class GeneratorModule(LightningModule):
-    def __init__(self, n_residual=8, down_factor=4, lr=0.001):
+    def __init__(self, n_residual=8, scale_factor=4, lr=0.001):
         super(GeneratorModule, self).__init__()
         
         self.save_hyperparameters()
         
-        self.generator = GeneratorUpsample(n_residual=n_residual, down_factor=down_factor)
+        self.generator = GeneratorUpsample(n_residual=n_residual, scale_factor=scale_factor)
         
         self.l1loss = nn.L1Loss()
         
@@ -186,32 +188,34 @@ from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 class WGANGP(LightningModule):
     def __init__(self,
                g_layers: int = 5,
-               d_layers: int = 5,
                recloss: float = 10.0,
                lambda_gp: float = 10.0,
-               batchsize: int = 8,
+               n_critic_steps: int = 5,
+               num_patches: int = 4,
                lr_patch_size_x: int = 128,
                lr_patch_size_y: int = 128,
-               down_factor: int = 2,
+               batchsize: int = 8,
+               scale_factor: int = 2,
+               epochs: int = 151,
                learning_rate_d: float = 0.0001,
                learning_rate_g: float = 0.0001,
-               n_critic_steps: int = 5,
-               validation_split: float = 0.1,
-               epochs: int = 151,
-               rotation: bool = True,
-               horizontal_flip: bool = True,
-               vertical_flip: bool = True,
-               hr_imgs_basedir: str = "", 
-               lr_imgs_basedir: str ="",
-               only_high_resolution_data: bool = False,
-               only_hr_images_basedir: str = "",
-               type_of_data: str = "Electron microscopy",
-               gen_checkpoint: str = None, 
-               save_basedir: str = None,
                g_optimizer: str = "Adam",
                d_optimizer: str = "Adam",
                g_scheduler: str = "OneCycle",
-               d_scheduler: str = "OneCycle"
+               d_scheduler: str = "OneCycle",
+               rotation: bool = True,
+               horizontal_flip: bool = True,
+               vertical_flip: bool = True,
+               train_hr_path: str = "",
+               train_lr_path: str = "",
+               train_filenames: list = [],
+               val_hr_path: str = "",
+               val_lr_path: str = "",
+               val_filenames: list = [],
+               crappifier_method: str = "downsampleonly",
+               gen_checkpoint: str = None, 
+               save_basedir: str = None,
+               additonal_configuration: dict = {}
                ):
         super(WGANGP, self).__init__()
         
@@ -219,17 +223,15 @@ class WGANGP(LightningModule):
 
         if gen_checkpoint is not None:
             checkpoint = torch.load(gen_checkpoint)
-            self.generator = GeneratorModule(n_residual=checkpoint['n_residuals'], down_factor=checkpoint['down_factor'])
+            self.generator = GeneratorModule(n_residual=checkpoint['n_residuals'], scale_factor=checkpoint['scale_factor'])
             self.generator.load_state_dict(checkpoint['model_state_dict'])
             self.best_valid_loss = checkpoint['best_valid_loss']
         else:
-            self.generator = GeneratorModule(n_residual=g_layers, down_factor=down_factor)
+            self.generator = GeneratorModule(n_residual=g_layers, scale_factor=scale_factor)
             self.best_valid_loss = float('inf')
         
-        print('Simple discriminator')
         self.discriminator = Discriminator()
 
-        
         print('Generators parameters: {}'.format(sum(p.numel() for p in self.generator.parameters())))
         print('Discriminators parameters: {}'.format(sum(p.numel() for p in self.discriminator.parameters())))
         
@@ -238,7 +240,7 @@ class WGANGP(LightningModule):
         self.opt_g = None
         self.opt_d = None
 
-        if hr_imgs_basedir or lr_imgs_basedir or only_hr_images_basedir:
+        if train_hr_path or train_lr_path:
             self.len_data = self.train_dataloader().__len__()
 
     def save_model(self, filename):
@@ -247,7 +249,7 @@ class WGANGP(LightningModule):
                         'model_state_dict': self.generator.state_dict(),
                         'optimizer_state_dict': self.opt_g.state_dict(),
                         'n_residuals': self.hparams.g_layers,
-                        'down_factor': self.hparams.down_factor,
+                        'scale_factor': self.hparams.scale_factor,
                         'best_valid_loss': self.best_valid_loss
                         }, self.hparams.save_basedir + '/' + filename)
         else:
@@ -330,107 +332,42 @@ class WGANGP(LightningModule):
             return d_loss
 
     def configure_optimizers(self):
-        n_critic = self.hparams.n_critic_steps
+        self.opt_g = select_optimizer(library_name='pytorch', 
+                                      optimizer_name=self.hparams.g_optimizer, 
+                                      learning_rate=self.hparams.learning_rate_g, 
+                                      check_point=self.hparams.gen_checkpoint, 
+                                      parameters=self.generator.parameters(), 
+                                      additional_configuration=self.hparams.additonal_configuration)
 
-        if self.hparams.gen_checkpoint is not None:
-            if self.hparams.g_optimizer == "Adam":
-                print('Generator will use Adam optimizer.')
-                self.opt_g = torch.optim.Adam(self.generator.parameters())
-            elif self.hparams.g_optimizer == "RMSprop":
-                print('Generator will use RMSprop optimizer.')
-                self.opt_g = torch.optim.RMSprop(self.generator.parameters())
-            else:
-                raise Exception('Not correct optimizer selected for generator.')
-            
-            checkpoint = torch.load(self.hparams.gen_checkpoint)
-            self.opt_g.load_state_dict(checkpoint['optimizer_state_dict'])
-        else:
-            if self.hparams.g_optimizer == "Adam":
-                print('Generator will use Adam optimizer.')
-                self.opt_g = torch.optim.Adam(self.generator.parameters(), lr=self.hparams.learning_rate_g, betas=(0.5,0.9))
-            elif self.hparams.g_optimizer == "RMSprop":
-                print('Generator will use RMSprop optimizer.')
-                self.opt_g = torch.optim.RMSprop(self.generator.parameters(), lr=self.hparams.learning_rate_g)
-            else:
-                raise Exception('Not correct optimizer selected for generator.')
-    
-    
-        if self.hparams.d_optimizer == "Adam":
-            print('Discriminator will use Adam optimizer.')
-            self.opt_d = torch.optim.Adam(self.discriminator.parameters(), lr=self.hparams.learning_rate_d, betas=(0.5,0.9))
-        elif self.hparams.d_optimizer == "RMSprop":
-            print('Discriminator will use RMSprop optimizer.')
-            self.opt_d = torch.optim.RMSprop(self.discriminator.parameters(), lr=self.hparams.learning_rate_g)
-        else:
-            print(self.hparams.d_optimizer)
-            raise Exception('Not correct optimizer selected for discriminator.')
+        self.opt_d = select_optimizer(library_name='pytorch', 
+                                      optimizer_name=self.hparams.d_optimizer, 
+                                      learning_rate=self.hparams.learning_rate_d, 
+                                      check_point=None, 
+                                      parameters=self.discriminator.parameters(), 
+                                      additional_configuration=self.hparams.additonal_configuration)
 	    	   
-        #opt_g = torch.optim.RMSprop(self.generator.parameters(), lr=learning_rate)
+        sched_g = select_lr_schedule(library_name='pytorch',
+                                     lr_scheduler_name=self.hparams.g_scheduler,
+                                     data_len=self.len_data,
+                                     number_of_epochs=self.hparams.epochs,
+                                     learning_rate=self.hparams.learning_rate_g,
+                                     monitor_loss='val_g_loss',
+                                     name='g_lr',
+                                     optimizer=self.opt_g,
+                                     frequency=1,
+                                     additional_configuration=self.hparams.additonal_configuration)
 
-        if self.hparams.g_scheduler == "OneCycle":
-            print('Generator will use OneCycle scheduler')
-            sched_g = {
-						'scheduler': torch.optim.lr_scheduler.OneCycleLR(
-							self.opt_g, 
-							self.hparams.learning_rate_g, 
-							epochs=self.hparams.epochs, 
-							steps_per_epoch=self.len_data
-						),
-                        'interval': 'step',
-                        'name': 'g_lr',
-                        'frequency': 1
-						}
-        elif self.hparams.g_scheduler == "ReduceOnPlateau":
-            print('Generator will use ReduceOnPlateau scheduler')
-            sched_g = {
-                        'scheduler': torch.optim.lr_scheduler.ReduceLROnPlateau(
-                                self.opt_g,
-                                mode='min',
-                                factor=0.5,
-                                patience=10,
-                                min_lr=1e-6
-                        ),
-                        'interval': 'epoch',
-                        'name': 'g_lr',
-                        'monitor': 'val_g_loss',
-                        'frequency': 1
-						}
-
-        else:
-            raise("Not correct scheduler selected.")	
-	
-        if self.hparams.d_scheduler == "OneCycle":
-            print('Discriminator will use OneCycle scheduler')
-            sched_d = {
-                        'scheduler': torch.optim.lr_scheduler.OneCycleLR(
-                                    self.opt_d,
-                                    self.hparams.learning_rate_d,
-                                    epochs=self.hparams.epochs,
-                                    steps_per_epoch=self.len_data//n_critic
-                        ),
-                        'interval': 'step',
-                        'name': 'd_lr',
-                        'frequency': n_critic
-						}
-        elif self.hparams.d_scheduler == "ReduceOnPlateau":
-            print('Discriminator will use ReduceOnPlateau scheduler')
-            sched_d = {
-                        'scheduler': torch.optim.lr_scheduler.ReduceLROnPlateau(
-                                    self.opt_d,
-                                    mode='min',
-                                    factor=0.5,
-                                    patience=10,
-                                    min_lr=1e-6
-                        ),
-                        'interval': 'epoch',
-                        'name': 'd_lr',
-                        'monitor': 'val_g_loss',
-                        'frequency': n_critic
-						} 
-
-        else:
-            raise("Not correct scheduler selected.")	
-
+        sched_d = select_lr_schedule(library_name='pytorch',
+                                     lr_scheduler_name=self.hparams.d_scheduler,
+                                     data_len=self.len_data,
+                                     number_of_epochs=self.hparams.epochs,
+                                     learning_rate=self.hparams.learning_rate_d,
+                                     monitor_loss='val_g_loss',
+                                     name='d_lr',
+                                     optimizer=self.opt_d,
+                                     frequency=self.hparams.n_critic_steps,
+                                     additional_configuration=self.hparams.additonal_configuration)
+    
         return [self.opt_g, self.opt_d], [sched_g, sched_d]
 
     def validation_step(self, batch, batch_idx):
@@ -492,30 +429,28 @@ class WGANGP(LightningModule):
         transformations.append(ToTensor())
 
         transf = torchvision.transforms.Compose(transformations)
-
-        dataset = PytorchDataset(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y, 
-                            self.hparams.down_factor, transf=transf, validation=False, 
-                            validation_split=self.hparams.validation_split, 
-                            hr_imgs_basedir=self.hparams.hr_imgs_basedir, 
-                            lr_imgs_basedir=self.hparams.lr_imgs_basedir,
-                            only_high_resolution_data=self.hparams.only_high_resolution_data, 
-                            only_hr_imgs_basedir=self.hparams.only_hr_images_basedir,
-                            type_of_data=self.hparams.type_of_data)
+        
+        dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                 lr_data_path=self.hparams.train_lr_path,
+                                 filenames=self.hparams.train_filenames,
+                                 scale_factor=self.hparams.scale_factor,
+                                 crappifier_name=self.hparams.crappifier_method,
+                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                 num_patches=self.hparams.num_patches,
+                                 transformations=transf)
 
         return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=12)
         
     def val_dataloader(self):
         transf = ToTensor()
 
-        dataset = PytorchDataset(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y, 
-                            self.hparams.down_factor, transf=transf, validation=True, 
-                            validation_split=self.hparams.validation_split, 
-                            hr_imgs_basedir=self.hparams.hr_imgs_basedir,
-                            lr_imgs_basedir=self.hparams.lr_imgs_basedir,
-                            only_high_resolution_data=self.hparams.only_high_resolution_data, 
-                            only_hr_imgs_basedir=self.hparams.only_hr_images_basedir,
-                            type_of_data=self.hparams.type_of_data)
-
+        dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
+                                 lr_data_path=self.hparams.val_lr_path,
+                                 filenames=self.hparams.val_filenames,
+                                 scale_factor=self.hparams.scale_factor,
+                                 crappifier_name=self.hparams.crappifier_method,
+                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                 num_patches=self.hparams.num_patches,
+                                 transformations=transf)
+        
         return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False)#, num_workers=12)
-
-
