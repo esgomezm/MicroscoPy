@@ -2,10 +2,6 @@ import tensorflow as tf
 import numpy as np
 import os
 
-from skimage.util import random_noise
-from skimage import transform
-from skimage import filters
-
 import torch
 
 from tensorflow.keras.applications.vgg19 import VGG19
@@ -69,26 +65,6 @@ def print_info(image_name, data):
                                                                     np.mean(np_data)))
     except:
         print('{} \n\nNot same shapes'.format(image_name))
-
-def send_email(user, pwd, recipient, subject, body):
-    import smtplib
-    FROM = user
-    TO = recipient if isinstance(recipient, list) else [recipient]
-    SUBJECT = subject
-    TEXT = body
-
-    # Prepare actual message
-    message = """From: %s\nTo: %s\nSubject: %s\n\n%s
-    """ % (FROM, ", ".join(TO), SUBJECT, TEXT)
-    try:
-        server_ssl = smtplib.SMTP_SSL("smtp.gmail.com", 465)
-        server_ssl.ehlo()
-        server_ssl.login(user, pwd)
-        server_ssl.sendmail(FROM, TO, message)
-        server_ssl.close()
-        print('successfully sent the mail')
-    except:
-        print("failed to send mail")
 
 def get_emb(sin_inp):
     """

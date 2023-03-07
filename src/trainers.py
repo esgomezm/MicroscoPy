@@ -153,23 +153,39 @@ class ModelsTrainer:
 
 class TensorflowTrainer(ModelsTrainer):
     
-    def __init__(self, train_path, test_path, type_of_data,
-                 model_name, scale_factor, 
+    def __init__(self, data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches_x=None, num_patches_y=None, verbose=0):
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
+                 discriminator_optimizer=None, 
+                 discriminator_lr_scheduler=None,
+                 verbose=0
+                ):
         
-        super().__init__(train_path, test_path, type_of_data,
-                 model_name, scale_factor, 
+        super().__init__(self, data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
-                 model_configuration, seed, num_patches_x=num_patches_x,
-                 num_patches_y=num_patches_y, verbose=verbose)
+                 model_configuration, seed,
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
+                 discriminator_optimizer=discriminator_optimizer, 
+                 discriminator_lr_scheduler=discriminator_lr_scheduler,
+                 verbose=verbose
+                )
     
         self.library_name ='tensorflow'
     
@@ -385,26 +401,39 @@ class TensorflowTrainer(ModelsTrainer):
             
 
 class PytorchTrainer(ModelsTrainer):
-    def __init__(self, train_path, test_path, type_of_data,
-                 model_name, scale_factor, 
+    def __init__(self, data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
-                 optimizer, lr_scheduler, 
+                 optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 discriminator_optimizer, discriminator_lr_scheduler,
-                 gpu_id, num_patches_x=None, num_patches_y=None, verbose=0):
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
+                 discriminator_optimizer=None, 
+                 discriminator_lr_scheduler=None,
+                 verbose=0, gpu_id=0
+                ):
         
-        super().__init__(train_path, test_path, type_of_data,
-                 model_name, scale_factor, 
+        super().__init__(self, data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
-                 optimizer, lr_scheduler, 
+                 optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
-                 model_configuration, seed, 
-                 discriminator_optimizer, discriminator_lr_scheduler,
-                 num_patches_x=num_patches_x, num_patches_y=num_patches_y, 
-                 verbose=verbose)
+                 model_configuration, seed,
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
+                 discriminator_optimizer=discriminator_optimizer, 
+                 discriminator_lr_scheduler=discriminator_lr_scheduler,
+                 verbose=verbose
+                )
         
         self.gpu_id = gpu_id
         
@@ -427,7 +456,6 @@ class PytorchTrainer(ModelsTrainer):
         
         
         if self.verbose:
-    
             data = iter(model.train_dataloader()).next()
 
             print('LR patch shape: {}'.format(data['lr'][0][0].shape))
@@ -579,39 +607,57 @@ class PytorchTrainer(ModelsTrainer):
         assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
     
  
-def train_configuration(train_path, test_path, type_of_data,
-                        model_name, scale_factor, 
-                        number_of_epochs, batch_size, learning_rate,
-                        discriminator_learning_rate, 
-                        optimizer, lr_scheduler, 
-                        test_metric_indexes, additional_folder, 
-                        model_configuration, seed,
-                        discriminator_optimizer, discriminator_lr_scheduler,
-                        gpu_id, num_patches_x, num_patches_y, verbose=0):
+def train_configuration(data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
+                 number_of_epochs, batch_size, 
+                 learning_rate, discriminator_learning_rate, 
+                 optimizer_name, lr_scheduler_name, 
+                 test_metric_indexes, additional_folder, 
+                 model_configuration, seed,
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
+                 discriminator_optimizer=None, 
+                 discriminator_lr_scheduler=None,
+                 verbose=0, gpu_id=0
+                ):
     
     if model_name in ['wgan', 'esrganplus']:
-        model_trainer = PytorchTrainer(train_path, test_path, type_of_data,
-                                    model_name, scale_factor, 
-                                    number_of_epochs, batch_size, learning_rate, 
-                                    discriminator_learning_rate, 
-                                    optimizer, lr_scheduler, 
-                                    test_metric_indexes, additional_folder, 
-                                    model_configuration, seed,
-                                    discriminator_optimizer=discriminator_optimizer, 
-                                    discriminator_lr_scheduler=discriminator_lr_scheduler,
-                                    gpu_id=gpu_id, 
-                                    num_patches_x=num_patches_x, num_patches_y=num_patches_y,
-                                    verbose=verbose)
+        model_trainer = PytorchTrainer(self, data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
+                 number_of_epochs, batch_size, 
+                 learning_rate, discriminator_learning_rate, 
+                 optimizer_name, lr_scheduler_name, 
+                 test_metric_indexes, additional_folder, 
+                 model_configuration, seed,
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
+                 discriminator_optimizer=discriminator_optimizer, 
+                 discriminator_lr_scheduler=discriminator_lr_scheduler,
+                 verbose=verbose, gpu_id=gpu_id
+                )
     elif model_name in ['rcan', 'dfcan', 'wdsr', 'unet']:
-        model_trainer = TensorflowTrainer(train_path, test_path, type_of_data,
-                               model_name, scale_factor, 
-                               number_of_epochs, batch_size, learning_rate, 
-                               discriminator_learning_rate, 
-                               optimizer, lr_scheduler, 
-                               test_metric_indexes, additional_folder, 
-                               model_configuration, seed,
-                               num_patches_x=num_patches_x, num_patches_y=num_patches_y,
-                               verbose=verbose)
+        model_trainer = TensorflowTrainer(self, data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
+                 number_of_epochs, batch_size, 
+                 learning_rate, discriminator_learning_rate, 
+                 optimizer_name, lr_scheduler_name, 
+                 test_metric_indexes, additional_folder, 
+                 model_configuration, seed,
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
+                 discriminator_optimizer=discriminator_optimizer, 
+                 discriminator_lr_scheduler=discriminator_lr_scheduler,
+                 verbose=verbose, 
+                )
     else:
         raise Exception("Not available model.") 
         
