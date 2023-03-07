@@ -103,31 +103,12 @@ def undo_normalization(data, original_type):
     return norm_data
 
 def standarization(data, mean, std):
-    # CAUTION: using standarization can loss precision in your data
+    # CAREFUL: using standarization can loss precision in your data
     #          due to the appñied division and the floating-point values
     return (data - mean)/std
 
 def undo_standarization(data, mean, std):
     return data*std + mean
-
-def normalize_standarize_data(data):
-    # CAUTION: using standarization can loss precision in your data
-    #          due to the appñied division and the floating-point values
-    data_mean = np.mean(data)
-    data_std = np.std(data)
-    data_original_type = data.dtype
-
-    normalized_data = normalization(data)
-    standarized_data = standarization(normalized_data, data_mean, data_std)
-
-    return  standarized_data, data_mean, data_std, data_original_type
-
-def undo_normalize_standarize_data(data, mean, std, original_type):
-
-    unstandardized_data = undo_standarization(data, mean, std)
-    denormalized_data = undo_normalization(unstandardized_data, original_type)
-
-    return  denormalized_data
 
 # Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
@@ -288,7 +269,7 @@ class PytorchDataset(Dataset):
         hr_filename = os.path.join(self.hr_data_path, self.filenames[filename_idx])
         lr_filename = os.path.join(self.lr_data_path, self.filenames[filename_idx])
 
-        hr_img, lr_img = extract_random_patches_from_image(hr_filename, lr_filename, 
+        hr_patch, lr_patch = extract_random_patches_from_image(hr_filename, lr_filename, 
                                     self.scale_factor, self.crappifier_name, 
                                     self.lr_patch_shape, 1)
 
