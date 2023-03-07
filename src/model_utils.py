@@ -8,28 +8,28 @@ from tensorflow_callbacks import OneCycleScheduler, MultiStepScheduler
 ######
   
 
-def select_model(model_name, input_shape, output_channels, down_factor, model_configuration):
+def select_model(model_name, input_shape, output_channels, scale_factor, model_configuration):
         
     if model_name == 'rcan':
-        return rcan.rcan(n_sub_block=int(np.log2(down_factor)), 
+        return rcan.rcan(n_sub_block=int(np.log2(scale_factor)), 
                      filters=model_configuration['rcan']['num_filters'], 
                      out_channels = 1)
         
     elif model_name == 'dfcan':
-        return dfcan.DFCAN((input_shape[1:]), scale=down_factor, 
+        return dfcan.DFCAN((input_shape[1:]), scale=scale_factor, 
                             n_ResGroup = model_configuration['dfcan']['n_ResGroup'], 
                             n_RCAB = model_configuration['dfcan']['n_RCAB'])
 
     elif model_name == 'wdsr':
         # Custom WDSR B model (0.62M parameters)
-        return wdsr.wdsr_b(scale=down_factor, num_res_blocks=model_configuration['wdsr']['num_res_blocks'])
+        return wdsr.wdsr_b(scale=scale_factor, num_res_blocks=model_configuration['wdsr']['num_res_blocks'])
         
     elif model_name == 'unet':
         return unet.preResUNet( output_channels=output_channels,
                             numInitChannels=model_configuration['unet']['init_channels'], 
                             image_shape = input_shape[1:], 
                             depth = model_configuration['unet']['depth'],
-                            upsampling_factor = down_factor, 
+                            upsampling_factor = scale_factor, 
                             maxpooling=model_configuration['unet']['maxpooling'],
                             upsample_method=model_configuration['unet']['upsample_method'], 
                             final_activation = 'linear')
@@ -42,7 +42,7 @@ def select_model(model_name, input_shape, output_channels, down_factor, model_co
             batchsize=batch_size,
     		lr_patch_size_x=lr_patch_size_x,
     		lr_patch_size_y=lr_patch_size_y,
-            down_factor=down_factor,
+            scale_factor=scale_factor,
             recloss=model_configuration['wgan']['recloss'],
             lambda_gp=model_configuration['wgan']['lambda_gp'],
             learning_rate_g=learning_rate_g,
@@ -70,7 +70,7 @@ def select_model(model_name, input_shape, output_channels, down_factor, model_co
         return esrganplus.ESRGANplus(batchsize=batch_size,
                                     lr_patch_size_x=lr_patch_size_x,
                                     lr_patch_size_y=lr_patch_size_y,
-                                    down_factor=down_factor,
+                                    scale_factor=scale_factor,
                                     learning_rate_d=learning_rate_d,
                                     learning_rate_g=learning_rate_g,
                                     n_critic_steps=model_configuration['esrganplus']['n_critic_steps'],
