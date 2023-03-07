@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import Dataset
 from skimage import io
 
-#from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from skimage import transform
