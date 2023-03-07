@@ -62,7 +62,7 @@ discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'Cosine
 
 crappifier_method = 'downsampleonly'
 
-model_name = 'wgan' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
+model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 2
 number_of_epochs = 5

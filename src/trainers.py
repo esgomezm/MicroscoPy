@@ -207,14 +207,15 @@ class TensorflowTrainer(ModelsTrainer):
         Y_train = normalization(Y_train)
 
         if self.verbose:
-            print('train data shape: {}'.format(train_patches_gt[0].shape))
-            print('HR: max={} min={}'.format(np.max(train_patches_gt[0]), np.min(train_patches_gt[0])))
-            print('LR: max={} min={}'.format(np.max(train_patches_wf[0]), np.min(train_patches_wf[0])))
-            print('Input shape: {}'.format(X_train.shape))
-            print('Output shape: {}'.format(Y_train.shape))
+            print('Original data:')
+            print('HR - shape:{} max:{} min:{} dtype:{}'.format(train_patches_gt.shape, np.max(train_patches_gt[0]), np.min(train_patches_gt[0]), train_patches_gt.dtype))
+            print('LR - shape:{} max:{} min:{} dtype:{}'.format(train_patches_wf.shape, np.max(train_patches_wf[0]), np.min(train_patches_wf[0]), train_patches_wf.dtype))
+            print('After preprocessing:')
+            print('HR - shape:{} max:{} min:{} dtype:{}'.format(Y_train.shape, np.max(Y_train[0]), np.min(Y_train[0]), Y_train.dtype))
+            print('LR - shape:{} max:{} min:{} dtype:{}'.format(X_train.shape, np.max(X_train[0]), np.min(X_train[0]), X_train.dtype))
         
-        assert np.max(train_patches_gt[0]) <= 1.0 and np.max(train_patches_wf[0]) <= 1.0
-        assert np.min(train_patches_gt[0]) >= 0.0 and np.min(train_patches_wf[0]) >= 0.0            
+        assert np.max(X_train[0]) <= 1.0 and np.max(Y_train[0]) <= 1.0
+        assert np.min(X_train[0]) >= 0.0 and np.min(Y_train[0]) >= 0.0            
         assert len(X_train.shape) == 4 and len(Y_train.shape) == 4
 
         if self.model_configuration['others']['positional_encoding']:
@@ -242,8 +243,8 @@ class TensorflowTrainer(ModelsTrainer):
             if self.model_configuration['others']['positional_encoding']:
                 X_val = concatenate_encoding(X_val, self.model_configuration['others']['positional_encoding_channels'])
 
-            assert np.max(val_patches_gt[0]) <= 1.0 and np.max(val_patches_wf[0]) <= 1.0
-            assert np.min(val_patches_gt[0]) >= 0.0 and np.min(val_patches_wf[0]) >= 0.0            
+            assert np.max(Y_val[0]) <= 1.0 and np.max(X_val[0]) <= 1.0
+            assert np.min(Y_val[0]) >= 0.0 and np.min(X_val[0]) >= 0.0            
             assert len(X_val.shape) == 4 and len(Y_val.shape) == 4
         
         self.input_data_shape = X_train.shape
