@@ -4,8 +4,6 @@ import time
 import csv
 import os 
 
-from skimage import img_as_float32
-from skimage import color
 from skimage import io
 
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
@@ -16,8 +14,8 @@ from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.loggers import CSVLogger
 from torch.utils.data import DataLoader
 
-from datasets import extract_random_patches_from_folder, get_generator, get_train_val_generators, PytorchDataset, ToTensor
-from utils import set_seed, print_info, hr_to_lr, concatenate_encoding
+from datasets import extract_random_patches_from_folder, normalization, undo_normalization, get_generator, get_train_val_generators, PytorchDataset, ToTensor
+from utils import set_seed, print_info, concatenate_encoding
 from utils import ssim_loss
 from metrics import obtain_metrics
 from model_utils import select_model, select_optimizer, select_lr_schedule
@@ -197,12 +195,17 @@ class TensorflowTrainer(ModelsTrainer):
                                                 filenames=self.train_filenames, 
                                                 scale_factor=self.scale_factor, 
                                                 crappifier_name=self.crappifier_method, 
-                                                lr_patch_shape=(self.patch_size_x, self.patch_size_y), 
+                                                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
                                                 num_patches=self.num_patches)
 
         X_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_wf])
         Y_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_gt])
             
+        self.train_dtype = X_train.dtype
+
+        X_train = normalization(X_train)
+        Y_train = normalization(Y_train)
+
         if self.verbose:
             print('train data shape: {}'.format(train_patches_gt[0].shape))
             print('HR: max={} min={}'.format(np.max(train_patches_gt[0]), np.min(train_patches_gt[0])))
@@ -225,12 +228,17 @@ class TensorflowTrainer(ModelsTrainer):
                                                 filenames=self.val_filenames, 
                                                 scale_factor=self.scale_factor, 
                                                 crappifier_name=self.crappifier_method, 
-                                                lr_patch_shape=(self.patch_size_x, self.patch_size_y), 
+                                                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
                                                 num_patches=self.num_patches)            
 
             X_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_wf])
             Y_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_gt])
-                
+            
+            self.val_dtype = X_train.dtype
+
+            X_val = normalization(X_val)
+            Y_val = normalization(Y_val)
+
             if self.model_configuration['others']['positional_encoding']:
                 X_val = concatenate_encoding(X_val, self.model_configuration['others']['positional_encoding_channels'])
 
@@ -355,6 +363,11 @@ class TensorflowTrainer(ModelsTrainer):
     
         hr_images = np.expand_dims(hr_images, axis=-1)
         lr_images = np.expand_dims(lr_images, axis=-1)
+
+        self.test_dtype = hr_images.dtype
+
+        hr_images = normalization(hr_images)
+        lr_images = normalization(lr_images)
         
         if self.model_configuration['others']['positional_encoding']:
             lr_images = concatenate_encoding(lr_images, self.model_configuration['others']['positional_encoding_channels'])
@@ -382,22 +395,27 @@ class TensorflowTrainer(ModelsTrainer):
         
         predictions = model.predict(lr_images, batch_size=1)
     
-        os.makedirs(self.saving_path + '/predicted_images', exist_ok=True)
-                
-        for i, image  in enumerate(predictions):
-          tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+filenames[i], image, 
-                                                data_format=None, file_format=None)
-        print('Predicted images have been saved in: ' + self.saving_path + '/predicted_images')
-        
         self.Y_test = hr_images
         self.predictions = np.clip(predictions, a_min=0, a_max=1)
         
         assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
         assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
-        
+
         if self.verbose:
             print_info('predict_images() - Y_test', self.Y_test)
             print_info('predict_images() - predictions', self.predictions)
+
+        # Save the predictions
+
+        predictions = undo_normalization(predictions, self.test_dtype)
+
+        os.makedirs(self.saving_path + '/predicted_images', exist_ok=True)
+                
+        for i, image  in enumerate(predictions):
+          tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+self.test_filenames[i], image, 
+                                                data_format=None, file_format=None)
+        print('Predicted images have been saved in: ' + self.saving_path + '/predicted_images')
+        
             
 
 class PytorchTrainer(ModelsTrainer):
@@ -558,7 +576,7 @@ class PytorchTrainer(ModelsTrainer):
         filenames = [x for x in os.listdir(self.test_path) if x.endswith(extension)]
         filenames.sort()
         
-        hr_images = np.array([img_as_float32(io.imread( self.test_path + '/' + fil)) for fil in filenames])
+        hr_images = np.array([io.imread( self.test_path + '/' + fil) for fil in filenames])
     
         trainer = Trainer(gpus=1)
     
