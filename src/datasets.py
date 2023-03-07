@@ -173,6 +173,49 @@ def get_train_val_generators(X_data, Y_data, validation_split=0.25,
 
     return train_generator, test_generator
 
+def get_generator(X_data, Y_data, batch_size=32, seed=42, 
+                  show_examples=False,rotation=True, 
+                  horizontal_flip=True, vertical_flip=True):
+
+    random_rotation=random_90rotation
+    if not rotation:
+        random_rotation=None
+
+    # Image data generator distortion options
+    data_gen_args = dict( preprocessing_function=random_rotation,
+                        horizontal_flip=horizontal_flip,
+                        vertical_flip=vertical_flip,
+                        fill_mode='reflect')
+
+    # Train data, provide the same seed and keyword arguments to the fit and flow methods
+    X_datagen = ImageDataGenerator(**data_gen_args)
+    Y_datagen = ImageDataGenerator(**data_gen_args)
+    X_datagen.fit(X_data, augment=True, seed=seed)
+    Y_datagen.fit(Y_data, augment=True, seed=seed)
+    X_train_augmented = X_datagen.flow(X_data, batch_size=batch_size, shuffle=True, seed=seed)
+    Y_train_augmented = Y_datagen.flow(Y_data, batch_size=batch_size, shuffle=True, seed=seed)
+
+    if show_examples:
+        plt.figure(figsize=(10,10))
+        # generate samples and plot
+        for i in range(9):
+            # define subplot
+            plt.subplot(330 + 1 + i)
+            # generate batch of images
+            batch = X_train_augmented.next()
+            # convert to unsigned integers for viewing
+            image = batch[0]
+            # plot raw pixel data
+            plt.imshow(image[:,:,0], vmin=0, vmax=1, cmap='gray')
+        # show the figure
+        plt.show()
+        X_train_augmented.reset()
+  
+    # combine generators into one which yields image and masks
+    train_generator = zip(X_train_augmented, Y_train_augmented)
+
+    return train_generator
+
 #### Pytorch dataset ####
 
 class ToTensor(object):

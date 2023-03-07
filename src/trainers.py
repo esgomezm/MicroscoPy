@@ -16,7 +16,7 @@ from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.loggers import CSVLogger
 from torch.utils.data import DataLoader
 
-from datasets import create_patches, get_train_val_generators, PytorchDataset, ToTensor
+from datasets import extract_random_patches_from_folder, get_generator, get_train_val_generators, PytorchDataset, ToTensor
 from utils import set_seed, print_info, hr_to_lr, concatenate_encoding
 from utils import ssim_loss
 from metrics import obtain_metrics
@@ -25,42 +25,69 @@ from model_utils import select_model, select_optimizer, select_lr_schedule
 #######
 
 class ModelsTrainer:
-    def __init__(self, train_path, test_path, type_of_data,
-                 model_name, down_factor, 
+    def __init__(self, data_name, 
+                 train_lr_path, train_hr_path, 
+                 val_lr_path, val_hr_path,
+                 test_lr_path, test_hr_path,
+                 crappifier_method, model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
+                 num_patches, patch_size_x, patch_size_y, 
+                 validation_split, data_augmentation,
                  discriminator_optimizer=None, 
                  discriminator_lr_scheduler=None,
-                 num_patches_x=None, num_patches_y=None, verbose=0
+                 verbose=0
                 ):
+
+        self.data_name = data_name
+
+        self.train_lr_path = train_lr_path
+        self.train_hr_path = train_hr_path
+        train_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.train_hr_path)]
+        train_extension = max(set(train_extension_list), key = train_extension_list.count)
+        self.train_filenames = [x for x in os.listdir(self.train_hr_path) if x.endswith(train_extension)]
+
+        self.val_lr_path = val_lr_path
+        self.val_hr_path = val_hr_path
+        val_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.val_hr_path)]
+        val_extension = max(set(val_extension_list), key = val_extension_list.count)
+        self.val_filenames = [x for x in os.listdir(self.val_hr_path) if x.endswith(val_extension)]
+
+        self.test_lr_path = test_lr_path
+        self.test_hr_path = test_hr_path
+        test_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.test_hr_path)]
+        test_extension = max(set(test_extension_list), key = test_extension_list.count)
+        self.test_filenames = [x for x in os.listdir(self.test_hr_path) if x.endswith(test_extension)]
+
+        self.crappifier_method = crappifier_method
+        self.scale_factor = scale_factor
+        self.num_patches = num_patches
+        self.lr_patch_size_x = patch_size_x     
+        self.lr_patch_size_y = patch_size_y
         
-        self.train_path = train_path
-        self.test_path = test_path
-        self.type_of_data = type_of_data
-        self.num_patches_x = num_patches_x     
-        self.num_patches_y = num_patches_y
-        
-        _, extension = os.path.splitext(os.listdir(train_path)[0])
-        filenames = [x for x in os.listdir(train_path) if x.endswith(extension)]
-        hr_image = img_as_float32(io.imread(os.path.join(train_path, filenames[0])))
-        hr_image_height, hr_image_width = hr_image.shape[0], hr_image.shape[1]
-        
-        self.lr_patch_size_x = (hr_image_width//num_patches_x)//down_factor
-        self.lr_patch_size_y = (hr_image_height//num_patches_y)//down_factor
-        
+        self.validation_split = validation_split
+        if 'rotation' in data_augmentation:
+            self.rotation = True
+        if 'horizontal_flip' in data_augmentation:
+            self.horizontal_flip = True
+        if 'vertical_flip' in data_augmentation:
+            self.vertical_flip = True
+        if len(data_augmentation) != 0 and (not self.rotation or not self.horizontal_flip or not self.vertical_flip):
+            raise ValueError('Data augmentation values are not well defined.')
+
         self.model_name = model_name
-        self.down_factor = down_factor
         self.number_of_epochs = number_of_epochs
         self.batch_size = batch_size
         self.learning_rate = learning_rate
         self.discriminator_learning_rate = discriminator_learning_rate
         self.optimizer_name = optimizer_name
-        self.lr_scheduler_name = lr_scheduler_name
         self.discriminator_optimizer = discriminator_optimizer
+        self.lr_scheduler_name = lr_scheduler_name
         self.discriminator_lr_scheduler = discriminator_lr_scheduler
+
         self.model_configuration = model_configuration
         
         self.test_metric_indexes = test_metric_indexes
@@ -72,11 +99,11 @@ class ModelsTrainer:
         set_seed(self.seed)
         
         self.saving_path = './results/{}/{}/{}/scale{}/scale{}_epc{}_btch{}_lr{}_optim-{}_lrsched-{}_seed{}'.format(
-                                                                              self.type_of_data, 
+                                                                              self.data_name, 
                                                                               self.model_name,
                                                                               self.additional_folder,
-                                                                              self.down_factor, 
-                                                                              self.down_factor, 
+                                                                              self.scale_factor, 
+                                                                              self.scale_factor, 
                                                                               self.number_of_epochs,
                                                                               self.batch_size, 
                                                                               self.learning_rate, 
@@ -96,16 +123,16 @@ class ModelsTrainer:
         return self.history
     
     def prepare_data(self):                  
-        raise Exception('prepare_data() not implemented.')  
+        raise NotImplementedError('prepare_data() not implemented.')  
         
     def configure_model(self):                  
-        raise Exception('configure_model() not implemented.')           
+        raise NotImplementedError('configure_model() not implemented.')           
             
     def train_model(self):
-        raise Exception('train_model() not implemented.')
+        raise NotImplementedError('train_model() not implemented.')
         
     def predict_images(self):
-        raise Exception('predict_images() not implemented')
+        raise NotImplementedError('predict_images() not implemented')
         
     def eval_model(self):
     	
@@ -119,20 +146,15 @@ class ModelsTrainer:
             
         os.makedirs(self.saving_path + '/test_metrics', exist_ok=True)
         
-        f = open("training_info.txt", "a")
-        f.write('-'*100 + "\n")
         for key in metrics_dict.keys():
-            f.write('{}: {}'.format(key, np.mean(metrics_dict[key])))
             print('{}: {}'.format(key, np.mean(metrics_dict[key])))
             np.save(self.saving_path + '/test_metrics/' + key + '.npy', metrics_dict[key])
-        f.write('-'*100 + "\n\n")
-        f.close()
             
 
 class TensorflowTrainer(ModelsTrainer):
     
     def __init__(self, train_path, test_path, type_of_data,
-                 model_name, down_factor, 
+                 model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
                  optimizer_name, lr_scheduler_name, 
@@ -141,7 +163,7 @@ class TensorflowTrainer(ModelsTrainer):
                  num_patches_x=None, num_patches_y=None, verbose=0):
         
         super().__init__(train_path, test_path, type_of_data,
-                 model_name, down_factor, 
+                 model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
                  optimizer_name, lr_scheduler_name, 
@@ -152,48 +174,83 @@ class TensorflowTrainer(ModelsTrainer):
         self.library_name ='tensorflow'
     
     def prepare_data(self):
-        train_patches_wf, train_patches_gt = create_patches('', '', True,
-                                                            self.type_of_data,
-                                                            self.train_path,
-                                                            self.down_factor, 
-                                                            self.num_patches_x, 
-                                                            self.num_patches_y) 
 
-        if self.verbose:
-            print('train data shape: {}'.format(train_patches_gt[0].shape))
-            print('HR: max={} min={}'.format(np.max(train_patches_gt[0]), np.min(train_patches_gt[0])))
-            print('LR: max={} min={}'.format(np.max(train_patches_wf[0]), np.min(train_patches_wf[0])))
-
-        assert np.max(train_patches_gt[0]) <= 1.0 and np.max(train_patches_wf[0]) <= 1.0
-        assert np.min(train_patches_gt[0]) >= 0.0 and np.min(train_patches_wf[0]) >= 0.0
+        train_patches_wf, train_patches_gt = extract_random_patches_from_folder(
+                                                hr_data_path=self.train_hr_path, 
+                                                lr_data_path=self.train_lr_path, 
+                                                filenames=self.train_filenames, 
+                                                scale_factor=self.scale_factor, 
+                                                crappifier_name=self.crappifier_method, 
+                                                lr_patch_shape=(self.patch_size_x, self.patch_size_y), 
+                                                num_patches=self.num_patches)
 
         X_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_wf])
         Y_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_gt])
             
         if self.verbose:
+            print('train data shape: {}'.format(train_patches_gt[0].shape))
+            print('HR: max={} min={}'.format(np.max(train_patches_gt[0]), np.min(train_patches_gt[0])))
+            print('LR: max={} min={}'.format(np.max(train_patches_wf[0]), np.min(train_patches_wf[0])))
             print('Input shape: {}'.format(X_train.shape))
             print('Output shape: {}'.format(Y_train.shape))
-            
-        if self.model_configuration['others']['positional_encoding']:
-            X_train = concatenate_encoding(X_train, self.model_configuration['others']['positional_encoding_channels'])
-            
+        
+        assert np.max(train_patches_gt[0]) <= 1.0 and np.max(train_patches_wf[0]) <= 1.0
+        assert np.min(train_patches_gt[0]) >= 0.0 and np.min(train_patches_wf[0]) >= 0.0            
         assert len(X_train.shape) == 4 and len(Y_train.shape) == 4
 
+        if self.model_configuration['others']['positional_encoding']:
+            X_train = concatenate_encoding(X_train, self.model_configuration['others']['positional_encoding_channels'])
+
+        if self.val_hr_path is not None or self.val_lr_path is not None:
+
+            val_patches_wf, val_patches_gt = extract_random_patches_from_folder(
+                                                hr_data_path=self.val_hr_path, 
+                                                lr_data_path=self.val_lr_path, 
+                                                filenames=self.val_filenames, 
+                                                scale_factor=self.scale_factor, 
+                                                crappifier_name=self.crappifier_method, 
+                                                lr_patch_shape=(self.patch_size_x, self.patch_size_y), 
+                                                num_patches=self.num_patches)            
+
+            X_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_wf])
+            Y_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_gt])
+                
+            if self.model_configuration['others']['positional_encoding']:
+                X_val = concatenate_encoding(X_val, self.model_configuration['others']['positional_encoding_channels'])
+
+            assert np.max(val_patches_gt[0]) <= 1.0 and np.max(val_patches_wf[0]) <= 1.0
+            assert np.min(val_patches_gt[0]) >= 0.0 and np.min(val_patches_wf[0]) >= 0.0            
+            assert len(X_val.shape) == 4 and len(Y_val.shape) == 4
+        
         self.input_data_shape = X_train.shape
         self.output_data_shape = Y_train.shape
 
-        if self.verbose:
-            print('Input shape: {}'.format(X_train.shape))
-            print('Output shape: {}'.format(Y_train.shape))
+        if self.val_hr_path is None or self.val_lr_path is None:
+            train_generator, val_generator = get_train_val_generators(X_data=X_train,
+                                                                      Y_data=Y_train,
+                                                                      validation_split=self.validation_split,
+                                                                      batch_size=self.batch_size,
+                                                                      show_examples=self.verbose,
+                                                                      rotation=self.rotation,
+                                                                      horizontal_flip=self.horizontal_flip,
+                                                                      vertical_flip=self.vertical_flip)
+        else:
+            train_generator = get_generator(X_data=X_train,
+                                            Y_data=Y_train,
+                                            batch_size=self.batch_size,
+                                            show_examples=self.verbose,
+                                            rotation=self.rotation,
+                                            horizontal_flip=self.horizontal_flip,
+                                            vertical_flip=self.vertical_flip)
+            
+            val_generator = get_generator(X_data=X_val,
+                                          Y_data=Y_val,
+                                          batch_size=self.batch_size,
+                                          show_examples=self.verbose,
+                                          rotation=self.rotation,
+                                          horizontal_flip=self.horizontal_flip,
+                                          vertical_flip=self.vertical_flip)
 
-        train_generator, val_generator = get_train_val_generators(X_data=X_train,
-                                                                    Y_data=Y_train,
-                                                                    validation_split=0.1,
-                                                                    batch_size=self.batch_size,
-                                                                    show_examples=False,
-                                                                    rotation=True,
-                                                                    horizontal_flip=True,
-                                                                    vertical_flip=True)
         self.train_generator=train_generator
         self.val_generator=val_generator
     
@@ -203,7 +260,7 @@ class TensorflowTrainer(ModelsTrainer):
                                       learning_rate=self.learning_rate, additional_configuration=self.model_configuration)
             
         model = select_model(model_name=self.model_name, input_shape=self.input_data_shape, output_channels=self.output_data_shape[-1],
-                             down_factor=self.down_factor, batch_size=self.batch_size, 
+                             scale_factor=self.scale_factor, batch_size=self.batch_size, 
                              lr_patch_size_x=self.lr_patch_size_x,lr_patch_size_y=self.lr_patch_size_y,
                              learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
                              g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
@@ -259,12 +316,6 @@ class TensorflowTrainer(ModelsTrainer):
         hour, mins = divmod(mins, 60) 
         print("\nTime elapsed:",hour, "hour(s)",mins,"min(s)",round(sec),"sec(s)\n")
         
-        f = open("training_info.txt", "a")
-        f.write('-'*100 + "\n")
-        f.write("\Training time elapsed: {} hour(s) {} min(s) {} sec(s)\n".format(hour,mins,round(sec)))
-        f.write('-'*100 + "\n\n")
-        f.close()
-        
         self.model.save_weights(os.path.join(self.saving_path, 'weights_last.h5'))
         self.history = history
         
@@ -276,14 +327,16 @@ class TensorflowTrainer(ModelsTrainer):
         
 
     def predict_images(self):
-        
-        _, extension = os.path.splitext(os.listdir(self.test_path)[0])
 
-        filenames = [x for x in os.listdir(self.test_path) if x.endswith(extension)]
-        filenames.sort()
-        
-        hr_images = [img_as_float32( io.imread( self.test_path + '/' + fil ) ) for fil in filenames]
-        lr_images = [hr_to_lr(x, self.down_factor, self.type_of_data) for x in hr_images]
+        lr_images, hr_images = extract_random_patches_from_folder(
+                                        hr_data_path=self.test_hr_path, 
+                                        lr_data_path=self.test_lr_path, 
+                                        filenames=self.test_filenames, 
+                                        scale_factor=self.scale_factor, 
+                                        crappifier_name=self.crappifier_method, 
+                                        lr_patch_shape=None, 
+                                        num_patches=1)
+    
         hr_images = np.expand_dims(hr_images, axis=-1)
         lr_images = np.expand_dims(lr_images, axis=-1)
         
@@ -294,7 +347,7 @@ class TensorflowTrainer(ModelsTrainer):
                                       learning_rate=self.learning_rate, additional_configuration=self.model_configuration)
 
         model = select_model(model_name=self.model_name, input_shape=lr_images.shape, output_channels=hr_images.shape[-1],
-                             down_factor=self.down_factor, batch_size=self.batch_size, 
+                             scale_factor=self.scale_factor, batch_size=self.batch_size, 
                              lr_patch_size_x=self.lr_patch_size_x,lr_patch_size_y=self.lr_patch_size_y,
                              learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
                              g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
@@ -333,7 +386,7 @@ class TensorflowTrainer(ModelsTrainer):
 
 class PytorchTrainer(ModelsTrainer):
     def __init__(self, train_path, test_path, type_of_data,
-                 model_name, down_factor, 
+                 model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
                  optimizer, lr_scheduler, 
@@ -343,7 +396,7 @@ class PytorchTrainer(ModelsTrainer):
                  gpu_id, num_patches_x=None, num_patches_y=None, verbose=0):
         
         super().__init__(train_path, test_path, type_of_data,
-                 model_name, down_factor, 
+                 model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
                  optimizer, lr_scheduler, 
@@ -363,7 +416,7 @@ class PytorchTrainer(ModelsTrainer):
     def configure_model(self):       
     
         model = select_model(model_name=self.model_name, input_shape=None, output_channels=None,
-                             down_factor=self.down_factor, batch_size=self.batch_size, 
+                             scale_factor=self.scale_factor, batch_size=self.batch_size, 
                              lr_patch_size_x=self.lr_patch_size_x,lr_patch_size_y=self.lr_patch_size_y,
                              learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
                              g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
@@ -409,12 +462,6 @@ class PytorchTrainer(ModelsTrainer):
         mins, sec = divmod(dt, 60) 
         hour, mins = divmod(mins, 60) 
         print("\nTime elapsed:",hour, "hour(s)",mins,"min(s)",round(sec),"sec(s)\n")
-            
-        f = open("training_info.txt", "a")
-        f.write('-'*100 + "\n")
-        f.write("\Training time elapsed: {} hour(s) {} min(s) {} sec(s)\n".format(hour,mins,round(sec)))
-        f.write('-'*100 + "\n\n")
-        f.close()
             
         logger_path = os.path.join(self.saving_path + '/Quality Control/Logger')
         all_logger_versions = [os.path.join(logger_path, dname) for dname in os.listdir(logger_path)]
@@ -487,9 +534,9 @@ class PytorchTrainer(ModelsTrainer):
     
         trainer = Trainer(gpus=1)
     
-        dataset = PytorchDataset(lr_patch_size_x=hr_images.shape[1]//self.down_factor, 
-                                lr_patch_size_y=hr_images.shape[2]//self.down_factor, 
-                                down_factor=self.down_factor, transf=ToTensor(), 
+        dataset = PytorchDataset(lr_patch_size_x=hr_images.shape[1]//self.scale_factor, 
+                                lr_patch_size_y=hr_images.shape[2]//self.scale_factor, 
+                                scale_factor=self.scale_factor, transf=ToTensor(), 
                                 validation=False, 
                                 validation_split=0.0001, 
                                 only_high_resolution_data=True, 
@@ -533,7 +580,7 @@ class PytorchTrainer(ModelsTrainer):
     
  
 def train_configuration(train_path, test_path, type_of_data,
-                        model_name, down_factor, 
+                        model_name, scale_factor, 
                         number_of_epochs, batch_size, learning_rate,
                         discriminator_learning_rate, 
                         optimizer, lr_scheduler, 
@@ -544,7 +591,7 @@ def train_configuration(train_path, test_path, type_of_data,
     
     if model_name in ['wgan', 'esrganplus']:
         model_trainer = PytorchTrainer(train_path, test_path, type_of_data,
-                                    model_name, down_factor, 
+                                    model_name, scale_factor, 
                                     number_of_epochs, batch_size, learning_rate, 
                                     discriminator_learning_rate, 
                                     optimizer, lr_scheduler, 
@@ -557,7 +604,7 @@ def train_configuration(train_path, test_path, type_of_data,
                                     verbose=verbose)
     elif model_name in ['rcan', 'dfcan', 'wdsr', 'unet']:
         model_trainer = TensorflowTrainer(train_path, test_path, type_of_data,
-                               model_name, down_factor, 
+                               model_name, scale_factor, 
                                number_of_epochs, batch_size, learning_rate, 
                                discriminator_learning_rate, 
                                optimizer, lr_scheduler, 
