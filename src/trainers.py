@@ -1,4 +1,3 @@
-import tensorflow as tf
 import numpy as np
 import time
 import csv
@@ -18,7 +17,8 @@ from datasets import extract_random_patches_from_folder, normalization, undo_nor
 from utils import set_seed, print_info, concatenate_encoding
 from utils import ssim_loss
 from metrics import obtain_metrics
-from model_utils import select_model, select_optimizer, select_lr_schedule
+from model_utils import select_model
+from optimizer_scheduler_utils import select_optimizer, select_lr_schedule
 
 #######
 
