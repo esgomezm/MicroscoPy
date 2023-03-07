@@ -7,11 +7,8 @@ from tensorflow_callbacks import OneCycleScheduler, MultiStepScheduler
 
 ######
   
-def select_model(model_name, input_shape, output_channels, down_factor, batch_size, 
-                 lr_patch_size_x, lr_patch_size_y, learning_rate_g, learning_rate_d,
-                 g_optimizer, d_optimizer, g_scheduler, d_scheduler,
-                 epochs, only_hr_images_basedir, type_of_data, save_basedir,
-                 model_configuration):
+
+def select_model(model_name, input_shape, output_channels, down_factor, model_configuration):
         
     if model_name == 'rcan':
         return rcan.rcan(n_sub_block=int(np.log2(down_factor)), 
