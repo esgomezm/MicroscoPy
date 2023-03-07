@@ -93,6 +93,6 @@ model = train_configuration(
                  validation_split=validation_split, data_augmentation=data_augmentation,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
-                 verbose=0
+                 verbose=1
                 )
                  

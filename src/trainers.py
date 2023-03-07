@@ -279,7 +279,6 @@ class TensorflowTrainer(ModelsTrainer):
 
         self.train_generator=train_generator
         self.val_generator=val_generator
-        print('len: {}'.format(len(self.train_generator)))
     
     def configure_model(self):
         self.optim = select_optimizer(library_name=self.library_name, optimizer_name=self.optimizer_name, 
@@ -307,7 +306,7 @@ class TensorflowTrainer(ModelsTrainer):
     
     def train_model(self):
         lr_schedule = select_lr_schedule(library_name=self.library_name, lr_scheduler_name=self.lr_scheduler_name, 
-                                         data_len=len(self.train_generator), 
+                                         data_len=self.input_data_shape[0]//self.batch_size, 
                                          number_of_epochs=self.number_of_epochs, learning_rate=self.learning_rate,
                                          monitor_loss=None, name=None, optimizer=None, frequency=None,
                                          additional_configuration=self.model_configuration)
