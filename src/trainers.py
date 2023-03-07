@@ -371,14 +371,7 @@ class TensorflowTrainer(ModelsTrainer):
                                  parameters=None, additional_configuration=self.model_configuration)
 
         model = select_model(model_name=self.model_name, input_shape=lr_images.shape, output_channels=hr_images.shape[-1],
-                             scale_factor=self.scale_factor, batch_size=self.batch_size, 
-                             lr_patch_size_x=self.lr_patch_size_x,lr_patch_size_y=self.lr_patch_size_y,
-                             learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
-                             g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
-                             g_scheduler = self.lr_scheduler_name, d_scheduler = self.discriminator_lr_scheduler,
-                             epochs = self.number_of_epochs, only_hr_images_basedir = self.train_path,
-                             type_of_data = self.type_of_data, save_basedir = self.saving_path, 
-                             model_configuration=self.model_configuration)
+                             scale_factor=self.scale_factor, model_configuration=self.model_configuration)
         
         loss_funct = 'mean_absolute_error'
         eval_metric = 'mean_squared_error'
