@@ -46,7 +46,7 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
         lr_patch_size_width = lr_patch_shape[0]
         lr_patch_size_height = lr_patch_shape[1]
 
-    if lr_img.shape[0] < lr_patch_size_width[0] or hr_img.shape[0] < lr_patch_size_width[0] * scale_factor:
+    if lr_img.shape[0] < lr_patch_size_width or hr_img.shape[0] < lr_patch_size_width * scale_factor:
         raise ValueError('Patch size is bigger than the given images.')
 
     hr_patch_size_width = lr_patch_size_width * scale_factor
