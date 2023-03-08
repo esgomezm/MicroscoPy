@@ -8,22 +8,14 @@ from trainers import *
 
 dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
                   'MitoTracker_small': [None, 'train', None, None, None, 'test'],
+                  'F-actin': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf', 'test/test_gt'],
+                  'ER': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt/level_06'],
+                  'MT': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf', 'test/test_gt'],
+                  'LiveFActinDataset': ['train_split/wf', 'train_split/gt', 'val_split/wf', 'val_split/gt', 'test_split/wf', 'test_split/gt']
                   }
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
 os.environ["CUDA_VISIBLE_DEVICES"] = "0";
-
-dataset_name = 'EM'
-
-train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
-
-dataset_root = '../datasets'
-train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
-train_hr_path = os.path.join(dataset_root, dataset_name, train_hr) if train_hr is not None else None
-val_lr_path = os.path.join(dataset_root, dataset_name, val_lr) if val_lr is not None else None
-val_hr_path = os.path.join(dataset_root, dataset_name, val_hr) if val_hr is not None else None
-test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
-test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
 scale = 4
 
@@ -65,7 +57,7 @@ crappifier_method = 'downsampleonly'
 model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 2
-number_of_epochs = 5
+number_of_epochs = 1
 lr = 0.0001
 discriminator_lr = 0.0001
 additional_folder = "prueba"
@@ -76,23 +68,35 @@ patch_size_y = 64
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
-model = train_configuration(
-                 data_name=dataset_name, 
-                 train_lr_path=train_lr_path, train_hr_path=train_hr_path, 
-                 val_lr_path=val_lr_path, val_hr_path=val_hr_path,
-                 test_lr_path=test_lr_path, test_hr_path=test_hr_path,
-                 crappifier_method=crappifier_method, 
-                 model_name=model_name, scale_factor=scale, 
-                 number_of_epochs=number_of_epochs, batch_size=batch_size, 
-                 learning_rate=lr, discriminator_learning_rate=discriminator_lr, 
-                 optimizer_name=optimizer, lr_scheduler_name=scheduler, 
-                 test_metric_indexes=test_metric_indexes, 
-                 additional_folder=additional_folder, 
-                 model_configuration=model_configuration, seed=seed,
-                 num_patches=num_patches, patch_size_x=patch_size_x, patch_size_y=patch_size_y, 
-                 validation_split=validation_split, data_augmentation=data_augmentation,
-                 discriminator_optimizer=discriminator_optimizer, 
-                 discriminator_lr_scheduler=discriminator_lr_scheduler,
-                 verbose=1
-                )
-                 
+for dataset_name in dataset_config.keys():
+
+    train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
+
+    dataset_root = '../datasets'
+    train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
+    train_hr_path = os.path.join(dataset_root, dataset_name, train_hr) if train_hr is not None else None
+    val_lr_path = os.path.join(dataset_root, dataset_name, val_lr) if val_lr is not None else None
+    val_hr_path = os.path.join(dataset_root, dataset_name, val_hr) if val_hr is not None else None
+    test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
+    test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
+
+    model = train_configuration(
+                    data_name=dataset_name, 
+                    train_lr_path=train_lr_path, train_hr_path=train_hr_path, 
+                    val_lr_path=val_lr_path, val_hr_path=val_hr_path,
+                    test_lr_path=test_lr_path, test_hr_path=test_hr_path,
+                    crappifier_method=crappifier_method, 
+                    model_name=model_name, scale_factor=scale, 
+                    number_of_epochs=number_of_epochs, batch_size=batch_size, 
+                    learning_rate=lr, discriminator_learning_rate=discriminator_lr, 
+                    optimizer_name=optimizer, lr_scheduler_name=scheduler, 
+                    test_metric_indexes=test_metric_indexes, 
+                    additional_folder=additional_folder, 
+                    model_configuration=model_configuration, seed=seed,
+                    num_patches=num_patches, patch_size_x=patch_size_x, patch_size_y=patch_size_y, 
+                    validation_split=validation_split, data_augmentation=data_augmentation,
+                    discriminator_optimizer=discriminator_optimizer, 
+                    discriminator_lr_scheduler=discriminator_lr_scheduler,
+                    verbose=1
+                    )
+                    
