@@ -54,21 +54,21 @@ discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'Cosine
 
 crappifier_method = 'downsampleonly'
 
-model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
+model_name = 'wdsr' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
-batch_size = 2
-number_of_epochs = 1
+batch_size = 4
+number_of_epochs = 10
 lr = 0.0001
 discriminator_lr = 0.0001
 additional_folder = "prueba"
 
-num_patches = 16
+num_patches = 4
 patch_size_x = 64
 patch_size_y = 64
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
-for dataset_name in dataset_config.keys():
+for dataset_name in ['LiveFActinDataset']:
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
