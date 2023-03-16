@@ -14,6 +14,13 @@ dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
                   'LiveFActinDataset': ['train_split/wf', 'train_split/gt', 'val_split/wf', 'val_split/gt', 'test_split/wf', 'test_split/gt']
                   }
 
+crappifier_config = {'EM': 'em_AG_D_sameas_preprint', 
+                     'MitoTracker_small': 'fluo_SP_AG_D_sameas_preprint',
+                     'F-actin': 'fluo_SP_AG_D_sameas_preprint',
+                     'ER': 'fluo_SP_AG_D_sameas_preprint',
+                     'MT': 'fluo_SP_AG_D_sameas_preprint',
+                     'LiveFActinDataset': 'fluo_SP_AG_D_sameas_preprint'}
+
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
 os.environ["CUDA_VISIBLE_DEVICES"] = "0";
 
@@ -52,8 +59,6 @@ discriminator_optimizer = 'Adam'  #'Adam', 'Adamax', 'RMSprop', 'SGD'
 scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 
-crappifier_method = 'downsampleonly'
-
 model_name = 'wdsr' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 4
@@ -79,6 +84,8 @@ for dataset_name in ['LiveFActinDataset']:
     val_hr_path = os.path.join(dataset_root, dataset_name, val_hr) if val_hr is not None else None
     test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
     test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
+
+    crappifier_method = crappifier_config[dataset_name]
 
     model = train_configuration(
                     data_name=dataset_name, 

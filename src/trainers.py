@@ -360,6 +360,10 @@ class TensorflowTrainer(ModelsTrainer):
 
         self.test_dtype = hr_images.dtype
 
+        if self.verbose:
+            print('HR images - shape:{} dtype:{}'.format(hr_images.shape, hr_images.dtype))
+            print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
+
         hr_images = normalization(hr_images)
         lr_images = normalization(lr_images)
         

@@ -9,6 +9,11 @@ from skimage import io
 # Create corresponding training patches synthetically by adding noise
 # and downsampling the images (see https://www.biorxiv.org/content/10.1101/740548v3)
 
+
+def downsampleonly(x, scale=4):
+    return npzoom(x, 1/scale, order=1)
+
+
 def fluo_G_D(x, scale=4):
     mu, sigma = 0, 5
     noise = np.random.normal(mu, sigma*0.05, x.shape)
@@ -20,9 +25,6 @@ def fluo_AG_D(x, scale=4):
     lvar = filters.gaussian(x, sigma=5) + 1e-10
     x = random_noise(x, mode='localvar', local_vars=lvar*0.5)
 
-    return npzoom(x, 1/scale, order=1)
-
-def downsampleonly(x, scale=4):
     return npzoom(x, 1/scale, order=1)
 
 def fluo_SP_D(x, scale=4):
