@@ -90,11 +90,14 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
 
     return final_lr_patches, final_hr_patches
 
-def normalization(data):
-    maximum_value = np.iinfo(data.dtype).max
-    norm_data = data / maximum_value
-    norm_data = norm_data.astype(np.float32)
-    return norm_data
+def normalization(data, desired_accuracy=np.float32):
+    if data.dtype.dking != 'f':
+        maximum_value = np.iinfo(data.dtype).max
+        norm_data = data / maximum_value
+        norm_data = norm_data.astype(desired_accuracy)
+        return norm_data
+    else:
+        return data
 
 def undo_normalization(data, original_type):
     maximum_value = np.iinfo(original_type).max
