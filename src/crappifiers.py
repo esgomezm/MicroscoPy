@@ -1,6 +1,6 @@
 import numpy as np
 from skimage import filters
-from skimage.util import random_noise, img_as_float
+from skimage.util import random_noise
 from scipy.ndimage.interpolation import zoom as npzoom
 from skimage.transform import rescale
 from matplotlib import pyplot as plt
@@ -68,9 +68,7 @@ def em_G_D_002(x, scale=4):
     noise = np.random.normal(mu, sigma*0.05, x.shape)
     x = np.clip(x + noise, 0, 1)
     
-    x_down = npzoom(x, 1/scale, order=1)
-    x_up = npzoom(x_down, scale, order=1)
-    return x_down, x_up
+    return npzoom(x, 1/scale, order=1)
 
 def em_P_D_001(x, scale=4):
     x = random_noise(x, mode='poisson', seed=1)

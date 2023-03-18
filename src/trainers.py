@@ -198,29 +198,15 @@ class TensorflowTrainer(ModelsTrainer):
                                                 crappifier_name=self.crappifier_method, 
                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
                                                 num_patches=self.num_patches)
-        if self.verbose:
-            print('Original data:')
-            print('HR - shape:{} max:{} min:{} dtype:{}'.format(train_patches_gt.shape, np.max(train_patches_gt[0]), np.min(train_patches_gt[0]), train_patches_gt.dtype))
-            print('LR - shape:{} max:{} min:{} dtype:{}'.format(train_patches_wf.shape, np.max(train_patches_wf[0]), np.min(train_patches_wf[0]), train_patches_wf.dtype))
-            
+
         X_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_wf])
         Y_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_gt])
            
         if self.verbose:
-            print('After dimension expand:')
+            print('Data:')
             print('HR - shape:{} max:{} min:{} dtype:{}'.format(Y_train.shape, np.max(Y_train[0]), np.min(Y_train[0]), Y_train.dtype))
             print('LR - shape:{} max:{} min:{} dtype:{}'.format(X_train.shape, np.max(X_train[0]), np.min(X_train[0]), X_train.dtype))
-         
-        self.train_dtype = X_train.dtype
 
-        X_train = normalization(X_train)
-        Y_train = normalization(Y_train)
-
-        if self.verbose:
-            print('After normalization:')
-            print('HR - shape:{} max:{} min:{} dtype:{}'.format(Y_train.shape, np.max(Y_train[0]), np.min(Y_train[0]), Y_train.dtype))
-            print('LR - shape:{} max:{} min:{} dtype:{}'.format(X_train.shape, np.max(X_train[0]), np.min(X_train[0]), X_train.dtype))
-        
         assert np.max(X_train[0]) <= 1.0 and np.max(Y_train[0]) <= 1.0
         assert np.min(X_train[0]) >= 0.0 and np.min(Y_train[0]) >= 0.0            
         assert len(X_train.shape) == 4 and len(Y_train.shape) == 4
@@ -241,11 +227,6 @@ class TensorflowTrainer(ModelsTrainer):
 
             X_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_wf])
             Y_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_gt])
-            
-            self.val_dtype = X_train.dtype
-
-            X_val = normalization(X_val)
-            Y_val = normalization(Y_val)
 
             if self.model_configuration['others']['positional_encoding']:
                 X_val = concatenate_encoding(X_val, self.model_configuration['others']['positional_encoding_channels'])
@@ -364,8 +345,6 @@ class TensorflowTrainer(ModelsTrainer):
         hr_images = np.expand_dims(hr_images, axis=-1)
         lr_images = np.expand_dims(lr_images, axis=-1)
 
-        self.test_dtype = hr_images.dtype
-
         if self.verbose:
             print('HR images - shape:{} dtype:{}'.format(hr_images.shape, hr_images.dtype))
             print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
@@ -404,9 +383,6 @@ class TensorflowTrainer(ModelsTrainer):
             print_info('predict_images() - predictions', self.predictions)
 
         # Save the predictions
-
-        predictions = undo_normalization(predictions, self.test_dtype)
-
         os.makedirs(self.saving_path + '/predicted_images', exist_ok=True)
                 
         for i, image  in enumerate(predictions):
