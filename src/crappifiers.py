@@ -96,7 +96,7 @@ def new_crap(x, scale=4):
 # Create corresponding training patches synthetically by adding noise
 # and downsampling the images (see https://www.biorxiv.org/content/10.1101/740548v3)
 def em_crappify(img, scale):
-  img = filters.gaussian(img, sigma=3) + 1e-6
+  img = filters.gaussian(img, sigma=3) + 1e-10
   #return npzoom(img, 1/scale, order=1)
   return transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
 

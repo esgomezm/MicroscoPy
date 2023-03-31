@@ -11,8 +11,11 @@ from skimage import transform
 
 from crappifiers import apply_crappifier
 
-def read_image(filename):
-    return normalization(io.imread(filename), desired_accuracy=np.float32)
+def normalization(data, desired_accuracy=np.float32):
+    return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy)
+
+def read_image(filename, desired_accuracy=np.float32):
+    return normalization(io.imread(filename), desired_accuracy=desired_accuracy)
 
 def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     
@@ -89,29 +92,6 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
     final_hr_patches = np.concatenate(final_hr_patches)
 
     return final_lr_patches, final_hr_patches
-
-def normalization(data, desired_accuracy=np.float32):
-    if data.dtype.kind != 'f':
-        maximum_value = np.iinfo(data.dtype).max
-        norm_data = data / maximum_value
-        norm_data = norm_data.astype(desired_accuracy)
-        return norm_data
-    else:
-        return data
-
-def undo_normalization(data, original_type):
-    maximum_value = np.iinfo(original_type).max
-    norm_data = data * maximum_value
-    norm_data = norm_data.astype(original_type)
-    return norm_data
-
-def standarization(data, mean, std):
-    # CAREFUL: using standarization can loss precision in your data
-    #          due to the appñied division and the floating-point values
-    return (data - mean)/std
-
-def undo_standarization(data, mean, std):
-    return data*std + mean
 
 # Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
