@@ -1,5 +1,6 @@
 import numpy as np
 from skimage import filters
+from skimage import transform
 from skimage.util import random_noise
 from scipy.ndimage.interpolation import zoom as npzoom
 from skimage.transform import rescale
@@ -50,7 +51,7 @@ def fluo_SP_AG_D_sameas_preprint_rescale(x, scale=4):
     return rescale(x, scale=1/scale, order=1, multichannel=len(x.shape) > 2)
 
 def em_AG_D_sameas_preprint(x, scale=4):
-    lvar = filters.gaussian(x, sigma=3)
+    lvar = filters.gaussian(x, sigma=3) + 1e-10
     x = random_noise(x, mode='localvar', local_vars=lvar*0.05)
     
     return npzoom(x, 1/scale, order=1)
@@ -92,6 +93,20 @@ def new_crap(x, scale=4):
         
     return rescale(x, scale=1/scale, order=1, multichannel=len(x.shape) > 2)
 
+# Create corresponding training patches synthetically by adding noise
+# and downsampling the images (see https://www.biorxiv.org/content/10.1101/740548v3)
+def em_crappify(img, scale):
+  img = filters.gaussian(img, sigma=3) + 1e-6
+  #return npzoom(img, 1/scale, order=1)
+  return transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
+
+def fluo_crappify(img,scale):
+  img = random_noise(img, mode='salt', amount=0.005)
+  img = random_noise(img, mode='pepper', amount=0.005)
+  img = filters.gaussian(img, sigma=5) + 1e-10
+  #return npzoom(img, 1/scale, order=1)
+  return transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
+
 def apply_crappifier(x, scale, crappifier_name):
     crappifier_dict = { 'downsampleonly':downsampleonly,
                         'fluo_G_D':fluo_G_D, 
@@ -104,9 +119,14 @@ def apply_crappifier(x, scale, crappifier_name):
                         'em_G_D_002':em_G_D_002,
                         'em_P_D_001':em_P_D_001,
                         'new_crap_AG_SP':new_crap_AG_SP,
-                        'new_crap':new_crap}
+                        'new_crap':new_crap,
+                        'em_crappify':em_crappify,
+                        'fluo_crappify':fluo_crappify
+                      }
     
     if crappifier_name in crappifier_dict:
-        return crappifier_dict[crappifier_name](x, scale)
+        return crappifier_dict[crappifier_name](x, scale).astype(np.float32)
     else:
         raise ValueError('The selected crappifier_name is not in: {}'.format(crappifier_dict))
+
+

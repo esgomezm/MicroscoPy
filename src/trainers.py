@@ -8,8 +8,9 @@ from skimage import io
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
+from matplotlib import pyplot as plt
 
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, LambdaCallback
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.loggers import CSVLogger
 from torch.utils.data import DataLoader
@@ -204,8 +205,16 @@ class TensorflowTrainer(ModelsTrainer):
            
         if self.verbose:
             print('Data:')
-            print('HR - shape:{} max:{} min:{} dtype:{}'.format(Y_train.shape, np.max(Y_train[0]), np.min(Y_train[0]), Y_train.dtype))
-            print('LR - shape:{} max:{} min:{} dtype:{}'.format(X_train.shape, np.max(X_train[0]), np.min(X_train[0]), X_train.dtype))
+            print('HR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(Y_train.shape, np.max(Y_train), np.min(Y_train),  np.mean(Y_train), Y_train.dtype))
+            print('LR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(X_train.shape, np.max(X_train), np.min(X_train),  np.mean(X_train), X_train.dtype))
+            plt.figure(figsize=(10,5))
+            plt.subplot(1,2,1)
+            plt.imshow(Y_train[0])
+            plt.title('Y_train - gt')
+            plt.subplot(1,2,2)
+            plt.imshow(X_train[0])
+            plt.title('X_train - wf')
+            plt.show()
 
         assert np.max(X_train[0]) <= 1.0 and np.max(Y_train[0]) <= 1.0
         assert np.min(X_train[0]) >= 0.0 and np.min(Y_train[0]) >= 0.0            
@@ -302,6 +311,10 @@ class TensorflowTrainer(ModelsTrainer):
                                        monitor='val_loss',verbose=1, 
                                        save_best_only=True, save_weights_only=True)
             
+        print_batch_callback = LambdaCallback(
+                                on_batch_begin=lambda bat,log: print(bat),
+                                on_batch_end=lambda bat,log: print(bat))
+            
         # callback for early stopping
         earlystopper = EarlyStopping(monitor=self.model_configuration['optim']['early_stop']['loss'],
         			     patience=self.model_configuration['optim']['early_stop']['patience'], 
@@ -314,7 +327,7 @@ class TensorflowTrainer(ModelsTrainer):
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
                           steps_per_epoch=np.ceil(self.input_data_shape[0]/self.batch_size),
                           epochs=self.number_of_epochs, 
-                          callbacks=[lr_schedule, model_checkpoint, earlystopper])
+                          callbacks=[lr_schedule, model_checkpoint, earlystopper, print_batch_callback])
         
         dt = time.time() - start
         mins, sec = divmod(dt, 60) 
@@ -348,9 +361,6 @@ class TensorflowTrainer(ModelsTrainer):
         if self.verbose:
             print('HR images - shape:{} dtype:{}'.format(hr_images.shape, hr_images.dtype))
             print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
-
-        hr_images = normalization(hr_images)
-        lr_images = normalization(lr_images)
         
         if self.model_configuration['others']['positional_encoding']:
             lr_images = concatenate_encoding(lr_images, self.model_configuration['others']['positional_encoding_channels'])

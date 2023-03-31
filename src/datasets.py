@@ -12,7 +12,7 @@ from skimage import transform
 from crappifiers import apply_crappifier
 
 def read_image(filename):
-    return normalization(io.imread(filename), desired_accuracy=np.float64)
+    return normalization(io.imread(filename), desired_accuracy=np.float32)
 
 def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     

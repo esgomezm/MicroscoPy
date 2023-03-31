@@ -52,12 +52,15 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
         predicted_image_piq_3c = np.expand_dims(predicted_image_piq_3c, axis=0)
         predicted_image_piq_3c = torch.from_numpy(predicted_image_piq_3c)
 
+        print(gt_image_piq_3c.dtype)
+        print(predicted_image_piq_3c.dtype)
+
         # the input is expected to be mini-batches of 3-channel RGB images of shape (3 x H x W)
         # All images will be resized to 299 x 299 which is the size of the original training data.
-        fid = FrechetInceptionDistance(feature=64, normalize=False) # feature=64,192,768,2048 normalize=False(uint8),True(float)
-        fid.update(gt_image_piq_3c, real=True)
-        fid.update(predicted_image_piq_3c, real=False)
-        fid.compute()
+        #fid = FrechetInceptionDistance(feature=64, normalize=True) # feature=64,192,768,2048 normalize=False(uint8),True(float)
+        #fid.update(gt_image_piq_3c, real=True)
+        #fid.update(predicted_image_piq_3c, real=False)
+        #fid.compute()
         
         metrics_dict['mse'].append(skimge_metrics.mean_squared_error(gt_image, predicted_image))
         metrics_dict['ssim'].append(skimge_metrics.structural_similarity(predicted_image, gt_image))
@@ -72,8 +75,8 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
         if i in test_metric_indexes:
             metrics_dict['alex'].append(np.squeeze(lpips_alex(gt_image_piq.float(), predicted_image_piq.float()).detach().numpy()))
             metrics_dict['vgg'].append(np.squeeze(lpips_vgg(gt_image_piq.float(), predicted_image_piq.float()).detach().numpy()))
-            metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0, 
-                                              input_order='HW', resize=True, version='python'))
+            #metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0, 
+            #                                  input_order='HW', resize=True, version='python'))
             #metrics_dict['pieapp'].append(pieapp_loss(predicted_image_piq.float(), gt_image_piq.float()).item())
             
     return metrics_dict

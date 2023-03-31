@@ -15,16 +15,16 @@ dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
                   }
 
 crappifier_config = {'EM': 'em_AG_D_sameas_preprint', 
-                     'MitoTracker_small': 'fluo_SP_AG_D_sameas_preprint',
+                     'MitoTracker_small': 'fluo_crappify',
                      'F-actin': 'fluo_SP_AG_D_sameas_preprint',
                      'ER': 'fluo_SP_AG_D_sameas_preprint',
                      'MT': 'fluo_SP_AG_D_sameas_preprint',
                      'LiveFActinDataset': 'fluo_SP_AG_D_sameas_preprint'}
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
-os.environ["CUDA_VISIBLE_DEVICES"] = "0";
+os.environ["CUDA_VISIBLE_DEVICES"] = "2";
 
-scale = 4
+scale = 2
 
 model_configuration = {'optim': {'early_stop':{'loss':'val_ssim_loss','mode':'max', 'patience':10},
                                  'adam':{'beta1':0.5,'beta2':0.9,'epsilon':1e-07},
@@ -59,21 +59,21 @@ discriminator_optimizer = 'Adam'  #'Adam', 'Adamax', 'RMSprop', 'SGD'
 scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 
-model_name = 'wdsr' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
+model_name = 'rcan' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 4
-number_of_epochs = 10
+number_of_epochs = 5
 lr = 0.0001
 discriminator_lr = 0.0001
 additional_folder = "prueba"
 
-num_patches = 4
-patch_size_x = 64
-patch_size_y = 64
+num_patches = 1
+patch_size_x = 128
+patch_size_y = 128
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
-for dataset_name in ['LiveFActinDataset']:
+for dataset_name in ['MitoTracker_small']:
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
