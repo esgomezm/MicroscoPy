@@ -1,25 +1,21 @@
 import numpy as np
 import torch
 from tqdm import tqdm
-import math
-import cv2
-import os
 
 from skimage import metrics as skimge_metrics
-from skimage import img_as_ubyte
 from torchmetrics.image.fid import FrechetInceptionDistance
 
-from ILNIQE import calculate_ilniqe
+# from ILNIQE import calculate_ilniqe
 
 import lpips
 
 lpips_alex = lpips.LPIPS(net='alex',version='0.1')
 lpips_vgg = lpips.LPIPS(net='vgg',version='0.1')
 
-import piq
+# import piq
 
-dists_loss = piq.DISTS()
-pieapp_loss = piq.PieAPP()
+# dists_loss = piq.DISTS()
+# pieapp_loss = piq.PieAPP()
 
 def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
     metrics_dict = {'ssim':[], 'psnr':[], 'mse':[], 'alex':[], 

@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from skimage import transform
 
-from crappifiers import apply_crappifier
+from .crappifiers import apply_crappifier
 
 def normalization(data, desired_accuracy=np.float32):
     return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy)
@@ -26,14 +26,14 @@ def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
 
     if lr_filename is None:
         # If no path to the LR images is given, they will be artificially generated
-        lr_img = apply_crappifier(hr_img, scale_factor, crappifier_name)
+        lr_img = normalization(apply_crappifier(hr_img, scale_factor, crappifier_name))
     else:
         lr_img = read_image(lr_filename)
 
     actual_scale_factor = hr_img.shape[0]//lr_img.shape[0]
 
     if scale_factor > actual_scale_factor:
-        lr_img = apply_crappifier(lr_img, scale_factor//actual_scale_factor, "downsampleonly")
+        lr_img = normalization(apply_crappifier(lr_img, scale_factor//actual_scale_factor, "downsampleonly"))
 
     return hr_img, lr_img
 

@@ -1,6 +1,3 @@
-import sys
-sys.path.append('..')
-
 import numpy as np
 import torchvision
 
@@ -9,9 +6,10 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from pytorch_lightning.core import LightningModule
-from datasets import PytorchDataset, ToTensor
-from datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
-from optimizer_scheduler_utils import select_optimizer, select_lr_schedule
+
+from ..datasets import PytorchDataset, ToTensor
+from ..datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
+from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, k=3, p=1):

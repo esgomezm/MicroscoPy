@@ -8,9 +8,6 @@ from tensorflow.keras.applications.vgg19 import VGG19
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 
-tf.config.experimental_run_functions_eagerly(True)
-tf.config.run_functions_eagerly(True)
-
 # Colors for the warning messages
 class bcolors:
     W  = '\033[0m'  # white (normal)

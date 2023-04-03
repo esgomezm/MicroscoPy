@@ -1,5 +1,5 @@
 import numpy as np
-from model import rcan, dfcan, wdsr, unet, wgan, esrganplus
+from .model import rcan, dfcan, wdsr, unet, wgan, esrganplus
 
 ######
 

@@ -1,7 +1,8 @@
 import tensorflow as tf
 
-from tensorflow_callbacks import OneCycleScheduler, MultiStepScheduler
 from tensorflow.keras.callbacks import ReduceLROnPlateau
+
+from .tensorflow_callbacks import OneCycleScheduler, MultiStepScheduler
 
 import torch
 

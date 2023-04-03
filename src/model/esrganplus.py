@@ -28,8 +28,8 @@ import torchvision
 
 from pytorch_lightning.core import LightningModule
 
-from datasets import PytorchDataset, ToTensor
-from datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
+from ..datasets import PytorchDataset, ToTensor
+from ..datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
 
 ####################
 # Basic blocks
