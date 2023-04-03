@@ -7,10 +7,10 @@ from skimage import io
 
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
-from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import EarlyStopping, LambdaCallback
 from matplotlib import pyplot as plt
 
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint, LambdaCallback
+from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.loggers import CSVLogger
 from torch.utils.data import DataLoader
