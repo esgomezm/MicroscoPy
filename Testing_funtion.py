@@ -178,6 +178,7 @@ print('Trainable parameteres: {} \nNon trainable parameters: {} \nTotal paramete
 
 
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping
 
 epochs = 20
 
