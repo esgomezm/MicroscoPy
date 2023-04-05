@@ -28,8 +28,8 @@ def print_info(data):
 # In[3]:
 
 
-train_path = '../datasets/EM/train'
-test_path = '../datasets/EM/test'
+train_path = '../datasets/TFM - dataset Electron Microscopy/train'
+test_path = '../datasets/TFM - dataset Electron Microscopy/test'
 drawn_test_path = './data_example/drawn_test'
 
 train_filenames = sorted([os.path.join(filename) for filename in os.listdir(train_path)])
@@ -58,7 +58,7 @@ print_info(drawn_test_img)
 
 # In[49]:
 
-scale = 2
+scale = 4
 
 from src.datasets import extract_random_patches_from_folder
 
@@ -68,7 +68,7 @@ train_patches_wf, train_patches_gt = extract_random_patches_from_folder(
                                         filenames=train_filenames, 
                                         scale_factor=scale, 
                                         crappifier_name='em_crappify', 
-                                        lr_patch_shape=(128, 128), 
+                                        lr_patch_shape=(64, 64), 
                                         num_patches=16)
 
 X_train = np.expand_dims(train_patches_wf, axis=-1)
@@ -90,7 +90,7 @@ train_generator, val_generator = get_train_val_generators(X_data=X_train,
                                                           Y_data=Y_train,
                                                           validation_split=0.1,
                                                           batch_size=batch_size,
-                                                          show_examples=1,
+                                                          show_examples=0,
                                                           rotation=True,
                                                           horizontal_flip=True,
                                                           vertical_flip=True)
@@ -147,10 +147,13 @@ from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
 optim = select_optimizer(library_name=library_name, optimizer_name=optimizer, 
                                 learning_rate=0.001, check_point=None,
                                 parameters=None, additional_configuration=model_configuration)
-    
+   
+
+model_name = 'dfcan'
+
 from src.model_utils import select_model
 from src.utils import ssim_loss
-model = select_model(model_name='dfcan', input_shape=X_train.shape, output_channels=Y_train.shape, 
+model = select_model(model_name=model_name, input_shape=X_train.shape, output_channels=Y_train.shape[-1], 
                         scale_factor=scale, model_configuration=model_configuration)
 
 loss_funct = 'mean_absolute_error'
@@ -233,8 +236,12 @@ lr_images, hr_images = extract_random_patches_from_folder(
 hr_images = np.expand_dims(hr_images, axis=-1)
 lr_images = np.expand_dims(lr_images, axis=-1)
 
+print('Test HR images')
 print_info(hr_images)
+print('\n')
+print('Test LR images')
 print_info(lr_images)
+print('\n')
 
 
 # In[70]:
@@ -252,9 +259,12 @@ drawn_lr_images, drawn_hr_images = extract_random_patches_from_folder(
 drawn_hr_images = np.expand_dims(drawn_hr_images, axis=-1)
 drawn_lr_images = np.expand_dims(drawn_lr_images, axis=-1)
 
+print('Drawn HR images')
 print_info(drawn_hr_images)
+print('\n')
+print('Drawn LR images')
 print_info(drawn_lr_images)
-
+print('\n')
 
 # In[71]:
 
@@ -263,7 +273,7 @@ optim = select_optimizer(library_name=library_name, optimizer_name=optimizer,
                                 learning_rate=0.001, check_point=None,
                                 parameters=None, additional_configuration=model_configuration)
 
-model = select_model(model_name='dfcan', input_shape=lr_images.shape,  
+model = select_model(model_name=model_name, input_shape=lr_images.shape,  
                      output_channels=1, scale_factor=scale, model_configuration=model_configuration)
 
 loss_funct = 'mean_absolute_error'
@@ -279,15 +289,17 @@ model.load_weights( os.path.join('results', 'weights_best.h5') )
 
 
 test_predictions = model.predict(lr_images, batch_size=1)
+print('Test predictions')
 print_info(test_predictions)
-
+print('\n')
 
 # In[ ]:
 
 
 drawn_test_predictions = model.predict(drawn_lr_images, batch_size=1)
+print('Drawn predictions')
 print_info(drawn_test_predictions)
-
+print('\n')
 
 # In[ ]:
 

@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from skimage import transform
 
-from .crappifiers import apply_crappifier
+from crappifiers import apply_crappifier
 
 def normalization(data, desired_accuracy=np.float32):
     return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy)

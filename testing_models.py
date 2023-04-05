@@ -61,9 +61,9 @@ discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'Cosine
 
 model_name = 'rcan' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
-batch_size = 4
-number_of_epochs = 5
-lr = 0.0001
+batch_size = 8
+number_of_epochs = 20
+lr = 0.001
 discriminator_lr = 0.0001
 additional_folder = "prueba"
 
@@ -73,7 +73,7 @@ patch_size_y = 128
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
-for dataset_name in ['MitoTracker_small']:
+for dataset_name in ['EM']:
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
