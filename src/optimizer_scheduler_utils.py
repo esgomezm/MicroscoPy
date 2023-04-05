@@ -2,9 +2,9 @@ import tensorflow as tf
 
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 
-from .tensorflow_callbacks import OneCycleScheduler, MultiStepScheduler
-
 import torch
+
+from . import tensorflow_callbacks
 
 def select_optimizer(library_name, optimizer_name, learning_rate, check_point, parameters, additional_configuration):
     if library_name == 'tensorflow':
@@ -74,7 +74,7 @@ def select_tensorflow_lr_schedule(lr_scheduler_name, data_len, number_of_epochs,
                                   learning_rate, monitor_loss, additional_configuration):
     if lr_scheduler_name == 'OneCycle':
         steps = data_len * number_of_epochs
-        return OneCycleScheduler(learning_rate, steps)
+        return tensorflow_callbacks.OneCycleScheduler(learning_rate, steps)
     elif lr_scheduler_name == 'ReduceOnPlateau':
         return ReduceLROnPlateau(monitor=monitor_loss,
         			factor=additional_configuration['optim']['ReduceOnPlateau']['factor'], 
@@ -84,7 +84,7 @@ def select_tensorflow_lr_schedule(lr_scheduler_name, data_len, number_of_epochs,
         decay_steps = data_len * number_of_epochs
         return tf.keras.optimizers.schedules.CosineDecay(learning_rate, decay_steps, alpha=0.0, name=None)
     elif lr_scheduler_name == 'MultiStepScheduler':
-        return MultiStepScheduler(learning_rate,
+        return tensorflow_callbacks.MultiStepScheduler(learning_rate,
         			  lr_steps=additional_configuration['optim']['MultiStepScheduler']['lr_steps'], 
         			  lr_rate_decay=additional_configuration['optim']['MultiStepScheduler']['lr_rate_decay'])
     elif lr_scheduler_name is None:

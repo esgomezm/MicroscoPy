@@ -1,26 +1,27 @@
 import numpy as np
-from .model import rcan, dfcan, wdsr, unet, wgan, esrganplus
+
+from . import model
 
 ######
 
 def select_model(model_name, input_shape, output_channels, scale_factor, model_configuration):
         
     if model_name == 'rcan':
-        return rcan.rcan(n_sub_block=int(np.log2(scale_factor)), 
+        return model.rcan.rcan(n_sub_block=int(np.log2(scale_factor)), 
                      filters=model_configuration['rcan']['num_filters'], 
                      out_channels = 1)
         
     elif model_name == 'dfcan':
-        return dfcan.DFCAN((input_shape[1:]), scale=scale_factor, 
+        return model.dfcan.DFCAN((input_shape[1:]), scale=scale_factor, 
                             n_ResGroup = model_configuration['dfcan']['n_ResGroup'], 
                             n_RCAB = model_configuration['dfcan']['n_RCAB'])
 
     elif model_name == 'wdsr':
         # Custom WDSR B model (0.62M parameters)
-        return wdsr.wdsr_b(scale=scale_factor, num_res_blocks=model_configuration['wdsr']['num_res_blocks'])
+        return model.wdsr.wdsr_b(scale=scale_factor, num_res_blocks=model_configuration['wdsr']['num_res_blocks'])
         
     elif model_name == 'unet':
-        return unet.preResUNet( output_channels=output_channels,
+        return model.unet.preResUNet( output_channels=output_channels,
                             numInitChannels=model_configuration['unet']['init_channels'], 
                             image_shape = input_shape[1:], 
                             depth = model_configuration['unet']['depth'],
@@ -31,7 +32,7 @@ def select_model(model_name, input_shape, output_channels, scale_factor, model_c
 
     elif model_name == 'wgan':
 
-        return wgan.WGANGP(
+        return model.wgan.WGANGP(
             g_layers=model_configuration['wgan']['g_layers'], 
             d_layers=model_configuration['wgan']['d_layers'], 
             batchsize=batch_size,
@@ -62,7 +63,7 @@ def select_model(model_name, input_shape, output_channels, scale_factor, model_c
     
     elif model_name == 'esrganplus':
 
-        return esrganplus.ESRGANplus(batchsize=batch_size,
+        return model.esrganplus.ESRGANplus(batchsize=batch_size,
                                     lr_patch_size_x=lr_patch_size_x,
                                     lr_patch_size_y=lr_patch_size_y,
                                     scale_factor=scale_factor,
