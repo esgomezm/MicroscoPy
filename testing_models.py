@@ -1,10 +1,4 @@
-import os
-import sys
-module_path = os.path.abspath(os.path.join('./src'))
-if module_path not in sys.path:
-    sys.path.append(module_path)
-
-from trainers import *
+from src.trainers import *
 
 dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
                   'MitoTracker_small': [None, 'train', None, None, None, 'test'],

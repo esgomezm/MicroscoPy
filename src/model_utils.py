@@ -4,7 +4,10 @@ from . import model
 
 ######
 
-def select_model(model_name, input_shape, output_channels, scale_factor, model_configuration):
+def select_model(model_name, input_shape, output_channels, scale_factor, model_configuration,
+                 batch_size=None, lr_patch_size_x=None, lr_patch_size_y=None, learning_rate_g=None,
+                 learning_rate_d=None, epochs=None, only_hr_images_basedir=None, type_of_data=None,
+                 save_basedir=None, g_optimizer=None, d_optimizer=None, g_scheduler=None, d_scheduler=None):
         
     if model_name == 'rcan':
         return model.rcan.rcan(n_sub_block=int(np.log2(scale_factor)), 

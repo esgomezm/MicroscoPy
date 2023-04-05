@@ -7,7 +7,7 @@ from skimage import io
 
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
-from tensorflow.keras.callbacks import EarlyStopping, LambdaCallback
+from tensorflow.keras.callbacks import EarlyStopping
 from matplotlib import pyplot as plt
 
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
@@ -301,18 +301,14 @@ class TensorflowTrainer(ModelsTrainer):
     
     def train_model(self):
         lr_schedule = optimizer_scheduler_utils.select_lr_schedule(library_name=self.library_name, lr_scheduler_name=self.lr_scheduler_name, 
-                                         data_len=self.input_data_shape[0]//self.batch_size, 
-                                         number_of_epochs=self.number_of_epochs, learning_rate=self.learning_rate,
-                                         monitor_loss=None, name=None, optimizer=None, frequency=None,
-                                         additional_configuration=self.model_configuration)
+                                                                    data_len=self.input_data_shape[0]//self.batch_size, 
+                                                                    number_of_epochs=self.number_of_epochs, learning_rate=self.learning_rate,
+                                                                    monitor_loss=None, name=None, optimizer=None, frequency=None,
+                                                                    additional_configuration=self.model_configuration)
         
         model_checkpoint = tf_ModelCheckpoint(os.path.join(self.saving_path, 'weights_best.h5'), 
                                        monitor='val_loss',verbose=1, 
                                        save_best_only=True, save_weights_only=True)
-            
-        print_batch_callback = LambdaCallback(
-                                on_batch_begin=lambda bat,log: print(bat),
-                                on_batch_end=lambda bat,log: print(bat))
             
         # callback for early stopping
         earlystopper = EarlyStopping(monitor=self.model_configuration['optim']['early_stop']['loss'],
@@ -326,7 +322,7 @@ class TensorflowTrainer(ModelsTrainer):
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
                           steps_per_epoch=np.ceil(self.input_data_shape[0]/self.batch_size),
                           epochs=self.number_of_epochs, 
-                          callbacks=[lr_schedule, model_checkpoint, earlystopper, print_batch_callback])
+                          callbacks=[lr_schedule, model_checkpoint, earlystopper])
         
         dt = time.time() - start
         mins, sec = divmod(dt, 60) 
