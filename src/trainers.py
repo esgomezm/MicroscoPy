@@ -247,6 +247,7 @@ class TensorflowTrainer(ModelsTrainer):
         self.output_data_shape = Y_train.shape
 
         if self.val_hr_path is None or self.val_lr_path is None:
+            print('Both train and validation data will be extracted from the received train path.')
             train_generator, val_generator = datasets.get_train_val_generators(X_data=X_train,
                                                                       Y_data=Y_train,
                                                                       validation_split=self.validation_split,
@@ -256,6 +257,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                                       horizontal_flip=self.horizontal_flip,
                                                                       vertical_flip=self.vertical_flip)
         else:
+            print('There are different train and validation paths.')
             train_generator = datasets.get_generator(X_data=X_train,
                                             Y_data=Y_train,
                                             batch_size=self.batch_size,

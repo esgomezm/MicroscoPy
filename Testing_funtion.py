@@ -172,16 +172,14 @@ print('Trainable parameteres: {} \nNon trainable parameters: {} \nTotal paramete
 
 # In[54]:
 
-model.summary()
+#model.summary()
 
 # In[62]:
 
 
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
-from tensorflow.keras.callbacks import LambdaCallback, EarlyStopping
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 
-epochs = 100
+epochs = 20
 
 scheduler = 'OneCycle'
 

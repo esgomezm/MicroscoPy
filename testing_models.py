@@ -18,8 +18,6 @@ crappifier_config = {'EM': 'em_AG_D_sameas_preprint',
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
 os.environ["CUDA_VISIBLE_DEVICES"] = "2";
 
-scale = 2
-
 model_configuration = {'optim': {'early_stop':{'loss':'val_ssim_loss','mode':'max', 'patience':10},
                                  'adam':{'beta1':0.5,'beta2':0.9,'epsilon':1e-07},
                                  'adamax':{'beta1':0.5,'beta2':0.9,'epsilon':1e-07},
@@ -61,9 +59,11 @@ lr = 0.001
 discriminator_lr = 0.0001
 additional_folder = "prueba"
 
-num_patches = 1
-patch_size_x = 128
-patch_size_y = 128
+scale = 4
+
+num_patches = 16
+patch_size_x = 64
+patch_size_y = 64
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
