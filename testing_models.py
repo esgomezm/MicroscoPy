@@ -51,7 +51,7 @@ discriminator_optimizer = 'Adam'  #'Adam', 'Adamax', 'RMSprop', 'SGD'
 scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 
-model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
+#model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 8
 number_of_epochs = 20
@@ -68,36 +68,36 @@ validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
 for dataset_name in ['EM']:
+    for model_name in  ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
+        train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
-    train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
+        dataset_root = '../datasets'
+        train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
+        train_hr_path = os.path.join(dataset_root, dataset_name, train_hr) if train_hr is not None else None
+        val_lr_path = os.path.join(dataset_root, dataset_name, val_lr) if val_lr is not None else None
+        val_hr_path = os.path.join(dataset_root, dataset_name, val_hr) if val_hr is not None else None
+        test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
+        test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
-    dataset_root = '../datasets'
-    train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
-    train_hr_path = os.path.join(dataset_root, dataset_name, train_hr) if train_hr is not None else None
-    val_lr_path = os.path.join(dataset_root, dataset_name, val_lr) if val_lr is not None else None
-    val_hr_path = os.path.join(dataset_root, dataset_name, val_hr) if val_hr is not None else None
-    test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
-    test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
+        crappifier_method = crappifier_config[dataset_name]
 
-    crappifier_method = crappifier_config[dataset_name]
-
-    model = train_configuration(
-                    data_name=dataset_name, 
-                    train_lr_path=train_lr_path, train_hr_path=train_hr_path, 
-                    val_lr_path=val_lr_path, val_hr_path=val_hr_path,
-                    test_lr_path=test_lr_path, test_hr_path=test_hr_path,
-                    crappifier_method=crappifier_method, 
-                    model_name=model_name, scale_factor=scale, 
-                    number_of_epochs=number_of_epochs, batch_size=batch_size, 
-                    learning_rate=lr, discriminator_learning_rate=discriminator_lr, 
-                    optimizer_name=optimizer, lr_scheduler_name=scheduler, 
-                    test_metric_indexes=test_metric_indexes, 
-                    additional_folder=additional_folder, 
-                    model_configuration=model_configuration, seed=seed,
-                    num_patches=num_patches, patch_size_x=patch_size_x, patch_size_y=patch_size_y, 
-                    validation_split=validation_split, data_augmentation=data_augmentation,
-                    discriminator_optimizer=discriminator_optimizer, 
-                    discriminator_lr_scheduler=discriminator_lr_scheduler,
-                    verbose=1
-                    )
+        model = train_configuration(
+                        data_name=dataset_name, 
+                        train_lr_path=train_lr_path, train_hr_path=train_hr_path, 
+                        val_lr_path=val_lr_path, val_hr_path=val_hr_path,
+                        test_lr_path=test_lr_path, test_hr_path=test_hr_path,
+                        crappifier_method=crappifier_method, 
+                        model_name=model_name, scale_factor=scale, 
+                        number_of_epochs=number_of_epochs, batch_size=batch_size, 
+                        learning_rate=lr, discriminator_learning_rate=discriminator_lr, 
+                        optimizer_name=optimizer, lr_scheduler_name=scheduler, 
+                        test_metric_indexes=test_metric_indexes, 
+                        additional_folder=additional_folder, 
+                        model_configuration=model_configuration, seed=seed,
+                        num_patches=num_patches, patch_size_x=patch_size_x, patch_size_y=patch_size_y, 
+                        validation_split=validation_split, data_augmentation=data_augmentation,
+                        discriminator_optimizer=discriminator_optimizer, 
+                        discriminator_lr_scheduler=discriminator_lr_scheduler,
+                        verbose=1
+                        )
                     
