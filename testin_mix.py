@@ -116,7 +116,7 @@ model_trainer = TensorflowTrainer(library_name,
                 validation_split, data_augmentation,
                 discriminator_optimizer=discriminator_optimizer, 
                 discriminator_lr_scheduler=discriminator_lr_scheduler,
-                verbose=1, 
+                verbose=0,
             )
                 
 model_trainer.prepare_data()

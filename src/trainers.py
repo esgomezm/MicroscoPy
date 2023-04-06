@@ -278,6 +278,11 @@ class TensorflowTrainer(ModelsTrainer):
         self.val_generator=val_generator
     
     def configure_model(self):
+        pass 
+
+    def train_model(self):
+
+
         self.optim = optimizer_scheduler_utils.select_optimizer(library_name=self.library_name, optimizer_name=self.optimizer_name, 
                                       learning_rate=self.learning_rate, check_point=None,
                                       parameters=None, additional_configuration=self.model_configuration)
@@ -298,10 +303,8 @@ class TensorflowTrainer(ModelsTrainer):
             print('Trainable parameteres: {} \nNon trainable parameters: {} \nTotal parameters: {}'.format(trainableParams, 
                                                                                                             nonTrainableParams, 
                                                                                                         totalParams))
-        
-        self.model = model
     
-    def train_model(self):
+
         lr_schedule = optimizer_scheduler_utils.select_lr_schedule(library_name=self.library_name, lr_scheduler_name=self.lr_scheduler_name, 
                                                                     data_len=self.input_data_shape[0]//self.batch_size, 
                                                                     number_of_epochs=self.number_of_epochs, learning_rate=self.learning_rate,
@@ -320,7 +323,7 @@ class TensorflowTrainer(ModelsTrainer):
         
         start = time.time()
         
-        history = self.model.fit(self.train_generator, validation_data=self.val_generator,
+        history = model.fit(self.train_generator, validation_data=self.val_generator,
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
                           steps_per_epoch=np.ceil(self.input_data_shape[0]/self.batch_size),
                           epochs=self.number_of_epochs, 
@@ -331,7 +334,7 @@ class TensorflowTrainer(ModelsTrainer):
         hour, mins = divmod(mins, 60) 
         print("\nTime elapsed:",hour, "hour(s)",mins,"min(s)",round(sec),"sec(s)\n")
         
-        self.model.save_weights(os.path.join(self.saving_path, 'weights_last.h5'))
+        model.save_weights(os.path.join(self.saving_path, 'weights_last.h5'))
         self.history = history
         
         os.makedirs(self.saving_path + '/train_metrics', exist_ok=True)
@@ -464,6 +467,7 @@ class PytorchTrainer(ModelsTrainer):
             utils.print_info('configure_model() - hr', data['hr'])
         
         self.model = model
+
     def train_model(self):
 
         logger = CSVLogger(self.saving_path + '/Quality Control', name='Logger')
