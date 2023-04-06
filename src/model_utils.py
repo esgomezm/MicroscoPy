@@ -4,10 +4,11 @@ from . import model
 
 ######
 
-def select_model(model_name, input_shape, output_channels, scale_factor, model_configuration,
+def select_model(model_name=None, input_shape=None, output_channels=None, scale_factor=None, model_configuration=None,
                  batch_size=None, lr_patch_size_x=None, lr_patch_size_y=None, learning_rate_g=None,
                  learning_rate_d=None, epochs=None, only_hr_images_basedir=None, type_of_data=None,
-                 save_basedir=None, g_optimizer=None, d_optimizer=None, g_scheduler=None, d_scheduler=None):
+                 save_basedir=None, g_optimizer=None, d_optimizer=None, g_scheduler=None, d_scheduler=None,
+                 checkpoint=None):
         
     if model_name == 'rcan':
         return model.rcan.rcan(n_sub_block=int(np.log2(scale_factor)), 
@@ -57,7 +58,7 @@ def select_model(model_name, input_shape, output_channels, scale_factor, model_c
             only_hr_images_basedir = only_hr_images_basedir,
             type_of_data = type_of_data,
             save_basedir = save_basedir,
-            gen_checkpoint = None,
+            gen_checkpoint = checkpoint,
             g_optimizer = g_optimizer,
             d_optimizer = d_optimizer,
             g_scheduler = g_scheduler,
@@ -84,7 +85,7 @@ def select_model(model_name, input_shape, output_channels, scale_factor, model_c
                                     only_hr_images_basedir=only_hr_images_basedir,
                                     type_of_data=type_of_data,
                                     save_basedir=save_basedir,
-                                    gen_checkpoint = None, 
+                                    gen_checkpoint = checkpoint, 
                                     g_optimizer = g_optimizer,
                                     d_optimizer = d_optimizer,
                                     g_scheduler = g_scheduler,

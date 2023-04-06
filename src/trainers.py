@@ -113,8 +113,7 @@ class ModelsTrainer:
         os.makedirs(self.saving_path, exist_ok=True)
     
     def launch(self):
-        self.prepare_data()                
-        self.configure_model()                  
+        self.prepare_data()                     
         self.train_model()
         self.predict_images()
         self.eval_model()
@@ -122,10 +121,7 @@ class ModelsTrainer:
         return self.history
     
     def prepare_data(self):                  
-        raise NotImplementedError('prepare_data() not implemented.')  
-        
-    def configure_model(self):                  
-        raise NotImplementedError('configure_model() not implemented.')           
+        raise NotImplementedError('prepare_data() not implemented.')          
             
     def train_model(self):
         raise NotImplementedError('train_model() not implemented.')
@@ -276,9 +272,6 @@ class TensorflowTrainer(ModelsTrainer):
 
         self.train_generator=train_generator
         self.val_generator=val_generator
-    
-    def configure_model(self):
-        pass 
 
     def train_model(self):
 
@@ -443,9 +436,9 @@ class PytorchTrainer(ModelsTrainer):
         
     def prepare_data(self):                  
         pass 
-        
-    def configure_model(self):       
-    
+
+    def train_model(self):
+
         model = model_utils.select_model(model_name=self.model_name, input_shape=None, output_channels=None,
                              scale_factor=self.scale_factor, batch_size=self.batch_size, 
                              lr_patch_size_x=self.lr_patch_size_x,lr_patch_size_y=self.lr_patch_size_y,
@@ -463,12 +456,8 @@ class PytorchTrainer(ModelsTrainer):
             print('LR patch shape: {}'.format(data['lr'][0][0].shape))
             print('HR patch shape: {}'.format(data['hr'][0][0].shape))
     
-            utils.print_info('configure_model() - lr', data['lr'])
-            utils.print_info('configure_model() - hr', data['hr'])
-        
-        self.model = model
-
-    def train_model(self):
+            utils.print_info('train_model() - lr', data['lr'])
+            utils.print_info('train_model() - hr', data['hr'])
 
         logger = CSVLogger(self.saving_path + '/Quality Control', name='Logger')
     
@@ -483,10 +472,10 @@ class PytorchTrainer(ModelsTrainer):
             logger=logger, 
             callbacks=[checkpoints, lr_monitor]
         )
-            
+
         start = time.time()
     
-        trainer.fit(self.model)
+        trainer.fit(model)
         
         # Displaying the time elapsed for training
         dt = time.time() - start
@@ -556,8 +545,12 @@ class PytorchTrainer(ModelsTrainer):
         
     def predict_images(self):
         
-        hr_images = np.array([io.imread(os.paath.join(self.test_hr_path, fil)) for fil in self.test_filenames])
+        hr_images = np.array([io.imread(os.path.join(self.test_hr_path, fil)) for fil in self.test_filenames])
     
+        model = model_utils.select_model(model_name=self.model_name, scale_factor=self.scale_factor, batch_size=self.batch_size, 
+                             save_basedir = self.saving_path, model_configuration=self.model_configuration, 
+                             checkpoint=os.path.join(self.saving_path,'Quality Control','best_checkpoint.pth'))
+
         trainer = Trainer(gpus=1)
 
         dataset = datasets.PytorchDataset(hr_data_path=self.test_hr_path,
@@ -572,7 +565,7 @@ class PytorchTrainer(ModelsTrainer):
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
         
         data = iter(dataloader).next()
-        predictions = trainer.predict(self.model, dataloaders=dataloader)
+        predictions = trainer.predict(model, dataloaders=dataloader)
         predictions = np.array([np.expand_dims(np.squeeze(e.detach().numpy()),axis=-1) for e in predictions])
         
         if self.verbose:
