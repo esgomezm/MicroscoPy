@@ -75,6 +75,8 @@ print('\n')
 print('Y_train')
 print_info(Y_train)
 
+input_data_shape = X_train.shape
+output_data_shape = Y_train.shape
 
 
 from src.datasets import get_train_val_generators 
@@ -191,6 +193,8 @@ model_trainer = TensorflowTrainer(library_name,
 
 model_trainer.train_generator=train_generator
 model_trainer.val_generator=val_generator
+model_trainer.input_data_shape = input_data_shape
+model_trainer.output_data_shape = output_data_shape
     
 
 model_trainer.train_model()
