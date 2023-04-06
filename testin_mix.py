@@ -145,7 +145,7 @@ model_name = 'unet'
 
 from src.model_utils import select_model
 from src.utils import ssim_loss
-model = select_model(model_name=model_name, input_shape=model_trainer.input_data_shape[0].shape, output_channels=model_trainer.output_data_shape.shape[-1], 
+model = select_model(model_name=model_name, input_shape=model_trainer.input_data_shape[0], output_channels=model_trainer.output_data_shape[-1], 
                         scale_factor=scale, model_configuration=model_configuration)
 
 loss_funct = 'mean_absolute_error'
@@ -170,7 +170,7 @@ scheduler = 'OneCycle'
 
 from src.optimizer_scheduler_utils import select_lr_schedule
 lr_schedule = select_lr_schedule(library_name=library_name, lr_scheduler_name=scheduler, 
-                                    data_len=model_trainer.input_data_shape.shape[0]//batch_size, 
+                                    data_len=model_trainer.input_data_shape[0]//batch_size, 
                                     number_of_epochs=epochs, learning_rate=0.001,
                                     monitor_loss=None, name=None, optimizer=None, frequency=None,
                                     additional_configuration=model_configuration)
@@ -191,8 +191,8 @@ import time
 start = time.time()
 
 history = model.fit(train_generator, validation_data=val_generator,
-                  validation_steps=np.ceil((0.1*model_trainer.input_data_shape.shape[0])/batch_size),
-                  steps_per_epoch=np.ceil(model_trainer.input_data_shape.shape[0]/batch_size),
+                  validation_steps=np.ceil((0.1*model_trainer.input_data_shape[0])/batch_size),
+                  steps_per_epoch=np.ceil(model_trainer.input_data_shape[0]/batch_size),
                   epochs=epochs, 
                   callbacks=[lr_schedule, model_checkpoint, earlystopper])
     
