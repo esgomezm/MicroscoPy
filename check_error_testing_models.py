@@ -159,91 +159,86 @@ for dataset_name in ['EM']:
     print('seed: {}'.format(model_trainer.seed))
 
     model_trainer.train_model()
-    model_trainer.predict_images()
-
-
     
-from src.datasets import extract_random_patches_from_folder
-test_path = '../datasets/TFM - dataset Electron Microscopy/test'
-drawn_test_path = './data_example/drawn_test'
+    from src.datasets import extract_random_patches_from_folder
+    test_path = '../datasets/TFM - dataset Electron Microscopy/test'
+    drawn_test_path = './data_example/drawn_test'
 
-test_filenames = sorted([os.path.join(filename) for filename in os.listdir(test_path)])
-drawn_test_filenames = sorted([os.path.join(filename) for filename in os.listdir(drawn_test_path)])
+    test_filenames = sorted([os.path.join(filename) for filename in os.listdir(test_path)])[0:10]
+    drawn_test_filenames = sorted([os.path.join(filename) for filename in os.listdir(drawn_test_path)])[0:10]
 
-lr_images, hr_images = extract_random_patches_from_folder(
-                                hr_data_path=test_path, 
-                                lr_data_path=None, 
-                                filenames=test_filenames, 
-                                scale_factor=scale, 
-                                crappifier_name='em_crappify', 
-                                lr_patch_shape=None, 
-                                num_patches=1)
+    lr_images, hr_images = extract_random_patches_from_folder(
+                                    hr_data_path=test_path, 
+                                    lr_data_path=None, 
+                                    filenames=test_filenames, 
+                                    scale_factor=scale, 
+                                    crappifier_name='em_crappify', 
+                                    lr_patch_shape=None, 
+                                    num_patches=1)
 
-hr_images = np.expand_dims(hr_images, axis=-1)
-lr_images = np.expand_dims(lr_images, axis=-1)
+    hr_images = np.expand_dims(hr_images, axis=-1)
+    lr_images = np.expand_dims(lr_images, axis=-1)
 
-print('Test HR images')
-print_info(hr_images)
-print('\n')
-print('Test LR images')
-print_info(lr_images)
-print('\n')
-
-
-
-drawn_lr_images, drawn_hr_images = extract_random_patches_from_folder(
-                                hr_data_path=drawn_test_path, 
-                                lr_data_path=None, 
-                                filenames=drawn_test_filenames, 
-                                scale_factor=scale, 
-                                crappifier_name='em_crappify', 
-                                lr_patch_shape=None, 
-                                num_patches=1)
-
-drawn_hr_images = np.expand_dims(drawn_hr_images, axis=-1)
-drawn_lr_images = np.expand_dims(drawn_lr_images, axis=-1)
-
-print('Drawn HR images')
-print_info(drawn_hr_images)
-print('\n')
-print('Drawn LR images')
-print_info(drawn_lr_images)
-print('\n')
-
-from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
-from src.model_utils import select_model
-
-
-optim = select_optimizer(library_name='tensorflow', optimizer_name=optimizer, 
-                                learning_rate=0.001, check_point=None,
-                                parameters=None, additional_configuration=model_configuration)
-
-model = select_model(model_name=model_name, input_shape=lr_images.shape,  
-                     output_channels=1, scale_factor=scale, model_configuration=model_configuration)
-
-loss_funct = 'mean_absolute_error'
-eval_metric = 'mean_squared_error'
-
-model.compile(optimizer=optim, loss=loss_funct, metrics=[eval_metric])
-
-# Load old weights
-model.load_weights( os.path.join('results', 'weights_best.h5') )   
+    print('Test HR images')
+    print_info(hr_images)
+    print('\n')
+    print('Test LR images')
+    print_info(lr_images)
+    print('\n')
 
 
 
+    drawn_lr_images, drawn_hr_images = extract_random_patches_from_folder(
+                                    hr_data_path=drawn_test_path, 
+                                    lr_data_path=None, 
+                                    filenames=drawn_test_filenames, 
+                                    scale_factor=scale, 
+                                    crappifier_name='em_crappify', 
+                                    lr_patch_shape=None, 
+                                    num_patches=1)
 
-test_predictions = model.predict(lr_images, batch_size=1)
-print('Test predictions')
-print_info(test_predictions)
-print('\n')
+    drawn_hr_images = np.expand_dims(drawn_hr_images, axis=-1)
+    drawn_lr_images = np.expand_dims(drawn_lr_images, axis=-1)
+
+    print('Drawn HR images')
+    print_info(drawn_hr_images)
+    print('\n')
+    print('Drawn LR images')
+    print_info(drawn_lr_images)
+    print('\n')
+
+    from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
+    from src.model_utils import select_model
+
+
+    optim = select_optimizer(library_name='tensorflow', optimizer_name=optimizer, 
+                                    learning_rate=0.001, check_point=None,
+                                    parameters=None, additional_configuration=model_configuration)
+
+    model = select_model(model_name=model_name, input_shape=lr_images.shape,  
+                        output_channels=1, scale_factor=scale, model_configuration=model_configuration)
+
+    loss_funct = 'mean_absolute_error'
+    eval_metric = 'mean_squared_error'
+
+    model.compile(optimizer=optim, loss=loss_funct, metrics=[eval_metric])
+
+    # Load old weights
+    model.load_weights(os.path.join(model_trainer.saving_path, 'weights_best.h5') )   
+
+
+    test_predictions = model.predict(lr_images, batch_size=1)
+    print('Test predictions')
+    print_info(test_predictions)
+    print('\n')
 
 
 
-drawn_test_predictions = model.predict(drawn_lr_images, batch_size=1)
-print('Drawn predictions')
-print_info(drawn_test_predictions)
-print('\n')
+    drawn_test_predictions = model.predict(drawn_lr_images, batch_size=1)
+    print('Drawn predictions')
+    print_info(drawn_test_predictions)
+    print('\n')
 
 
 
-plot_images([test_predictions[0], drawn_test_predictions[0]])
+    plot_images([test_predictions[0], drawn_test_predictions[0]])
