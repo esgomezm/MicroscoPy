@@ -97,11 +97,15 @@ class ModelsTrainer:
         
         utils.set_seed(self.seed)
         
-        self.saving_path = './results/{}/{}/{}/scale{}/scale{}_epc{}_btch{}_lr{}_optim-{}_lrsched-{}_seed{}'.format(
+        save_folder = 'scale' + str(self.scale_factor)
+
+        if self.additional_folder:
+            save_folder += '_' + self.additional_folder
+
+        self.saving_path = './results/{}/{}/{}/scale{}_epc{}_btch{}_lr{}_optim-{}_lrsched-{}_seed{}'.format(
                                                                               self.data_name, 
                                                                               self.model_name,
-                                                                              self.additional_folder,
-                                                                              self.scale_factor, 
+                                                                              save_folder, 
                                                                               self.scale_factor, 
                                                                               self.number_of_epochs,
                                                                               self.batch_size, 
