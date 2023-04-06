@@ -252,7 +252,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                                       Y_data=Y_train,
                                                                       validation_split=self.validation_split,
                                                                       batch_size=self.batch_size,
-                                                                      show_examples=self.verbose,
+                                                                      show_examples=False,
                                                                       rotation=self.rotation,
                                                                       horizontal_flip=self.horizontal_flip,
                                                                       vertical_flip=self.vertical_flip)
@@ -261,7 +261,7 @@ class TensorflowTrainer(ModelsTrainer):
             train_generator = datasets.get_generator(X_data=X_train,
                                             Y_data=Y_train,
                                             batch_size=self.batch_size,
-                                            show_examples=self.verbose,
+                                            show_examples=False,
                                             rotation=self.rotation,
                                             horizontal_flip=self.horizontal_flip,
                                             vertical_flip=self.vertical_flip)
@@ -269,7 +269,7 @@ class TensorflowTrainer(ModelsTrainer):
             val_generator = datasets.get_generator(X_data=X_val,
                                           Y_data=Y_val,
                                           batch_size=self.batch_size,
-                                          show_examples=self.verbose,
+                                          show_examples=False,
                                           rotation=self.rotation,
                                           horizontal_flip=self.horizontal_flip,
                                           vertical_flip=self.vertical_flip)

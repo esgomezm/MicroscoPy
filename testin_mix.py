@@ -145,7 +145,7 @@ model_name = 'unet'
 
 from src.model_utils import select_model
 from src.utils import ssim_loss
-model = select_model(model_name=model_name, input_shape=model_trainer.input_data_shape[0], output_channels=model_trainer.output_data_shape[-1], 
+model = select_model(model_name=model_name, input_shape=model_trainer.input_data_shape[1:], output_channels=model_trainer.output_data_shape[-1], 
                         scale_factor=scale, model_configuration=model_configuration)
 
 loss_funct = 'mean_absolute_error'
