@@ -149,7 +149,7 @@ optim = select_optimizer(library_name=library_name, optimizer_name=optimizer,
                                 parameters=None, additional_configuration=model_configuration)
    
 
-model_name = 'dfcan'
+model_name = 'unet'
 
 from src.model_utils import select_model
 from src.utils import ssim_loss
