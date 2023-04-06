@@ -8,7 +8,7 @@ dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
                   'LiveFActinDataset': ['train_split/wf', 'train_split/gt', 'val_split/wf', 'val_split/gt', 'test_split/wf', 'test_split/gt']
                   }
 
-crappifier_config = {'EM': 'em_AG_D_sameas_preprint', 
+crappifier_config = {'EM': 'em_crappify', 
                      'MitoTracker_small': 'fluo_crappify',
                      'F-actin': 'fluo_SP_AG_D_sameas_preprint',
                      'ER': 'fluo_SP_AG_D_sameas_preprint',
