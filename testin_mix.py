@@ -268,7 +268,7 @@ eval_metric = 'mean_squared_error'
 model.compile(optimizer=optim, loss=loss_funct, metrics=[eval_metric])
 
 # Load old weights
-model.load_weights(os.path.join(model_trainer.saving_path, 'weights_best.h5') )   
+model.load_weights(os.path.join('results', 'weights_best.h5'))   
 
 
 test_predictions = model.predict(lr_images, batch_size=1)
