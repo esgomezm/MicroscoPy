@@ -440,7 +440,7 @@ class WGANGP(LightningModule):
                                     val_split=0.1, validation=False)
             
         else:
-            print('Train data - Enters because there is NO validation path')
+            print('Train data - Doesn`t enter because there is validation path')
             dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
                                 lr_data_path=self.hparams.train_lr_path,
                                 filenames=self.hparams.train_filenames,
