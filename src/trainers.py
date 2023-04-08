@@ -450,9 +450,9 @@ class PytorchTrainer(ModelsTrainer):
                              g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
                              g_scheduler = self.lr_scheduler_name, d_scheduler = self.discriminator_lr_scheduler,
                              epochs = self.number_of_epochs, save_basedir = self.saving_path, 
-                             train_hr_path=None, train_lr_path=None, train_filenames = None,
-                             val_hr_path=None, val_lr_path=None, val_filenames=None, crappifier_method=None,
-                             model_configuration=self.model_configuration)
+                             train_hr_path=self.train_hr_path, train_lr_path=self.train_lr_path, train_filenames = self.train_filenames,
+                             val_hr_path=self.val_hr_path, val_lr_path=self.val_lr_path, val_filenames=self.val_filenames, 
+                             crappifier_method=self.crappifier_method, model_configuration=self.model_configuration)
         
         if self.verbose:
             data = iter(model.train_dataloader()).next()
