@@ -470,8 +470,7 @@ class PytorchTrainer(ModelsTrainer):
                                         every_n_train_steps=5, save_last=True, 
                                         filename="{epoch:02d}-{val_ssim:.3f}")
 
-        trainer = Trainer(
-            gpus=1, 
+        trainer = Trainer(accelerator="gpu", devices=1,
             max_epochs=self.number_of_epochs, 
             logger=logger, 
             callbacks=[checkpoints, lr_monitor]
@@ -555,7 +554,7 @@ class PytorchTrainer(ModelsTrainer):
                              save_basedir = self.saving_path, model_configuration=self.model_configuration, 
                              checkpoint=os.path.join(self.saving_path,'Quality Control','best_checkpoint.pth'))
 
-        trainer = Trainer(gpus=1)
+        trainer = Trainer(accelerator="gpu", devices=1)
 
         dataset = datasets.PytorchDataset(hr_data_path=self.test_hr_path,
                                  lr_data_path=self.test_lr_path, 
