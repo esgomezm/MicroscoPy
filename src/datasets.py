@@ -280,9 +280,9 @@ class PytorchDataset(Dataset):
         if val_split is None:
             self.filenames = filenames
         elif validation:
-            self.filenames = filenames[:val_split*len(filenames)]
+            self.filenames = filenames[:int(val_split*len(filenames))]
         else:
-            self.filenames = filenames[val_split*len(filenames):]
+            self.filenames = filenames[int(val_split*len(filenames)):]
 
 
         self.transformations = transformations
