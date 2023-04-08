@@ -68,7 +68,7 @@ validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
 for dataset_name in ['EM']:
-    for model_name in  ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
+    for model_name in  ['wgan', 'esrganplus']:
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
         dataset_root = '../datasets'
