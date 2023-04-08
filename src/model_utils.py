@@ -6,7 +6,8 @@ from . import model
 
 def select_model(model_name=None, input_shape=None, output_channels=None, scale_factor=None, model_configuration=None,
                  batch_size=None, lr_patch_size_x=None, lr_patch_size_y=None, learning_rate_g=None,
-                 learning_rate_d=None, epochs=None, only_hr_images_basedir=None, type_of_data=None,
+                 learning_rate_d=None, epochs=None, train_hr_path=None, train_lr_path=None, train_filenames = None,
+                 val_hr_path=None, val_lr_path=None, val_filenames=None, crappifier_method=None,
                  save_basedir=None, g_optimizer=None, d_optimizer=None, g_scheduler=None, d_scheduler=None,
                  checkpoint=None):
         
@@ -52,11 +53,13 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
             rotation = True,
             horizontal_flip = True,
             vertical_flip = True,
-            hr_imgs_basedir = '', 
-            lr_imgs_basedir = '',
-            only_high_resolution_data = True,
-            only_hr_images_basedir = only_hr_images_basedir,
-            type_of_data = type_of_data,
+            train_hr_path = train_hr_path,
+            train_lr_path = train_lr_path,
+            train_filenames = train_filenames,
+            val_hr_path = val_hr_path,
+            val_lr_path = val_lr_path,
+            val_filenames = val_filenames,
+            crappifier_method= crappifier_method,
             save_basedir = save_basedir,
             gen_checkpoint = checkpoint,
             g_optimizer = g_optimizer,
@@ -79,11 +82,13 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
                                     rotation = True,
                                     horizontal_flip = True,
                                     vertical_flip = True,
-                                    hr_imgs_basedir = "", 
-                                    lr_imgs_basedir ="",
-                                    only_high_resolution_data = True,
-                                    only_hr_images_basedir=only_hr_images_basedir,
-                                    type_of_data=type_of_data,
+                                    train_hr_path = train_hr_path,
+                                    train_lr_path = train_lr_path,
+                                    train_filenames = train_filenames,
+                                    val_hr_path = val_hr_path,
+                                    val_lr_path = val_lr_path,
+                                    val_filenames = val_filenames,
+                                    crappifier_method= crappifier_method,
                                     save_basedir=save_basedir,
                                     gen_checkpoint = checkpoint, 
                                     g_optimizer = g_optimizer,
@@ -91,7 +96,7 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
                                     g_scheduler = g_scheduler,
                                     d_scheduler = d_scheduler
                         )
-                        
+
     else:
         raise Exception("Not available model in TF configuration.")  
               

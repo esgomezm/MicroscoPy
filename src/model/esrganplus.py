@@ -466,7 +466,7 @@ class ESRGANplus(LightningModule):
                batchsize: int = 8,
                lr_patch_size_x: int = 128,
                lr_patch_size_y: int = 128,
-               down_factor: int = 2,
+               scale_factor: int = 2,
                learning_rate_d: float = 0.0001,
                learning_rate_g: float = 0.0001,
                n_critic_steps: int = 5,
@@ -475,11 +475,12 @@ class ESRGANplus(LightningModule):
                rotation: bool = True,
                horizontal_flip: bool = True,
                vertical_flip: bool = True,
-               hr_imgs_basedir: str = "", 
-               lr_imgs_basedir: str ="",
-               only_high_resolution_data: bool = False,
-               only_hr_images_basedir: str = "",
-               type_of_data: str = "Electron microscopy",
+               train_hr_path: str = "",
+               train_lr_path: str = "",
+               train_filenames: list = [],
+               val_hr_path: str = "",
+               val_lr_path: str = "",
+               val_filenames: list = [],
                save_basedir: str = None,
                gen_checkpoint: str = None, 
                g_optimizer: str = None,
@@ -493,11 +494,11 @@ class ESRGANplus(LightningModule):
 
         if gen_checkpoint is not None:
             checkpoint = torch.load(gen_checkpoint)
-            self.generator = define_G(checkpoint['down_factor'])
+            self.generator = define_G(checkpoint['scale_factor'])
             self.generator.load_state_dict(checkpoint['model_state_dict'])
             self.best_valid_loss = checkpoint['best_valid_loss']
         else:
-            self.generator = define_G(down_factor)
+            self.generator = define_G(scale_factor)
             self.best_valid_loss = float('inf')
 
         self.discriminator = define_D()
@@ -530,7 +531,7 @@ class ESRGANplus(LightningModule):
             torch.save({
                         'model_state_dict': self.generator.state_dict(),
                         'optimizer_state_dict': self.optimizer_G.state_dict(),
-                        'down_factor': self.hparams.down_factor,
+                        'scale_factor': self.hparams.scale_factor,
                         'best_valid_loss': self.best_valid_loss
                         }, self.hparams.save_basedir + '/' + filename)
         else:
@@ -721,29 +722,28 @@ class ESRGANplus(LightningModule):
         transformations.append(ToTensor())
 
         transf = torchvision.transforms.Compose(transformations)
+        
+        dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                 lr_data_path=self.hparams.train_lr_path,
+                                 filenames=self.hparams.train_filenames,
+                                 scale_factor=self.hparams.scale_factor,
+                                 crappifier_name=self.hparams.crappifier_method,
+                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                 num_patches=self.hparams.num_patches,
+                                 transformations=transf)
 
-        dataset = PytorchDataset(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y, 
-                            self.hparams.down_factor, transf=transf, validation=False, 
-                            validation_split=self.hparams.validation_split, 
-                            hr_imgs_basedir=self.hparams.hr_imgs_basedir, 
-                            lr_imgs_basedir=self.hparams.lr_imgs_basedir,
-                            only_high_resolution_data=self.hparams.only_high_resolution_data, 
-                            only_hr_imgs_basedir=self.hparams.only_hr_images_basedir,
-                            type_of_data=self.hparams.type_of_data)
-
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=8)
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=12)
         
     def val_dataloader(self):
         transf = ToTensor()
 
-        dataset = PytorchDataset(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y, 
-                            self.hparams.down_factor, transf=transf, validation=True, 
-                            validation_split=self.hparams.validation_split, 
-                            hr_imgs_basedir=self.hparams.hr_imgs_basedir,
-                            lr_imgs_basedir=self.hparams.lr_imgs_basedir,
-                            only_high_resolution_data=self.hparams.only_high_resolution_data, 
-                            only_hr_imgs_basedir=self.hparams.only_hr_images_basedir,
-                            type_of_data=self.hparams.type_of_data)
-
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=8)
-
+        dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
+                                 lr_data_path=self.hparams.val_lr_path,
+                                 filenames=self.hparams.val_filenames,
+                                 scale_factor=self.hparams.scale_factor,
+                                 crappifier_name=self.hparams.crappifier_method,
+                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                 num_patches=self.hparams.num_patches,
+                                 transformations=transf)
+        
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False)#, num_workers=12)

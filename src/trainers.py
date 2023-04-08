@@ -445,14 +445,14 @@ class PytorchTrainer(ModelsTrainer):
 
         model = model_utils.select_model(model_name=self.model_name, input_shape=None, output_channels=None,
                              scale_factor=self.scale_factor, batch_size=self.batch_size, 
-                             lr_patch_size_x=self.lr_patch_size_x,lr_patch_size_y=self.lr_patch_size_y,
+                             lr_patch_size_x=self.lr_patch_size_x, lr_patch_size_y=self.lr_patch_size_y,
                              learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
                              g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
                              g_scheduler = self.lr_scheduler_name, d_scheduler = self.discriminator_lr_scheduler,
-                             epochs = self.number_of_epochs, only_hr_images_basedir = self.train_path,
-                             type_of_data = self.type_of_data, save_basedir = self.saving_path, 
+                             epochs = self.number_of_epochs, save_basedir = self.saving_path, 
+                             train_hr_path=None, train_lr_path=None, train_filenames = None,
+                             val_hr_path=None, val_lr_path=None, val_filenames=None, crappifier_method=None,
                              model_configuration=self.model_configuration)
-        
         
         if self.verbose:
             data = iter(model.train_dataloader()).next()
