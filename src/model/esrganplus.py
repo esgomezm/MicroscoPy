@@ -470,7 +470,6 @@ class ESRGANplus(LightningModule):
                learning_rate_d: float = 0.0001,
                learning_rate_g: float = 0.0001,
                n_critic_steps: int = 5,
-               validation_split: float = 0.1,
                epochs: int = 151,
                rotation: bool = True,
                horizontal_flip: bool = True,
