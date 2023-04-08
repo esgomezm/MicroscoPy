@@ -455,7 +455,7 @@ class PytorchTrainer(ModelsTrainer):
                              crappifier_method=self.crappifier_method, model_configuration=self.model_configuration)
         
         if self.verbose:
-            data = iter(model.train_dataloader()).next()
+            data = next(iter(model.train_dataloader()))
 
             print('LR patch shape: {}'.format(data['lr'][0][0].shape))
             print('HR patch shape: {}'.format(data['hr'][0][0].shape))
@@ -568,7 +568,7 @@ class PytorchTrainer(ModelsTrainer):
 
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
         
-        data = iter(dataloader).next()
+        data = next(iter(dataloader))
         predictions = trainer.predict(model, dataloaders=dataloader)
         predictions = np.array([np.expand_dims(np.squeeze(e.detach().numpy()),axis=-1) for e in predictions])
         
