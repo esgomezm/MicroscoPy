@@ -722,27 +722,50 @@ class ESRGANplus(LightningModule):
 
         transf = torchvision.transforms.Compose(transformations)
         
-        dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
-                                 lr_data_path=self.hparams.train_lr_path,
-                                 filenames=self.hparams.train_filenames,
-                                 scale_factor=self.hparams.scale_factor,
-                                 crappifier_name=self.hparams.crappifier_method,
-                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                 num_patches=self.hparams.num_patches,
-                                 transformations=transf)
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=False)
+            
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                lr_data_path=self.hparams.train_lr_path,
+                                filenames=self.hparams.train_filenames,
+                                scale_factor=self.hparams.scale_factor,
+                                crappifier_name=self.hparams.crappifier_method,
+                                lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                num_patches=self.hparams.num_patches,
+                                transformations=transf)
 
         return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=12)
         
     def val_dataloader(self):
         transf = ToTensor()
 
-        dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
-                                 lr_data_path=self.hparams.val_lr_path,
-                                 filenames=self.hparams.val_filenames,
-                                 scale_factor=self.hparams.scale_factor,
-                                 crappifier_name=self.hparams.crappifier_method,
-                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                 num_patches=self.hparams.num_patches,
-                                 transformations=transf)
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=True)
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
+                                    lr_data_path=self.hparams.val_lr_path,
+                                    filenames=self.hparams.val_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf)
         
         return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False)#, num_workers=12)

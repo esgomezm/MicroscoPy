@@ -270,12 +270,20 @@ class PytorchDataset(Dataset):
         and after the training.
     '''
     def __init__(self, hr_data_path, lr_data_path, filenames, 
-                 scale_factor, crappifier_name, lr_patch_shape, num_patches, 
-                 transformations):
+                 scale_factor, crappifier_name, lr_patch_shape, 
+                 num_patches, transformations, 
+                 val_split=None, validation=False):
 
         self.hr_data_path = hr_data_path
         self.lr_data_path = lr_data_path
-        self.filenames = filenames
+
+        if val_split is None:
+            self.filenames = filenames
+        elif validation:
+            self.filenames = filenames[:val_split*len(filenames)]
+        else:
+            self.filenames = filenames[val_split*len(filenames):]
+
 
         self.transformations = transformations
         self.scale_factor = scale_factor
