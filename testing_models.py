@@ -36,7 +36,6 @@ model_configuration = {'optim': {'early_stop':{'loss':'val_ssim_loss','mode':'ma
                                 'maxpooling': False,
                                 'percp_coef': 10},
                        'wgan': {'g_layers': 15,
-                                'd_layers': 5,
                                 'recloss': 100.0,
                                 'lambda_gp':10},
                        'esrganplus': {'n_critic_steps':5},

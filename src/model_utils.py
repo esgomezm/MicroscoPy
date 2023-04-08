@@ -38,8 +38,7 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
     elif model_name == 'wgan':
 
         return model.wgan.WGANGP(
-            g_layers=model_configuration['wgan']['g_layers'], 
-            d_layers=model_configuration['wgan']['d_layers'], 
+            g_layers=model_configuration['wgan']['g_layers'],
             batchsize=batch_size,
     		lr_patch_size_x=lr_patch_size_x,
     		lr_patch_size_y=lr_patch_size_y,
