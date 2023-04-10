@@ -10,6 +10,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
 from matplotlib import pyplot as plt
 
+import torch
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.loggers import CSVLogger
@@ -469,6 +470,8 @@ class PytorchTrainer(ModelsTrainer):
         checkpoints = ModelCheckpoint(monitor='val_ssim', mode='max', save_top_k=3, 
                                         every_n_train_steps=5, save_last=True, 
                                         filename="{epoch:02d}-{val_ssim:.3f}")
+
+        print('\nTorch devices count: {}'.format(torch.cuda.device_count()))
 
         trainer = Trainer(accelerator="gpu", devices=1,
             max_epochs=self.number_of_epochs, 
