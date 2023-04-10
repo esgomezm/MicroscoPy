@@ -139,7 +139,7 @@ class ModelsTrainer:
             utils.print_info('eval_model() - self.Y_test', self.Y_test)
             utils.print_info('eval_model() - self.predictions', self.predictions)
 
-        print('The predictions will be evaluated')
+        print('The predictions will be evaluated:')
         metrics_dict = metrics.obtain_metrics(gt_image_list=self.Y_test, predicted_image_list=self.predictions, 
                                         test_metric_indexes=self.test_metric_indexes)
             

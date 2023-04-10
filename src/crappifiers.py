@@ -12,7 +12,6 @@ from skimage.transform import rescale
 def downsampleonly(x, scale=4):
     return npzoom(x, 1/scale, order=1)
 
-
 def fluo_G_D(x, scale=4):
     x = npzoom(x, 1/scale, order=1)
 

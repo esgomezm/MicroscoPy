@@ -284,7 +284,6 @@ class PytorchDataset(Dataset):
         else:
             self.filenames = filenames[int(val_split*len(filenames)):]
 
-
         self.transformations = transformations
         self.scale_factor = scale_factor
         self.crappifier_name = crappifier_name
