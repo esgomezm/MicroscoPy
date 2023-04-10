@@ -10,7 +10,6 @@ from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
 from matplotlib import pyplot as plt
 
-import torch
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.trainer import Trainer
 from pytorch_lightning.loggers import CSVLogger
@@ -321,6 +320,7 @@ class TensorflowTrainer(ModelsTrainer):
         
         start = time.time()
         
+        print('Training is going to start:')
         history = model.fit(self.train_generator, validation_data=self.val_generator,
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
                           steps_per_epoch=np.ceil(self.input_data_shape[0]/self.batch_size),
@@ -378,6 +378,7 @@ class TensorflowTrainer(ModelsTrainer):
         # Load old weights
         model.load_weights( os.path.join(self.saving_path, 'weights_best.h5') )   
         
+        print('Prediction is going to start:')
         predictions = model.predict(lr_images, batch_size=1)
     
         self.Y_test = hr_images
@@ -471,13 +472,13 @@ class PytorchTrainer(ModelsTrainer):
                                         every_n_train_steps=5, save_last=True, 
                                         filename="{epoch:02d}-{val_ssim:.3f}")
 
-        print('\nTorch devices count: {}'.format(torch.cuda.device_count()))
-
         trainer = Trainer(accelerator="gpu", devices=1,
             max_epochs=self.number_of_epochs, 
             logger=logger, 
             callbacks=[checkpoints, lr_monitor]
         )
+
+        print('Training is going to start:')
 
         start = time.time()
     
@@ -569,12 +570,13 @@ class PytorchTrainer(ModelsTrainer):
                                  transformations=datasets.ToTensor())
 
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
-        
-        data = next(iter(dataloader))
+
+        print('Prediction is going to start:')
         predictions = trainer.predict(model, dataloaders=dataloader)
         predictions = np.array([np.expand_dims(np.squeeze(e.detach().numpy()),axis=-1) for e in predictions])
         
         if self.verbose:
+            data = next(iter(dataloader))
             utils.print_info('predict_images() - lr', data['lr'])
             utils.print_info('predict_images() - hr', data['hr'])
             utils.print_info('predict_images() - predictions', predictions)
@@ -593,12 +595,6 @@ class PytorchTrainer(ModelsTrainer):
             utils.print_info('predict_images() - self.Y_test', self.Y_test)
             utils.print_info('predict_images() - self.predictions', self.predictions)
                 
-        print('True HR shape: {}'.format(self.Y_test.shape))
-        print('Predicted HR shape: {}'.format(self.predictions.shape))
-        
-        print('True HR: max={} min={}'.format(np.max(self.Y_test[0]), np.min(self.Y_test[0])))
-        print('Predicted HR: max={} min={}'.format(np.max(self.predictions[0]), np.min(self.predictions[0])))
-                  
         assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
         assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
     
@@ -652,7 +648,7 @@ def train_configuration(data_name,
                  validation_split, data_augmentation,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
-                 verbose=verbose, 
+                 verbose=verbose
                 )
     else:
         raise Exception("Not available model.") 
