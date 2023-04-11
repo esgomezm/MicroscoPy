@@ -3,7 +3,7 @@ import torch
 from tqdm import tqdm
 
 from skimage import metrics as skimge_metrics
-from torchmetrics.image.fid import FrechetInceptionDistance
+#from torchmetrics.image.fid import FrechetInceptionDistance
 
 # from ILNIQE import calculate_ilniqe
 
