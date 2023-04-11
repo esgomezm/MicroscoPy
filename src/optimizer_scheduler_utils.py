@@ -8,9 +8,15 @@ from . import tensorflow_callbacks
 
 def select_optimizer(library_name, optimizer_name, learning_rate, check_point, parameters, additional_configuration):
     if library_name == 'tensorflow':
-        return select_tensorflow_optimizer(optimizer_name, learning_rate, additional_configuration)
+        return select_tensorflow_optimizer(optimizer_name=optimizer_name, 
+                                           learning_rate=learning_rate, 
+                                           additional_configuration=additional_configuration)
     elif library_name == 'pytorch':
-        return select_pytorch_optimizer(optimizer_name, learning_rate, check_point, parameters, additional_configuration)
+        return select_pytorch_optimizer(optimizer_name=optimizer_name, 
+                                        learning_rate=learning_rate, 
+                                        check_point=check_point, 
+                                        parameters=parameters, 
+                                        additional_configuration=additional_configuration)
     else:
         raise Exception("Wrong library name.")
         

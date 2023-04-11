@@ -53,7 +53,7 @@ discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'Cosine
 #model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 8
-number_of_epochs = 20
+number_of_epochs = 2
 lr = 0.001
 discriminator_lr = 0.001
 additional_folder = "prueba"
@@ -67,7 +67,7 @@ validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
 for dataset_name in ['EM']:
-    for model_name in  ['wgan', 'esrganplus']:
+    for model_name in  ['dfcan', 'wgan', 'esrganplus']:
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
         dataset_root = '../datasets'
