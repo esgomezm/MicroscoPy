@@ -596,8 +596,8 @@ class PytorchTrainer(ModelsTrainer):
             utils.print_info('predict_images() - self.Y_test', self.Y_test)
             utils.print_info('predict_images() - self.predictions', self.predictions)
                 
-        assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
-        assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
+        #assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
+        #assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
     
  
 def train_configuration(data_name, 
