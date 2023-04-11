@@ -8,8 +8,6 @@ from . import tensorflow_callbacks
 
 def select_optimizer(library_name, optimizer_name, learning_rate, check_point, parameters, additional_configuration):
     
-    print(additional_configuration)
-    
     if library_name == 'tensorflow':
         return select_tensorflow_optimizer(optimizer_name=optimizer_name, 
                                            learning_rate=learning_rate, 
@@ -49,8 +47,6 @@ def select_tensorflow_optimizer(optimizer_name, learning_rate, additional_config
         raise Exception("No available optimizer.")
 
 def select_pytorch_optimizer(optimizer_name, learning_rate, check_point, parameters, additional_configuration):
-    
-    print(additional_configuration)
 
     if check_point is None:
         if optimizer_name == 'Adam':

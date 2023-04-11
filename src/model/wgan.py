@@ -428,7 +428,6 @@ class WGANGP(LightningModule):
         transf = torchvision.transforms.Compose(transformations)
         
         if self.hparams.val_hr_path is None:
-            print('Train data - Enters because there is NO validation path')
             dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
                                     lr_data_path=self.hparams.train_lr_path,
                                     filenames=self.hparams.train_filenames,
@@ -440,7 +439,6 @@ class WGANGP(LightningModule):
                                     val_split=0.1, validation=False)
             
         else:
-            print('Train data - Doesn`t enter because there is validation path')
             dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
                                 lr_data_path=self.hparams.train_lr_path,
                                 filenames=self.hparams.train_filenames,
@@ -456,7 +454,6 @@ class WGANGP(LightningModule):
         transf = ToTensor()
 
         if self.hparams.val_hr_path is None:
-            print('Val data - Enters because there is NO validation path')
             dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
                                     lr_data_path=self.hparams.train_lr_path,
                                     filenames=self.hparams.train_filenames,
@@ -467,7 +464,6 @@ class WGANGP(LightningModule):
                                     transformations=transf,
                                     val_split=0.1, validation=True)
         else:
-            print('Val data - Doesn`t enter because there is validation path')
             dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
                                     lr_data_path=self.hparams.val_lr_path,
                                     filenames=self.hparams.val_filenames,

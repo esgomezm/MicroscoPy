@@ -274,10 +274,6 @@ class PytorchDataset(Dataset):
                  num_patches, transformations, 
                  val_split=None, validation=False):
 
-        print('hr_data_path : {}'.format(hr_data_path))
-        print('lr_data_path : {}'.format(lr_data_path))
-        print('len(filenames) : {}'.format(len(filenames)))
-
         self.hr_data_path = hr_data_path
         self.lr_data_path = lr_data_path
 
