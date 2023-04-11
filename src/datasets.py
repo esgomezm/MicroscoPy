@@ -313,6 +313,8 @@ class PytorchDataset(Dataset):
         lr_patch = np.expand_dims(lr_patch[0], axis=-1)
         hr_patch = np.expand_dims(hr_patch[0], axis=-1)
 
+        print('{} - {}'.shape(lr_patch.shape, hr_patch.shape))
+
         sample = {'hr': hr_patch, 'lr': lr_patch}
 
         if self.transformations:
