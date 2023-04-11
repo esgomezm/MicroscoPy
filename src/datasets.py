@@ -303,8 +303,8 @@ class PytorchDataset(Dataset):
             idx = idx.tolist()
 
         filename_idx = idx // self.num_patches
-        hr_filename = os.path.join(self.hr_data_path, self.filenames[filename_idx])
-        lr_filename = os.path.join(self.lr_data_path, self.filenames[filename_idx])
+        hr_filename = os.path.join(self.hr_data_path, self.filenames[filename_idx]) 
+        lr_filename = None if self.lr_data_path is None else os.path.join(self.lr_data_path, self.filenames[filename_idx]) 
 
         hr_patch, lr_patch = extract_random_patches_from_image(hr_filename, lr_filename, 
                                     self.scale_factor, self.crappifier_name, 
