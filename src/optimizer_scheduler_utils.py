@@ -47,6 +47,8 @@ def select_tensorflow_optimizer(optimizer_name, learning_rate, additional_config
 
 def select_pytorch_optimizer(optimizer_name, learning_rate, check_point, parameters, additional_configuration):
     
+    print(additional_configuration)
+
     if check_point is None:
         if optimizer_name == 'Adam':
             return torch.optim.Adam(parameters, lr=learning_rate, betas=(additional_configuration['optim']['adam']['beta1'],
