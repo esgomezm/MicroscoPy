@@ -557,7 +557,7 @@ class PytorchTrainer(ModelsTrainer):
     
         model = model_utils.select_model(model_name=self.model_name, scale_factor=self.scale_factor, batch_size=self.batch_size, 
                              save_basedir = self.saving_path, model_configuration=self.model_configuration, 
-                             checkpoint=os.path.join(self.saving_path,'Quality Control','best_checkpoint.pth'))
+                             checkpoint=os.path.join(self.saving_path,'best_checkpoint.pth'))
 
         trainer = Trainer(accelerator="gpu", devices=1)
 
