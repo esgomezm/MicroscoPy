@@ -315,7 +315,7 @@ class PytorchDataset(Dataset):
 
         sample = {'hr': hr_patch, 'lr': lr_patch}
 
-        if self.transf:
-            sample = self.transf(sample)
+        if self.transformations:
+            sample = self.transformations(sample)
 
         return sample
