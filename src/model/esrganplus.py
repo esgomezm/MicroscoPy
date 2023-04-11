@@ -481,11 +481,13 @@ class ESRGANplus(LightningModule):
                val_lr_path: str = "",
                val_filenames: list = [],
                save_basedir: str = None,
+               crappifier_method: str = None 
                gen_checkpoint: str = None, 
                g_optimizer: str = None,
                d_optimizer: str = None,
                g_scheduler: str = None,
-               d_scheduler: str = None
+               d_scheduler: str = None,
+               additonal_configuration: dict = {}
                ):
         super(ESRGANplus, self).__init__()
         
