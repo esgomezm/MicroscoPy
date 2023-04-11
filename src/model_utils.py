@@ -63,7 +63,8 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
             g_optimizer = g_optimizer,
             d_optimizer = d_optimizer,
             g_scheduler = g_scheduler,
-            d_scheduler = d_scheduler
+            d_scheduler = d_scheduler,
+            additonal_configuration = model_configuration
         )
     
     elif model_name == 'esrganplus':
@@ -91,7 +92,8 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
                                     g_optimizer = g_optimizer,
                                     d_optimizer = d_optimizer,
                                     g_scheduler = g_scheduler,
-                                    d_scheduler = d_scheduler
+                                    d_scheduler = d_scheduler,
+                                    additonal_configuration = model_configuration
                         )
 
     else:

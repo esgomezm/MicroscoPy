@@ -323,7 +323,8 @@ class TensorflowTrainer(ModelsTrainer):
         print('Training is going to start:')
         history = model.fit(self.train_generator, validation_data=self.val_generator,
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
-                          steps_per_epoch=np.ceil(self.input_data_shape[0]/self.batch_size),
+                          steps_per_epoch=np.cei
+    print(additional_configuration)l(self.input_data_shape[0]/self.batch_size),
                           epochs=self.number_of_epochs, 
                           callbacks=[lr_schedule, model_checkpoint, earlystopper])
         
