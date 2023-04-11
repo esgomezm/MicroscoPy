@@ -254,8 +254,6 @@ class WGANGP(LightningModule):
 
     def forward(self, x):
         if isinstance(x, dict):
-            print('WGAN - x[lr] shape: {}'.format(x['lr']))
-            print('WGAN - self.generator(x[lr]) shape: {}'.format(self.generator(x['lr'])))
             return self.generator(x['lr'])
         else:
             return self.generator(x)
