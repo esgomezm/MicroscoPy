@@ -523,7 +523,7 @@ class ESRGANplus(LightningModule):
         self.D_update_ratio = 1
         self.D_init_iters = 0
 
-        if hr_imgs_basedir or lr_imgs_basedir or only_hr_images_basedir:
+        if train_hr_path or train_lr_path:
             self.len_data = self.train_dataloader().__len__()
             self.total_iters = epochs * self.len_data
 
@@ -771,3 +771,66 @@ class ESRGANplus(LightningModule):
                                     transformations=transf)
         
         return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False)#, num_workers=12)
+    
+    def train_dataloader(self):
+      
+        transformations = []
+        
+        if self.hparams.horizontal_flip: 
+            transformations.append(RandomHorizontalFlip())
+        if self.hparams.vertical_flip:
+            transformations.append(RandomVerticalFlip())
+        if self.hparams.rotation:
+            transformations.append(RandomRotate())
+
+        transformations.append(ToTensor())
+
+        transf = torchvision.transforms.Compose(transformations)
+        
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=False)
+            
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                lr_data_path=self.hparams.train_lr_path,
+                                filenames=self.hparams.train_filenames,
+                                scale_factor=self.hparams.scale_factor,
+                                crappifier_name=self.hparams.crappifier_method,
+                                lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                num_patches=self.hparams.num_patches,
+                                transformations=transf)
+
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=0)
+        
+    def val_dataloader(self):
+        transf = ToTensor()
+
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=True)
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
+                                    lr_data_path=self.hparams.val_lr_path,
+                                    filenames=self.hparams.val_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf)
+        
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0)
