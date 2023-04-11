@@ -465,6 +465,7 @@ class PytorchTrainer(ModelsTrainer):
             utils.print_info('train_model() - lr', data['lr'])
             utils.print_info('train_model() - hr', data['hr'])
 
+        os.makedirs(self.saving_path + '/Quality Control', exist_ok=True)
         logger = CSVLogger(self.saving_path + '/Quality Control', name='Logger')
     
         lr_monitor = LearningRateMonitor(logging_interval='epoch')
@@ -539,12 +540,12 @@ class PytorchTrainer(ModelsTrainer):
                         if row_value:
                             train_metrics[keys[i]].append([step, float(row_value)])
 
-        os.makedirs(self.saving_path + '/train_metrics', exist_ok=True)
-    
-        for key in train_metrics:
-            values_to_save = np.array([e[1] for e in train_metrics[key]])
-            np.save(self.saving_path + '/train_metrics/' + key + '.npy', values_to_save)
-        np.save(self.saving_path + '/train_metrics/time.npy', np.array([dt]))
+                os.makedirs(self.saving_path + '/train_metrics', exist_ok=True)
+            
+                for key in train_metrics:
+                    values_to_save = np.array([e[1] for e in train_metrics[key]])
+                    np.save(self.saving_path + '/train_metrics/' + key + '.npy', values_to_save)
+                np.save(self.saving_path + '/train_metrics/time.npy', np.array([dt]))
         
 
         self.history = []
