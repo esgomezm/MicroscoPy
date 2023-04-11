@@ -566,8 +566,8 @@ class PytorchTrainer(ModelsTrainer):
                                  filenames=self.test_filenames, 
                                  scale_factor=self.scale_factor, 
                                  crappifier_name=self.crappifier_method, 
-                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
-                                 num_patches=self.num_patches, 
+                                 lr_patch_shape=None, 
+                                 num_patches=1, 
                                  transformations=datasets.ToTensor())
 
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
