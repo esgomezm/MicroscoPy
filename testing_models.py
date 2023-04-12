@@ -19,7 +19,7 @@ crappifier_config = {'EM': 'em_AG_D_sameas_preprint',
                      'LiveFActinDataset': 'fluo_SP_AG_D_sameas_preprint'}
 
 patch_config = {'EM': {'num_patches':16, 'patch_size_x':64, 'patch_size_y':64}, 
-                'MitoTracker_small': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64}, 
+                'MitoTracker_small': {'num_patches':1, 'patch_size_x':64, 'patch_size_y':64}, 
                 'F-actin': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
                 'ER': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
                 'MT': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
@@ -60,7 +60,7 @@ discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'Cosine
 #model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 4
-number_of_epochs = 20
+number_of_epochs = 2
 lr = 0.001
 discriminator_lr = 0.001
 additional_folder = "prueba"

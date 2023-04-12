@@ -359,10 +359,17 @@ class TensorflowTrainer(ModelsTrainer):
         lr_images = np.expand_dims(lr_images, axis=-1)
 
         if self.model_name == 'unet':
+            if self.verbose:
+                print('Padding will be added to the images.')
+
             height_padding, width_padding = utils.calculate_pad_for_Unet(lr_img_shape = lr_images[0].shape, 
                                                                          depth_Unet = self.model_configuration['unet']['depth'], 
                                                                          is_pre = True, 
                                                                          scale = self.scale_factor)
+            
+            if self.verbose and (height_padding == (0,0) and width_padding == (0,0)):
+                print('No padding is needed to added.')
+
             lr_images = utils.add_padding_for_Unet(lr_imgs = lr_images, 
                                                    height_padding = height_padding, 
                                                    width_padding = width_padding)
