@@ -8,8 +8,8 @@ dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
                   'LiveFActinDataset': ['train_split/wf', 'train_split/gt', 'val_split/wf', 'val_split/gt', 'test_split/wf', 'test_split/gt']
                   }
 
-crappifier_config = {'EM': 'em_crappify', 
-                     'MitoTracker_small': 'fluo_crappify',
+crappifier_config = {'EM': 'em_AG_D_sameas_preprint', 
+                     'MitoTracker_small': 'fluo_SP_AG_D_sameas_preprint',
                      'F-actin': 'fluo_SP_AG_D_sameas_preprint',
                      'ER': 'fluo_SP_AG_D_sameas_preprint',
                      'MT': 'fluo_SP_AG_D_sameas_preprint',
@@ -52,8 +52,8 @@ discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'Cosine
 
 #model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
-batch_size = 8
-number_of_epochs = 2
+batch_size = 4
+number_of_epochs = 1
 lr = 0.001
 discriminator_lr = 0.001
 additional_folder = "prueba"
@@ -66,8 +66,8 @@ patch_size_y = 64
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
-for dataset_name in ['EM']:
-    for model_name in  ['esrganplus']:
+for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFActinDataset']:
+    for model_name in ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
         dataset_root = '../datasets'

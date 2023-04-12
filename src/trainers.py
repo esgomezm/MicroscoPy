@@ -206,6 +206,7 @@ class TensorflowTrainer(ModelsTrainer):
             print('Data:')
             print('HR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(Y_train.shape, np.max(Y_train), np.min(Y_train),  np.mean(Y_train), Y_train.dtype))
             print('LR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(X_train.shape, np.max(X_train), np.min(X_train),  np.mean(X_train), X_train.dtype))
+            '''
             plt.figure(figsize=(10,5))
             plt.subplot(1,2,1)
             plt.imshow(Y_train[0])
@@ -214,6 +215,7 @@ class TensorflowTrainer(ModelsTrainer):
             plt.imshow(X_train[0])
             plt.title('X_train - wf')
             plt.show()
+            '''
 
         assert np.max(X_train[0]) <= 1.0 and np.max(Y_train[0]) <= 1.0
         assert np.min(X_train[0]) >= 0.0 and np.min(Y_train[0]) >= 0.0            
