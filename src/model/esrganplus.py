@@ -464,6 +464,7 @@ def define_F(use_bn=False):
 class ESRGANplus(LightningModule):
     def __init__(self,
                batchsize: int = 8,
+               num_patches: int = 4,
                lr_patch_size_x: int = 128,
                lr_patch_size_y: int = 128,
                scale_factor: int = 2,

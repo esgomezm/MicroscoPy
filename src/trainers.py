@@ -446,7 +446,7 @@ class PytorchTrainer(ModelsTrainer):
     def train_model(self):
 
         model = model_utils.select_model(model_name=self.model_name, input_shape=None, output_channels=None,
-                             scale_factor=self.scale_factor, batch_size=self.batch_size, 
+                             scale_factor=self.scale_factor, batch_size=self.batch_size, num_patches=self.num_patches,
                              lr_patch_size_x=self.lr_patch_size_x, lr_patch_size_y=self.lr_patch_size_y,
                              learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
                              g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
