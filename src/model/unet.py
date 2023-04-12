@@ -340,6 +340,7 @@ def preResUNet(image_shape, output_channels, activation='elu', kernel_initialize
     model = Model(inputs=[inputs], outputs=[outputs])
 
     return model
+
 def postResUNet(image_shape, output_channels, activation='elu', kernel_initializer='he_normal',
             dropout_value=0.2, batchnorm=False, maxpooling=True, separable=False,
             numInitChannels=16, depth=4, upsampling_factor=2,
@@ -547,41 +548,4 @@ def AttentionBlock(x, shortcut, filters, batch_norm,trainable=False):
     x = Multiply(trainable=trainable)([x,psi])
     
     return x    
-
-######
-
-def pad_images_for_Unet(lr_imgs, hr_imgs, depth_Unet, is_pre, scale):
-  
-  lr_height = lr_imgs[0].shape[0]
-  lr_width = lr_imgs[0].shape[1]
-
-  if is_pre:
-    lr_height *= scale
-    lr_width *= scale
-
-  if lr_width%2**depth_Unet != 0 or lr_height%2**depth_Unet != 0:
-    height_gap = ((lr_height//2**depth_Unet) + 1) * 2**depth_Unet - lr_height
-    width_gap = ((lr_width//2**depth_Unet) + 1) * 2**depth_Unet - lr_width
-
-    if is_pre:
-      height_gap //= 2
-      width_gap //= 2
-
-    height_padding = (height_gap//2 + height_gap%2, height_gap//2)
-    width_padding = (width_gap//2 + width_gap%2, width_gap//2)
-
-    if is_pre:
-      if height_gap == 1:
-        height_padding = (height_gap, 0)
-      if width_gap == 1:
-        width_padding = (width_gap, 0)
-
-    lr_imgs = [np.pad(x, (height_padding, width_padding,(0,0)), mode="constant", constant_values=0) for x in lr_imgs]
-
-    hr_height_padding = (height_padding[0] * 2, height_padding[1] * 2)
-    hr_width_padding = (width_padding[0] * 2, width_padding[1] * 2)
-
-    hr_imgs = [np.pad(x, (hr_height_padding, hr_width_padding, (0,0)), mode="constant", constant_values=0) for x in hr_imgs]
-
-  return np.array(lr_imgs), np.array(hr_imgs)
 

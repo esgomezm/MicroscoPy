@@ -358,6 +358,15 @@ class TensorflowTrainer(ModelsTrainer):
         hr_images = np.expand_dims(hr_images, axis=-1)
         lr_images = np.expand_dims(lr_images, axis=-1)
 
+        if self.model_name == 'unet':
+            height_padding, width_padding = utils.calculate_pad_for_Unet(lr_img_shape = lr_images[0].shape, 
+                                                                         depth_Unet = self.model_configuration['unet']['depth'], 
+                                                                         is_pre = True, 
+                                                                         scale = self.scale_factor)
+            lr_images = utils.add_padding_for_Unet(lr_imgs = lr_images, 
+                                                   height_padding = height_padding, 
+                                                   width_padding = width_padding)
+
         if self.verbose:
             print('HR images - shape:{} dtype:{}'.format(hr_images.shape, hr_images.dtype))
             print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
@@ -383,6 +392,12 @@ class TensorflowTrainer(ModelsTrainer):
         print('Prediction is going to start:')
         predictions = model.predict(lr_images, batch_size=1)
     
+        if self.model_name == 'unet':
+            predictions = utils.remove_padding_for_Unet(pad_hr_imgs = predictions, 
+                                                        height_padding = height_padding, 
+                                                        width_padding = width_padding, 
+                                                        scale = self.scale_factor)
+
         self.Y_test = hr_images
         self.predictions = np.clip(predictions, a_min=0, a_max=1)
         
