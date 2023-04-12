@@ -139,13 +139,23 @@ def add_padding_for_Unet(lr_imgs, height_padding, width_padding):
     return pad_lr_imgs
 
 def remove_padding_for_Unet(pad_hr_imgs, height_padding, width_padding, scale):
-
-    hr_height_padding = (height_padding[0] * scale, height_padding[1] * scale)
-    hr_width_padding = (width_padding[0] * scale, width_padding[1] * scale)
+    
+    if len(pad_hr_imgs.shape) == 4:
+        hr_height_padding_left = - height_padding[1] * scale if height_padding[1] > 0 else pad_hr_imgs.shape[1]
+    elif len(pad_hr_imgs.shape) == 3:
+        hr_height_padding_left = - height_padding[1] * scale if height_padding[1] > 0 else pad_hr_imgs.shape[0]
 
     if len(pad_hr_imgs.shape) == 4:
-       hr_imgs = pad_hr_imgs[:, hr_height_padding[0]:-hr_height_padding[1], hr_width_padding[0]:-hr_width_padding[1], :]
+        hr_width_padding_left = - width_padding[1] * scale if width_padding[1] > 0 else pad_hr_imgs.shape[2]
     elif len(pad_hr_imgs.shape) == 3:
-       hr_imgs = pad_hr_imgs[hr_height_padding[0]:-hr_height_padding[1], hr_width_padding[0]:-hr_width_padding[1], :]
+        hr_width_padding_left = - width_padding[1] * scale if width_padding[1] > 0 else pad_hr_imgs.shape[1]
+
+    hr_height_padding = (height_padding[0] * scale, hr_height_padding_left)
+    hr_width_padding = (width_padding[0] * scale, hr_width_padding_left)
+
+    if len(pad_hr_imgs.shape) == 4:
+       hr_imgs = pad_hr_imgs[:, hr_height_padding[0]:hr_height_padding[1], hr_width_padding[0]:hr_width_padding[1], :]
+    elif len(pad_hr_imgs.shape) == 3:
+       hr_imgs = pad_hr_imgs[hr_height_padding[0]:hr_height_padding[1], hr_width_padding[0]:hr_width_padding[1], :]
 
     return hr_imgs
