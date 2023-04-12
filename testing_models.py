@@ -1,5 +1,8 @@
 from src.trainers import *
 
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
+os.environ["CUDA_VISIBLE_DEVICES"] = "2";
+
 dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
                   'MitoTracker_small': [None, 'train', None, None, None, 'test'],
                   'F-actin': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt'],
@@ -15,8 +18,12 @@ crappifier_config = {'EM': 'em_AG_D_sameas_preprint',
                      'MT': 'fluo_SP_AG_D_sameas_preprint',
                      'LiveFActinDataset': 'fluo_SP_AG_D_sameas_preprint'}
 
-os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
-os.environ["CUDA_VISIBLE_DEVICES"] = "2";
+patch_config = {'EM': {'num_patches':16, 'patch_size_x':64, 'patch_size_y':64}, 
+                'MitoTracker_small': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64}, 
+                'F-actin': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
+                'ER': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
+                'MT': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
+                'LiveFActinDataset': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}}
 
 model_configuration = {'optim': {'early_stop':{'loss':'val_ssim_loss','mode':'max', 'patience':10},
                                  'adam':{'beta1':0.5,'beta2':0.9,'epsilon':1e-07},
@@ -53,21 +60,18 @@ discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'Cosine
 #model_name = 'unet' # ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']
 seed = 666
 batch_size = 4
-number_of_epochs = 1
+number_of_epochs = 20
 lr = 0.001
 discriminator_lr = 0.001
 additional_folder = "prueba"
 
 scale = 4
 
-num_patches = 16
-patch_size_x = 64
-patch_size_y = 64
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
-for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFActinDataset']:
-    for model_name in ['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
+for dataset_name in ['EM']: #['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFActinDataset']:
+    for model_name in ['unet']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
 
         dataset_root = '../datasets'
@@ -79,6 +83,10 @@ for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFAct
         test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
         crappifier_method = crappifier_config[dataset_name]
+
+        num_patches = patch_config[dataset_name]['num_patches']
+        patch_size_x = patch_config[dataset_name]['patch_size_x']
+        patch_size_y = patch_config[dataset_name]['patch_size_y']
 
         model = train_configuration(
                         data_name=dataset_name, 
