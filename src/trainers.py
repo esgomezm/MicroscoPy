@@ -361,6 +361,8 @@ class TensorflowTrainer(ModelsTrainer):
         if self.model_name == 'unet':
             if self.verbose:
                 print('Padding will be added to the images.')
+                print('LR images before padding:')
+                print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
 
             height_padding, width_padding = utils.calculate_pad_for_Unet(lr_img_shape = lr_images[0].shape, 
                                                                          depth_Unet = self.model_configuration['unet']['depth'], 
@@ -369,6 +371,8 @@ class TensorflowTrainer(ModelsTrainer):
             
             if self.verbose and (height_padding == (0,0) and width_padding == (0,0)):
                 print('No padding is needed to added.')
+            print(height_padding)
+            print(width_padding)
 
             lr_images = utils.add_padding_for_Unet(lr_imgs = lr_images, 
                                                    height_padding = height_padding, 
