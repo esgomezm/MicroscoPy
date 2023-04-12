@@ -113,8 +113,8 @@ def calculate_pad_for_Unet(lr_img_shape, depth_Unet, is_pre, scale):
         width_gap = ((lr_width//2**depth_Unet) + 1) * 2**depth_Unet - lr_width
 
         if is_pre:
-            height_gap //= 2
-            width_gap //= 2
+            height_gap //= scale
+            width_gap //= scale
 
         height_padding = (height_gap//2 + height_gap%2, height_gap//2)
         width_padding = (width_gap//2 + width_gap%2, width_gap//2)
