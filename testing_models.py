@@ -20,10 +20,10 @@ crappifier_config = {'EM': 'em_AG_D_sameas_preprint',
 
 patch_config = {'EM': {'num_patches':16, 'patch_size_x':64, 'patch_size_y':64}, 
                 'MitoTracker_small': {'num_patches':1, 'patch_size_x':64, 'patch_size_y':64}, 
-                'F-actin': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
-                'ER': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
-                'MT': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}, 
-                'LiveFActinDataset': {'num_patches':4, 'patch_size_x':4, 'patch_size_y':4}}
+                'F-actin': {'num_patches':1, 'patch_size_x':64, 'patch_size_y':64}, 
+                'ER': {'num_patches':1, 'patch_size_x':64, 'patch_size_y':64}, 
+                'MT': {'num_patches':1, 'patch_size_x':64, 'patch_size_y':64}, 
+                'LiveFActinDataset': {'num_patches':1, 'patch_size_x':64, 'patch_size_y':64}}
 
 model_configuration = {'optim': {'early_stop':{'loss':'val_ssim_loss','mode':'max', 'patience':10},
                                  'adam':{'beta1':0.5,'beta2':0.9,'epsilon':1e-07},
