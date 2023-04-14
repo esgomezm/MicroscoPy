@@ -101,7 +101,7 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
                                            lr_filename=None if lr_data_path is None else os.path.join(lr_data_path, filenames[0]), 
                                            scale_factor=scale_factor, 
                                            crappifier_name=crappifier_name)
-
+    print('actual_scale_factor: {}'.format(actual_scale_factor))
     final_lr_patches = []
     final_hr_patches = []
     
