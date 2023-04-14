@@ -215,7 +215,7 @@ class TensorflowTrainer(ModelsTrainer):
     
     def prepare_data(self):
 
-        train_patches_wf, train_patches_gt = datasets.extract_random_patches_from_folder(
+        train_patches_wf, train_patches_gt, actual_scale_factor = datasets.extract_random_patches_from_folder(
                                                 hr_data_path=self.train_hr_path, 
                                                 lr_data_path=self.train_lr_path, 
                                                 filenames=self.train_filenames, 
@@ -223,6 +223,11 @@ class TensorflowTrainer(ModelsTrainer):
                                                 crappifier_name=self.crappifier_method, 
                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
                                                 num_patches=self.num_patches)
+
+        if self.scale_factor is None:
+            self.scale_factor = actual_scale_factor
+            if self.verbose:
+                print('Actual scale factor that will be used is: {}'.format(self.scale_factor))
 
         X_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_wf])
         Y_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_gt])
@@ -251,7 +256,7 @@ class TensorflowTrainer(ModelsTrainer):
 
         if self.val_hr_path is not None or self.val_lr_path is not None:
 
-            val_patches_wf, val_patches_gt = datasets.extract_random_patches_from_folder(
+            val_patches_wf, val_patches_gt, _ = datasets.extract_random_patches_from_folder(
                                                 hr_data_path=self.val_hr_path, 
                                                 lr_data_path=self.val_lr_path, 
                                                 filenames=self.val_filenames, 
@@ -371,7 +376,7 @@ class TensorflowTrainer(ModelsTrainer):
 
     def predict_images(self):
 
-        lr_images, hr_images = datasets.extract_random_patches_from_folder(
+        lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
                                         hr_data_path=self.test_hr_path, 
                                         lr_data_path=self.test_lr_path, 
                                         filenames=self.test_filenames, 

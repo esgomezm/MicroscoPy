@@ -119,7 +119,7 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
     final_lr_patches = np.concatenate(final_lr_patches)
     final_hr_patches = np.concatenate(final_hr_patches)
 
-    return final_lr_patches, final_hr_patches
+    return final_lr_patches, final_hr_patches, actual_scale_factor
 
 # Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
