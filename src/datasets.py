@@ -31,6 +31,8 @@ def obtain_scale_factor(hr_filename, lr_filename, scale_factor, crappifier_name)
         lr_img = read_image(lr_filename)
 
     images_scale_factor = hr_img.shape[0]//lr_img.shape[0]
+    
+    print(scale_factor)
 
     if scale_factor is None:
         final_scale_factor = images_scale_factor
