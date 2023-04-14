@@ -19,7 +19,7 @@ def read_image(filename, desired_accuracy=np.float32):
 
 def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     
-    if scale_factor is None:
+    if scale_factor is None and lr_filename is None:
         raise ValueError('A scale factor has to be given.')
     
     hr_img = read_image(hr_filename)
@@ -30,10 +30,13 @@ def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     else:
         lr_img = read_image(lr_filename)
 
-    actual_scale_factor = hr_img.shape[0]//lr_img.shape[0]
+    if scale_factor is not None:
+        # The only case where scale_factor can be None is when a lr_filenames is given
+        # even in that case a scale_factor can be selected and a crappifier function will be applied
+        actual_scale_factor = hr_img.shape[0]//lr_img.shape[0]
 
-    if scale_factor > actual_scale_factor:
-        lr_img = normalization(crappifiers.apply_crappifier(lr_img, scale_factor//actual_scale_factor, "downsampleonly"))
+        if scale_factor > actual_scale_factor:
+            lr_img = normalization(crappifiers.apply_crappifier(lr_img, scale_factor//actual_scale_factor, crappifier_name))
 
     return hr_img, lr_img
 
