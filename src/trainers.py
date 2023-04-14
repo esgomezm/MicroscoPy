@@ -114,6 +114,32 @@ class ModelsTrainer:
                                                                               self.lr_scheduler_name,
                                                                               self.seed)
         
+        print('\n' + '-'*10)
+        print('{} model will be trained with the next configuration'.format(self.model_name))
+        print('Dataset: {}'.format(self.data_name))
+        print('\tTrain wf path: {}'.format(train_lr_path))
+        print('\tTrain gt path: {}'.format(train_hr_path))
+        print('\tVal wf path: {}'.format(val_lr_path))
+        print('\tVal gt path: {}'.format(val_hr_path))
+        print('\tTest wf path: {}'.format(test_lr_path))
+        print('\tTest gt path: {}'.format(test_hr_path))
+        print('Preprocessing info:')
+        print('\tScale factor: {}'.format(self.scale_factor))
+        print('\tCrappifier method: {}'.format(crappifier_method))
+        print('\tNum patches: {}'.format(num_patches))
+        print('\tPatch size: {} x {}'.format(patch_size_x, patch_size_y))
+        print('Training info:')
+        print('\tEpochs: {}'.format(number_of_epochs))
+        print('\tBatchsize: {}'.format(batch_size))
+        print('\tGen learning rate: {}'.format(learning_rate))
+        print('\tDisc learning rate: {}'.format(discriminator_learning_rate))
+        print('\tGen optimizer: {}'.format(optimizer_name))
+        print('\tDisc optimizer: {}'.format(discriminator_optimizer))
+        print('\tGen scheduler: {}'.format(lr_scheduler_name))
+        print('\tDisc scheduler: {}'.format(discriminator_lr_scheduler))
+
+        print('-'*10)
+
         os.makedirs(self.saving_path, exist_ok=True)
     
     def launch(self):
