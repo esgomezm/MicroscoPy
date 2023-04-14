@@ -97,7 +97,7 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 
 def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, scale_factor, 
                                       crappifier_name, lr_patch_shape, num_patches):
-    
+    print('enters')
     # First lets check what is the scale factor, in case None is given
     actual_scale_factor = read_image_pairs(hr_filename=os.path.join(hr_data_path, filenames[0]), 
                                            lr_filename=None if lr_data_path is None else os.path.join(lr_data_path, filenames[0]), 
