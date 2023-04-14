@@ -32,8 +32,6 @@ def obtain_scale_factor(hr_filename, lr_filename, scale_factor, crappifier_name)
 
     images_scale_factor = hr_img.shape[0]//lr_img.shape[0]
     
-    print(scale_factor)
-
     if scale_factor is None:
         final_scale_factor = images_scale_factor
     else:
@@ -97,13 +95,13 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 
 def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, scale_factor, 
                                       crappifier_name, lr_patch_shape, num_patches):
-    print('enters')
+
     # First lets check what is the scale factor, in case None is given
-    actual_scale_factor = read_image_pairs(hr_filename=os.path.join(hr_data_path, filenames[0]), 
-                                           lr_filename=None if lr_data_path is None else os.path.join(lr_data_path, filenames[0]), 
-                                           scale_factor=scale_factor, 
-                                           crappifier_name=crappifier_name)
-    print('actual_scale_factor: {}'.format(actual_scale_factor))
+    actual_scale_factor = obtain_scale_factor(hr_filename=os.path.join(hr_data_path, filenames[0]), 
+                                              lr_filename=None if lr_data_path is None else os.path.join(lr_data_path, filenames[0]), 
+                                              scale_factor=scale_factor, 
+                                              crappifier_name=crappifier_name)
+
     final_lr_patches = []
     final_hr_patches = []
     

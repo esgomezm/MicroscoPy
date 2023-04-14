@@ -137,7 +137,6 @@ class ModelsTrainer:
         print('\tDisc optimizer: {}'.format(discriminator_optimizer))
         print('\tGen scheduler: {}'.format(lr_scheduler_name))
         print('\tDisc scheduler: {}'.format(discriminator_lr_scheduler))
-
         print('-'*10)
 
         os.makedirs(self.saving_path, exist_ok=True)
