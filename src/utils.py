@@ -8,9 +8,6 @@ from tensorflow.keras.applications.vgg19 import VGG19
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 
-tf.config.experimental_run_functions_eagerly(True)
-tf.config.run_functions_eagerly(True)
-
 # Colors for the warning messages
 class bcolors:
     W  = '\033[0m'  # white (normal)
@@ -98,3 +95,67 @@ def concatenate_encoding(images, channels):
     emb = np.concatenate((emb_x, emb_y), -1)
     cached_penc = np.repeat(emb[None, :, :, :org_channels], np.shape(images)[0], axis=0)
     return np.concatenate((images, cached_penc), -1)
+
+
+def calculate_pad_for_Unet(lr_img_shape, depth_Unet, is_pre, scale):
+
+    assert len(lr_img_shape) == 3, 'LR image shape should have a length of three: (cols x rows x channels).'
+
+    lr_height = lr_img_shape[0]
+    lr_width = lr_img_shape[1]
+
+    if is_pre:
+        lr_height *= scale
+        lr_width *= scale
+
+    if lr_width%2**depth_Unet != 0 or lr_height%2**depth_Unet != 0:
+        height_gap = ((lr_height//2**depth_Unet) + 1) * 2**depth_Unet - lr_height
+        width_gap = ((lr_width//2**depth_Unet) + 1) * 2**depth_Unet - lr_width
+
+        if is_pre:
+            height_gap //= scale
+            width_gap //= scale
+
+        height_padding = (height_gap//2 + height_gap%2, height_gap//2)
+        width_padding = (width_gap//2 + width_gap%2, width_gap//2)
+
+        if is_pre:
+            if height_gap == 1:
+                height_padding = (height_gap, 0)
+            if width_gap == 1:
+                width_padding = (width_gap, 0)
+
+        return height_padding, width_padding
+    else:
+        return (0,0), (0,0)
+
+def add_padding_for_Unet(lr_imgs, height_padding, width_padding):
+
+    if len(lr_imgs.shape) == 4:
+       pad_lr_imgs = np.pad(lr_imgs, ((0,0), height_padding, width_padding,(0,0)), mode="constant", constant_values=0)
+    elif len(lr_imgs.shape) == 3:
+       pad_lr_imgs = np.pad(lr_imgs, (height_padding, width_padding,(0,0)), mode="constant", constant_values=0)
+
+    return pad_lr_imgs
+
+def remove_padding_for_Unet(pad_hr_imgs, height_padding, width_padding, scale):
+    
+    if len(pad_hr_imgs.shape) == 4:
+        hr_height_padding_left = - height_padding[1] * scale if height_padding[1] > 0 else pad_hr_imgs.shape[1]
+    elif len(pad_hr_imgs.shape) == 3:
+        hr_height_padding_left = - height_padding[1] * scale if height_padding[1] > 0 else pad_hr_imgs.shape[0]
+
+    if len(pad_hr_imgs.shape) == 4:
+        hr_width_padding_left = - width_padding[1] * scale if width_padding[1] > 0 else pad_hr_imgs.shape[2]
+    elif len(pad_hr_imgs.shape) == 3:
+        hr_width_padding_left = - width_padding[1] * scale if width_padding[1] > 0 else pad_hr_imgs.shape[1]
+
+    hr_height_padding = (height_padding[0] * scale, hr_height_padding_left)
+    hr_width_padding = (width_padding[0] * scale, hr_width_padding_left)
+
+    if len(pad_hr_imgs.shape) == 4:
+       hr_imgs = pad_hr_imgs[:, hr_height_padding[0]:hr_height_padding[1], hr_width_padding[0]:hr_width_padding[1], :]
+    elif len(pad_hr_imgs.shape) == 3:
+       hr_imgs = pad_hr_imgs[hr_height_padding[0]:hr_height_padding[1], hr_width_padding[0]:hr_width_padding[1], :]
+
+    return hr_imgs

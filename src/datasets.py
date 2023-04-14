@@ -4,15 +4,18 @@ import torch
 from torch.utils.data import Dataset
 from skimage import io
 
-#from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from skimage import transform
 
-from crappifiers import apply_crappifier
+from . import crappifiers 
 
-def read_image(filename):
-    return io.imread(filename)
+def normalization(data, desired_accuracy=np.float32):
+    return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy)
+
+def read_image(filename, desired_accuracy=np.float32):
+    return normalization(io.imread(filename), desired_accuracy=desired_accuracy)
 
 def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     
@@ -23,14 +26,14 @@ def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
 
     if lr_filename is None:
         # If no path to the LR images is given, they will be artificially generated
-        lr_img = apply_crappifier(hr_img, scale_factor, crappifier_name)
+        lr_img = normalization(crappifiers.apply_crappifier(hr_img, scale_factor, crappifier_name))
     else:
         lr_img = read_image(lr_filename)
 
     actual_scale_factor = hr_img.shape[0]//lr_img.shape[0]
 
     if scale_factor > actual_scale_factor:
-        lr_img = apply_crappifier(lr_img, scale_factor//actual_scale_factor, "downsampleonly")
+        lr_img = normalization(crappifiers.apply_crappifier(lr_img, scale_factor//actual_scale_factor, "downsampleonly"))
 
     return hr_img, lr_img
 
@@ -39,15 +42,15 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 
     hr_img, lr_img = read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name)
     
-    if lr_img.shape[0] < lr_patch_shape[0] or hr_img.shape[0] < lr_patch_shape[0] * scale_factor:
-        raise ValueError('Patch size is bigger than the given images.')
-
     if lr_patch_shape is None:
         lr_patch_size_width = lr_img.shape[0]
         lr_patch_size_height = lr_img.shape[1]
     else: 
         lr_patch_size_width = lr_patch_shape[0]
         lr_patch_size_height = lr_patch_shape[1]
+
+    if lr_img.shape[0] < lr_patch_size_width or hr_img.shape[0] < lr_patch_size_width * scale_factor:
+        raise ValueError('Patch size is bigger than the given images.')
 
     hr_patch_size_width = lr_patch_size_width * scale_factor
     hr_patch_size_height = lr_patch_size_height * scale_factor
@@ -89,26 +92,6 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
     final_hr_patches = np.concatenate(final_hr_patches)
 
     return final_lr_patches, final_hr_patches
-
-def normalization(data):
-    maximum_value = np.iinfo(data.dtype).max
-    norm_data = data / maximum_value
-    norm_data = norm_data.astype(np.float32)
-    return norm_data
-
-def undo_normalization(data, original_type):
-    maximum_value = np.iinfo(original_type).max
-    norm_data = data * maximum_value
-    norm_data = norm_data.astype(original_type)
-    return norm_data
-
-def standarization(data, mean, std):
-    # CAREFUL: using standarization can loss precision in your data
-    #          due to the appñied division and the floating-point values
-    return (data - mean)/std
-
-def undo_standarization(data, mean, std):
-    return data*std + mean
 
 # Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
@@ -287,12 +270,19 @@ class PytorchDataset(Dataset):
         and after the training.
     '''
     def __init__(self, hr_data_path, lr_data_path, filenames, 
-                 scale_factor, crappifier_name, lr_patch_shape, num_patches, 
-                 transformations):
+                 scale_factor, crappifier_name, lr_patch_shape, 
+                 num_patches, transformations, 
+                 val_split=None, validation=False):
 
         self.hr_data_path = hr_data_path
         self.lr_data_path = lr_data_path
-        self.filenames = filenames
+
+        if val_split is None:
+            self.filenames = filenames
+        elif validation:
+            self.filenames = filenames[:int(val_split*len(filenames))]
+        else:
+            self.filenames = filenames[int(val_split*len(filenames)):]
 
         self.transformations = transformations
         self.scale_factor = scale_factor
@@ -309,10 +299,10 @@ class PytorchDataset(Dataset):
             idx = idx.tolist()
 
         filename_idx = idx // self.num_patches
-        hr_filename = os.path.join(self.hr_data_path, self.filenames[filename_idx])
-        lr_filename = os.path.join(self.lr_data_path, self.filenames[filename_idx])
+        hr_filename = os.path.join(self.hr_data_path, self.filenames[filename_idx]) 
+        lr_filename = None if self.lr_data_path is None else os.path.join(self.lr_data_path, self.filenames[filename_idx]) 
 
-        hr_patch, lr_patch = extract_random_patches_from_image(hr_filename, lr_filename, 
+        lr_patch, hr_patch = extract_random_patches_from_image(hr_filename, lr_filename, 
                                     self.scale_factor, self.crappifier_name, 
                                     self.lr_patch_shape, 1)
 
@@ -321,7 +311,7 @@ class PytorchDataset(Dataset):
 
         sample = {'hr': hr_patch, 'lr': lr_patch}
 
-        if self.transf:
-            sample = self.transf(sample)
+        if self.transformations:
+            sample = self.transformations(sample)
 
         return sample

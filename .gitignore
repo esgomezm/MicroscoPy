@@ -1,0 +1,3 @@
+data_example/test/*
+data_example/train/*
+*/__pycache__/*

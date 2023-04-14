@@ -28,8 +28,8 @@ import torchvision
 
 from pytorch_lightning.core import LightningModule
 
-from datasets import PytorchDataset, ToTensor
-from datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
+from ..datasets import PytorchDataset, ToTensor
+from ..datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
 
 ####################
 # Basic blocks
@@ -464,28 +464,31 @@ def define_F(use_bn=False):
 class ESRGANplus(LightningModule):
     def __init__(self,
                batchsize: int = 8,
+               num_patches: int = 4,
                lr_patch_size_x: int = 128,
                lr_patch_size_y: int = 128,
-               down_factor: int = 2,
+               scale_factor: int = 2,
                learning_rate_d: float = 0.0001,
                learning_rate_g: float = 0.0001,
                n_critic_steps: int = 5,
-               validation_split: float = 0.1,
                epochs: int = 151,
                rotation: bool = True,
                horizontal_flip: bool = True,
                vertical_flip: bool = True,
-               hr_imgs_basedir: str = "", 
-               lr_imgs_basedir: str ="",
-               only_high_resolution_data: bool = False,
-               only_hr_images_basedir: str = "",
-               type_of_data: str = "Electron microscopy",
+               train_hr_path: str = "",
+               train_lr_path: str = "",
+               train_filenames: list = [],
+               val_hr_path: str = "",
+               val_lr_path: str = "",
+               val_filenames: list = [],
                save_basedir: str = None,
+               crappifier_method: str = None,
                gen_checkpoint: str = None, 
                g_optimizer: str = None,
                d_optimizer: str = None,
                g_scheduler: str = None,
-               d_scheduler: str = None
+               d_scheduler: str = None,
+               additonal_configuration: dict = {}
                ):
         super(ESRGANplus, self).__init__()
         
@@ -493,11 +496,11 @@ class ESRGANplus(LightningModule):
 
         if gen_checkpoint is not None:
             checkpoint = torch.load(gen_checkpoint)
-            self.generator = define_G(checkpoint['down_factor'])
+            self.generator = define_G(checkpoint['scale_factor'])
             self.generator.load_state_dict(checkpoint['model_state_dict'])
             self.best_valid_loss = checkpoint['best_valid_loss']
         else:
-            self.generator = define_G(down_factor)
+            self.generator = define_G(scale_factor)
             self.best_valid_loss = float('inf')
 
         self.discriminator = define_D()
@@ -521,7 +524,7 @@ class ESRGANplus(LightningModule):
         self.D_update_ratio = 1
         self.D_init_iters = 0
 
-        if hr_imgs_basedir or lr_imgs_basedir or only_hr_images_basedir:
+        if train_hr_path or train_lr_path:
             self.len_data = self.train_dataloader().__len__()
             self.total_iters = epochs * self.len_data
 
@@ -530,7 +533,7 @@ class ESRGANplus(LightningModule):
             torch.save({
                         'model_state_dict': self.generator.state_dict(),
                         'optimizer_state_dict': self.optimizer_G.state_dict(),
-                        'down_factor': self.hparams.down_factor,
+                        'scale_factor': self.hparams.scale_factor,
                         'best_valid_loss': self.best_valid_loss
                         }, self.hparams.save_basedir + '/' + filename)
         else:
@@ -721,29 +724,114 @@ class ESRGANplus(LightningModule):
         transformations.append(ToTensor())
 
         transf = torchvision.transforms.Compose(transformations)
+        
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=False)
+            
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                lr_data_path=self.hparams.train_lr_path,
+                                filenames=self.hparams.train_filenames,
+                                scale_factor=self.hparams.scale_factor,
+                                crappifier_name=self.hparams.crappifier_method,
+                                lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                num_patches=self.hparams.num_patches,
+                                transformations=transf)
 
-        dataset = PytorchDataset(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y, 
-                            self.hparams.down_factor, transf=transf, validation=False, 
-                            validation_split=self.hparams.validation_split, 
-                            hr_imgs_basedir=self.hparams.hr_imgs_basedir, 
-                            lr_imgs_basedir=self.hparams.lr_imgs_basedir,
-                            only_high_resolution_data=self.hparams.only_high_resolution_data, 
-                            only_hr_imgs_basedir=self.hparams.only_hr_images_basedir,
-                            type_of_data=self.hparams.type_of_data)
-
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=8)
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=12)
         
     def val_dataloader(self):
         transf = ToTensor()
 
-        dataset = PytorchDataset(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y, 
-                            self.hparams.down_factor, transf=transf, validation=True, 
-                            validation_split=self.hparams.validation_split, 
-                            hr_imgs_basedir=self.hparams.hr_imgs_basedir,
-                            lr_imgs_basedir=self.hparams.lr_imgs_basedir,
-                            only_high_resolution_data=self.hparams.only_high_resolution_data, 
-                            only_hr_imgs_basedir=self.hparams.only_hr_images_basedir,
-                            type_of_data=self.hparams.type_of_data)
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=True)
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
+                                    lr_data_path=self.hparams.val_lr_path,
+                                    filenames=self.hparams.val_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf)
+        
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False)#, num_workers=12)
+    
+    def train_dataloader(self):
+      
+        transformations = []
+        
+        if self.hparams.horizontal_flip: 
+            transformations.append(RandomHorizontalFlip())
+        if self.hparams.vertical_flip:
+            transformations.append(RandomVerticalFlip())
+        if self.hparams.rotation:
+            transformations.append(RandomRotate())
 
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=8)
+        transformations.append(ToTensor())
 
+        transf = torchvision.transforms.Compose(transformations)
+        
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=False)
+            
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                lr_data_path=self.hparams.train_lr_path,
+                                filenames=self.hparams.train_filenames,
+                                scale_factor=self.hparams.scale_factor,
+                                crappifier_name=self.hparams.crappifier_method,
+                                lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                num_patches=self.hparams.num_patches,
+                                transformations=transf)
+
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=0)
+        
+    def val_dataloader(self):
+        transf = ToTensor()
+
+        if self.hparams.val_hr_path is None:
+            dataset = PytorchDataset(hr_data_path=self.hparams.train_hr_path,
+                                    lr_data_path=self.hparams.train_lr_path,
+                                    filenames=self.hparams.train_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf,
+                                    val_split=0.1, validation=True)
+        else:
+            dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
+                                    lr_data_path=self.hparams.val_lr_path,
+                                    filenames=self.hparams.val_filenames,
+                                    scale_factor=self.hparams.scale_factor,
+                                    crappifier_name=self.hparams.crappifier_method,
+                                    lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
+                                    num_patches=self.hparams.num_patches,
+                                    transformations=transf)
+        
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0)
