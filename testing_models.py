@@ -4,30 +4,49 @@ os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
 os.environ["CUDA_VISIBLE_DEVICES"] = "2";
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = "1"; 
 
-dataset_config = {'EM': [None, 'train', None, None, None, 'test'],
-                  'MitoTracker_small': [None, 'train', None, None, None, 'test'],
-                  'F-actin': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt'],
-                  'ER': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt/level_06'],
-                  'MT': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt'],
-                  'LiveFActinDataset': ['train_split/wf', 'train_split/gt', 'val_split/wf', 'val_split/gt', 'test_split/wf', 'test_split/gt'],
-                  'MT-SMLM_all': ['train/wf', 'train/gt', None, None, 'test/wf', 'test/gt']
+dataset_config = {'EM': {'data_paths': [None, 'train', None, None, None, 'test'],
+                         'crappifier': 'em_AG_D_sameas_preprint',
+                         'num_patches':16, 
+                         'patch_size_x':64, 
+                         'patch_size_y':64, 
+                         'scale': 4},
+                  'MitoTracker_small': {'data_paths': [None, 'train', None, None, None, 'test'],
+                         'crappifier': 'fluo_SP_AG_D_sameas_preprint',
+                         'num_patches':1, 
+                         'patch_size_x':64, 
+                         'patch_size_y':64, 
+                         'scale': 4},
+                  'F-actin': {'data_paths': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt'],
+                         'crappifier': 'downsampleonly',
+                         'num_patches':4, 
+                         'patch_size_x':64, 
+                         'patch_size_y':64, 
+                         'scale': 4},
+                  'ER': {'data_paths': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt/level_06'],
+                         'crappifier': 'downsampleonly',
+                         'num_patches':4, 
+                         'patch_size_x':64, 
+                         'patch_size_y':64, 
+                         'scale': 4},
+                  'MT': {'data_paths': ['train/training_wf', 'train/training_gt', 'val/validate_wf', 'val/validate_gt', 'test/test_wf/level_01', 'test/test_gt'],
+                         'crappifier': 'downsampleonly',
+                         'num_patches':4, 
+                         'patch_size_x':64, 
+                         'patch_size_y':64, 
+                         'scale': 4},
+                  'LiveFActinDataset': {'data_paths': ['train_split/wf', 'train_split/gt', 'val_split/wf', 'val_split/gt', 'test_split/wf', 'test_split/gt'],
+                         'crappifier': 'downsampleonly',
+                         'num_patches':4, 
+                         'patch_size_x':64, 
+                         'patch_size_y':64, 
+                         'scale': 4},
+                  'MT-SMLM_all': {'data_paths': ['train/wf', 'train/gt', None, None, 'test/wf', 'test/gt'],
+                         'crappifier': 'downsampleonly',
+                         'num_patches':4, 
+                         'patch_size_x':64, 
+                         'patch_size_y':64, 
+                         'scale': 4}
                   }
-
-crappifier_config = {'EM': 'em_AG_D_sameas_preprint', 
-                     'MitoTracker_small': 'fluo_SP_AG_D_sameas_preprint',
-                     'F-actin': None,
-                     'ER': None,
-                     'MT': None,
-                     'LiveFActinDataset': None,
-                     'MT-SMLM_all':None}
-
-patch_config = {'EM': {'num_patches':16, 'patch_size_x':64, 'patch_size_y':64, 'scale': 4}, 
-                'MitoTracker_small': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64, 'scale': 4}, 
-                'F-actin': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64, 'scale': None}, 
-                'ER': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64, 'scale': None}, 
-                'MT': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64, 'scale': None}, 
-                'LiveFActinDataset': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64, 'scale': None},
-                'MT-SMLM_all': {'num_patches':4, 'patch_size_x':64, 'patch_size_y':64, 'scale': None}}
 
 model_configuration = {'optim': {'early_stop':{'loss':'val_ssim_loss','mode':'max', 'patience':10},
                                  'adam':{'beta1':0.5,'beta2':0.9,'epsilon':1e-07},
@@ -74,7 +93,7 @@ data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
 for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
     for model_name in ['unet']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
-        train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]
+        train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_path']
 
         dataset_root = '../datasets'
         train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
@@ -84,12 +103,12 @@ for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
         test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
         test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
-        crappifier_method = crappifier_config[dataset_name]
+        crappifier_method = dataset_config[dataset_name]['crappifier']
 
-        num_patches = patch_config[dataset_name]['num_patches']
-        patch_size_x = patch_config[dataset_name]['patch_size_x']
-        patch_size_y = patch_config[dataset_name]['patch_size_y']
-        scale = patch_config[dataset_name]['scale']
+        num_patches = dataset_config[dataset_name]['num_patches']
+        patch_size_x = dataset_config[dataset_name]['patch_size_x']
+        patch_size_y = dataset_config[dataset_name]['patch_size_y']
+        scale = dataset_config[dataset_name]['scale']
         
         model = train_configuration(
                         data_name=dataset_name, 
