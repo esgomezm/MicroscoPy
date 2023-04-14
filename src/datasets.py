@@ -17,8 +17,8 @@ def normalization(data, desired_accuracy=np.float32):
 def read_image(filename, desired_accuracy=np.float32):
     return normalization(io.imread(filename), desired_accuracy=desired_accuracy)
 
-def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
-    
+def obtain_scale_factor(hr_filename, lr_filename, scale_factor, crappifier_name):
+
     if scale_factor is None and lr_filename is None:
         raise ValueError('A scale factor has to be given.')
     
@@ -30,13 +30,32 @@ def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     else:
         lr_img = read_image(lr_filename)
 
-    if scale_factor is not None:
-        # The only case where scale_factor can be None is when a lr_filenames is given
-        # even in that case a scale_factor can be selected and a crappifier function will be applied
-        actual_scale_factor = hr_img.shape[0]//lr_img.shape[0]
+    images_scale_factor = hr_img.shape[0]//lr_img.shape[0]
 
-        if scale_factor > actual_scale_factor:
-            lr_img = normalization(crappifiers.apply_crappifier(lr_img, scale_factor//actual_scale_factor, crappifier_name))
+    if scale_factor is None:
+        final_scale_factor = images_scale_factor
+    else:
+        if scale_factor > images_scale_factor:
+            final_scale_factor = scale_factor//images_scale_factor
+        else:
+            final_scale_factor = scale_factor
+
+    return final_scale_factor
+
+def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
+    
+    hr_img = read_image(hr_filename)
+
+    if lr_filename is None:
+        # If no path to the LR images is given, they will be artificially generated
+        lr_img = normalization(crappifiers.apply_crappifier(hr_img, scale_factor, crappifier_name))
+    else:
+        lr_img = read_image(lr_filename)
+
+        images_scale_factor = hr_img.shape[0]//lr_img.shape[0]
+
+        if scale_factor > images_scale_factor:
+            lr_img = normalization(crappifiers.apply_crappifier(lr_img, scale_factor//images_scale_factor, crappifier_name))
 
     return hr_img, lr_img
 
@@ -44,7 +63,7 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
                                       crappifier_name, lr_patch_shape, num_patches):
 
     hr_img, lr_img = read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name)
-    
+
     if lr_patch_shape is None:
         lr_patch_size_width = lr_img.shape[0]
         lr_patch_size_height = lr_img.shape[1]
@@ -52,9 +71,8 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
         lr_patch_size_width = lr_patch_shape[0]
         lr_patch_size_height = lr_patch_shape[1]
 
-    if scale_factor is not None:
-        if lr_img.shape[0] < lr_patch_size_width or hr_img.shape[0] < lr_patch_size_width * scale_factor:
-            raise ValueError('Patch size is bigger than the given images.')
+    if lr_img.shape[0] < lr_patch_size_width or hr_img.shape[0] < lr_patch_size_width * scale_factor:
+        raise ValueError('Patch size is bigger than the given images.')
 
     hr_patch_size_width = lr_patch_size_width * scale_factor
     hr_patch_size_height = lr_patch_size_height * scale_factor
@@ -78,6 +96,12 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, scale_factor, 
                                       crappifier_name, lr_patch_shape, num_patches):
     
+    # First lets check what is the scale factor, in case None is given
+    actual_scale_factor = read_image_pairs(hr_filename=os.path.join(hr_data_path, filenames[0]), 
+                                           lr_filename=None if lr_data_path is None else os.path.join(lr_data_path, filenames[0]), 
+                                           scale_factor=scale_factor, 
+                                           crappifier_name=crappifier_name)
+
     final_lr_patches = []
     final_hr_patches = []
     
@@ -87,7 +111,7 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
             lr_image_path = os.path.join(lr_data_path, f)
         else:
             lr_image_path = None
-        lr_patches, hr_patches = extract_random_patches_from_image(hr_image_path, lr_image_path, scale_factor, 
+        lr_patches, hr_patches = extract_random_patches_from_image(hr_image_path, lr_image_path, actual_scale_factor, 
                                                                    crappifier_name, lr_patch_shape, num_patches)
         final_lr_patches.append(lr_patches)
         final_hr_patches.append(hr_patches)
