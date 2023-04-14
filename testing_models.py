@@ -93,7 +93,7 @@ data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
 
 for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
     for model_name in ['unet']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
-        train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_path']
+        train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_paths']
 
         dataset_root = '../datasets'
         train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
