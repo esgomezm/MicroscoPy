@@ -31,16 +31,8 @@ def obtain_scale_factor(hr_filename, lr_filename, scale_factor, crappifier_name)
         lr_img = read_image(lr_filename)
 
     images_scale_factor = hr_img.shape[0]//lr_img.shape[0]
-    
-    if scale_factor is None:
-        final_scale_factor = images_scale_factor
-    else:
-        if scale_factor > images_scale_factor:
-            final_scale_factor = scale_factor//images_scale_factor
-        else:
-            final_scale_factor = scale_factor
 
-    return final_scale_factor
+    return images_scale_factor if scale_factor is None else scale_factor
 
 def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     
