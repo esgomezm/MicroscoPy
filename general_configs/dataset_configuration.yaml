@@ -1,0 +1,91 @@
+EM:
+  crappifier: em_AG_D_sameas_preprint
+  data_paths:
+  - null
+  - train
+  - null
+  - null
+  - null
+  - test
+  num_patches: 16
+  patch_size_x: 64
+  patch_size_y: 64
+  scale: 4
+ER:
+  crappifier: downsampleonly
+  data_paths:
+  - train/training_wf
+  - train/training_gt
+  - val/validate_wf
+  - val/validate_gt
+  - test/test_wf/level_01
+  - test/test_gt/level_06
+  num_patches: 4
+  patch_size_x: 64
+  patch_size_y: 64
+  scale: 4
+F-actin:
+  crappifier: downsampleonly
+  data_paths:
+  - train/training_wf
+  - train/training_gt
+  - val/validate_wf
+  - val/validate_gt
+  - test/test_wf/level_01
+  - test/test_gt
+  num_patches: 4
+  patch_size_x: 64
+  patch_size_y: 64
+  scale: 4
+LiveFActinDataset:
+  crappifier: downsampleonly
+  data_paths:
+  - train_split/wf
+  - train_split/gt
+  - val_split/wf
+  - val_split/gt
+  - test_split/wf
+  - test_split/gt
+  num_patches: 4
+  patch_size_x: 64
+  patch_size_y: 64
+  scale: 4
+MT:
+  crappifier: downsampleonly
+  data_paths:
+  - train/training_wf
+  - train/training_gt
+  - val/validate_wf
+  - val/validate_gt
+  - test/test_wf/level_01
+  - test/test_gt
+  num_patches: 4
+  patch_size_x: 64
+  patch_size_y: 64
+  scale: 4
+MT-SMLM_all:
+  crappifier: downsampleonly
+  data_paths:
+  - train/wf
+  - train/gt
+  - null
+  - null
+  - test/wf
+  - test/gt
+  num_patches: 4
+  patch_size_x: 64
+  patch_size_y: 64
+  scale: 4
+MitoTracker_small:
+  crappifier: fluo_SP_AG_D_sameas_preprint
+  data_paths:
+  - null
+  - train
+  - null
+  - null
+  - null
+  - test
+  num_patches: 1
+  patch_size_x: 64
+  patch_size_y: 64
+  scale: 4

@@ -36,6 +36,7 @@ class ModelsTrainer:
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 train_config,
                  discriminator_optimizer=None, 
                  discriminator_lr_scheduler=None,
                  verbose=0
@@ -113,7 +114,7 @@ class ModelsTrainer:
                                                                               self.optimizer_name,
                                                                               self.lr_scheduler_name,
                                                                               self.seed)
-        
+
         print('\n' + '-'*10)
         print('{} model will be trained with the next configuration'.format(self.model_name))
         print('Dataset: {}'.format(self.data_name))
@@ -140,6 +141,8 @@ class ModelsTrainer:
         print('-'*10)
 
         os.makedirs(self.saving_path, exist_ok=True)
+
+        utils.save_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'))
     
     def launch(self):
         self.prepare_data()                     
@@ -189,6 +192,7 @@ class TensorflowTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 train_config,
                  discriminator_optimizer=None, 
                  discriminator_lr_scheduler=None,
                  verbose=0
@@ -206,6 +210,7 @@ class TensorflowTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
                  verbose=verbose
@@ -472,6 +477,7 @@ class PytorchTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 train_config,
                  discriminator_optimizer=None, 
                  discriminator_lr_scheduler=None,
                  verbose=0, gpu_id=0
@@ -489,6 +495,7 @@ class PytorchTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
                  verbose=verbose
@@ -662,19 +669,30 @@ def train_configuration(data_name,
                  train_lr_path, train_hr_path, 
                  val_lr_path, val_hr_path,
                  test_lr_path, test_hr_path,
-                 crappifier_method, model_name, scale_factor, 
-                 number_of_epochs, batch_size, 
-                 learning_rate, discriminator_learning_rate, 
-                 optimizer_name, lr_scheduler_name, 
-                 test_metric_indexes, additional_folder, 
-                 model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
-                 validation_split, data_augmentation,
-                 discriminator_optimizer=None, 
-                 discriminator_lr_scheduler=None,
+                 additional_folder, train_config, 
+                 model_name, model_configuration,
                  verbose=0, gpu_id=0
                 ):
     
+    crappifier_method = train_config['dataset_config']['crappifier']
+    scale_factor = train_config['dataset_config']['scale']
+    num_patches = train_config['dataset_config']['num_patches']
+    patch_size_x = train_config['dataset_config']['patch_size_x']
+    patch_size_y = train_config['dataset_config']['patch_size_y']
+    
+    number_of_epochs = train_config['number_of_epochs']
+    batch_size = train_config['batch_size']
+    learning_rate =  train_config['learning_rate']
+    discriminator_learning_rate =  train_config['discriminator_learning_rate']
+    optimizer =  train_config['optimizer']
+    discriminator_optimizer =  train_config['discriminator_optimizer']
+    scheduler =  train_config['scheduler']
+    discriminator_lr_scheduler = train_config['discriminator_lr_scheduler']
+    test_metric_indexes = train_config['test_metric_indexes']
+    seed = train_config['seed']
+    validation_split = train_config['validation_split']
+    data_augmentation = train_config['data_augmentation']
+
     if model_name in ['wgan', 'esrganplus']:
         model_trainer = PytorchTrainer(data_name, 
                  train_lr_path, train_hr_path, 
@@ -683,11 +701,12 @@ def train_configuration(data_name,
                  crappifier_method, model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
-                 optimizer_name, lr_scheduler_name, 
+                 optimizer, scheduler, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 train_config=train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
                  verbose=verbose, gpu_id=gpu_id
@@ -700,11 +719,12 @@ def train_configuration(data_name,
                  crappifier_method, model_name, scale_factor, 
                  number_of_epochs, batch_size, 
                  learning_rate, discriminator_learning_rate, 
-                 optimizer_name, lr_scheduler_name, 
+                 optimizer, scheduler, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 train_config=train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
                  verbose=verbose

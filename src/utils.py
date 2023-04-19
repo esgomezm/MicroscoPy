@@ -4,12 +4,19 @@ import os
 
 import torch
 
+import yaml
+
 from tensorflow.keras.applications.vgg19 import VGG19
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
 
-# Colors for the warning messages
+
+#####
+# Standard functions for general purposses
+#####
+
 class bcolors:
+    # Colors for the warning messages
     W  = '\033[0m'  # white (normal)
     R  = '\033[31m' # red
     WARNING = '\033[31m'
@@ -25,6 +32,29 @@ def set_seed(seedValue=42):
     os.environ["PYTHONHASHSEED"]=str(seedValue)
     torch.manual_seed(seedValue)
     torch.cuda.manual_seed_all(seedValue)
+
+def print_info(image_name, data):
+    try:
+        np_data = np.array(data)
+        print('{} \n\nShape: {} \nType: {} \nNumpy type: {} \nMin: {} \nMax: {} \nMean: {}\n'.format(image_name, 
+                                                                    np_data.shape, type(data), np_data.dtype, 
+                                                                    np.min(np_data), np.max(np_data), 
+                                                                    np.mean(np_data)))
+    except:
+        print('{} \n\nNot same shapes'.format(image_name))
+
+def load_yaml(yaml_file_path):
+    with open(yaml_file_path) as file:
+        file_information = yaml.full_load(file)
+    return file_information
+
+def save_yaml(dict_to_save, saving_path):
+    with open(saving_path, 'w') as file:
+        yaml.dump(dict_to_save, file)
+
+#####
+# Function to define different losses
+#####
 
 def ssim_loss(y_true, y_pred):
         return tf.image.ssim(y_true, y_pred, max_val=1.0)
@@ -53,15 +83,9 @@ def perceptual_loss(image_shape, percp_coef=0.1):
     
     return mixed_loss
 
-def print_info(image_name, data):
-    try:
-        np_data = np.array(data)
-        print('{} \n\nShape: {} \nType: {} \nNumpy type: {} \nMin: {} \nMax: {} \nMean: {}\n'.format(image_name, 
-                                                                    np_data.shape, type(data), np_data.dtype, 
-                                                                    np.min(np_data), np.max(np_data), 
-                                                                    np.mean(np_data)))
-    except:
-        print('{} \n\nNot same shapes'.format(image_name))
+#####
+# Function for adding embeddings to the images
+#####
 
 def get_emb(sin_inp):
     """
@@ -96,6 +120,9 @@ def concatenate_encoding(images, channels):
     cached_penc = np.repeat(emb[None, :, :, :org_channels], np.shape(images)[0], axis=0)
     return np.concatenate((images, cached_penc), -1)
 
+#####
+# Functions for U-Net's padding
+#####
 
 def calculate_pad_for_Unet(lr_img_shape, depth_Unet, is_pre, scale):
 
