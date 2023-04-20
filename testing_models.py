@@ -24,6 +24,7 @@ additional_folder = ""
 
 validation_split = 0.1
 data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
+datagen_sampling_pdf = 50000
 
 for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
     for model_name in ['unet']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
@@ -52,6 +53,7 @@ for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
                 'validation_split':validation_split,
                 'data_augmentation':data_augmentation,
                 'test_metric_indexes':test_metric_indexes,
+                'datagen_sampling_pdf':datagen_sampling_pdf
                 }
        
        train_config['dataset_config'] = dataset_config[dataset_name]

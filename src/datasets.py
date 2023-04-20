@@ -115,16 +115,17 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 
     for _ in range(num_patches):
         
-        lr_idx_width, lr_idx_height = sampling_pdf(y=lr_img, pdf=1, height=lr_patch_size_height, width=lr_patch_size_width)
+        lr_idx_width, lr_idx_height = sampling_pdf(y=lr_img, pdf=datagen_sampling_pdf, 
+                                                   height=lr_patch_size_height, width=lr_patch_size_width)
 
-        lr = lr_idx_height - np.floor(lr_patch_size_height[0] // 2)
+        lr = lr_idx_height - np.floor(lr_patch_size_height // 2)
         lr = lr.astype(np.int)
-        ur = lr_idx_height + np.round(lr_patch_size_height[0] // 2)
+        ur = lr_idx_height + np.round(lr_patch_size_height // 2)
         ur = ur.astype(np.int)
 
-        lc = lr_idx_width - np.floor(lr_patch_size_width[1] // 2)
+        lc = lr_idx_width - np.floor(lr_patch_size_width // 2)
         lc = lc.astype(np.int)
-        uc = lr_idx_width + np.round(lr_patch_size_width[1] // 2)
+        uc = lr_idx_width + np.round(lr_patch_size_width // 2)
         uc = uc.astype(np.int)
         
         lr_patches.append(lr_img[lr:ur, lc:uc])

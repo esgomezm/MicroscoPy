@@ -704,6 +704,7 @@ def train_configuration(data_name,
     seed = train_config['seed']
     validation_split = train_config['validation_split']
     data_augmentation = train_config['data_augmentation']
+    datagen_sampling_pdf = train_config['datagen_sampling_pdf']
 
     if model_name in ['wgan', 'esrganplus']:
         model_trainer = PytorchTrainer(data_name, 
@@ -718,6 +719,7 @@ def train_configuration(data_name,
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 datagen_sampling_pdf,
                  train_config=train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
@@ -736,6 +738,7 @@ def train_configuration(data_name,
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 datagen_sampling_pdf,
                  train_config=train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
