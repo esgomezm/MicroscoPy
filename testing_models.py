@@ -9,7 +9,7 @@ model_config = load_yaml('./general_configs/model_configuration.yaml')
 
 train_config = None
 
-for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
+for dataset_name in ['LiveFActinDataset']:#['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_paths']
 

@@ -22,6 +22,7 @@ def index_from_pdf(pdf_im):
     prob = prob.ravel() / np.sum(prob)
     # Convert into a 1D pdf
     choices = np.prod(pdf_im.shape)
+    print(choices)
     index = np.random.choice(choices, size=1, p=prob)
     # Recover 2D shape
     coordinates = np.unravel_index(index, shape=pdf_im.shape)
