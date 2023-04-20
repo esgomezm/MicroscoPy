@@ -39,6 +39,7 @@ def sampling_pdf(y, pdf, height, width):
         indexh = np.random.randint(np.floor(height // 2), \
                                    h - np.floor(height // 2))
     else:
+        print('img: {}x{}, crop: {}x{}'.format(y.shape[0], y.shape[1], height, width))
         # Assign pdf values to foreground
         pdf_im = np.ones(y.shape, dtype=np.float32)
         pdf_im[y > 0] = pdf
