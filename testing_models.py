@@ -40,7 +40,7 @@ for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
             additional_folder = ""
 
             # Update the patience to be equal to the number of epochs
-            model_config['early_stop']['patience'] = number_of_epochs
+            model_config['optim']['early_stop']['patience'] = number_of_epochs
 
             validation_split = 0.1
             data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
