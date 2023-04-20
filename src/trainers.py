@@ -36,6 +36,7 @@ class ModelsTrainer:
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 datagen_sampling_pdf, 
                  train_config,
                  discriminator_optimizer=None, 
                  discriminator_lr_scheduler=None,
@@ -67,6 +68,7 @@ class ModelsTrainer:
         self.num_patches = num_patches
         self.lr_patch_size_x = patch_size_x     
         self.lr_patch_size_y = patch_size_y
+        self.datagen_sampling_pdf = datagen_sampling_pdf
         
         self.validation_split = validation_split
         if 'rotation' in data_augmentation:
@@ -192,6 +194,7 @@ class TensorflowTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 datagen_sampling_pdf,
                  train_config,
                  discriminator_optimizer=None, 
                  discriminator_lr_scheduler=None,
@@ -210,6 +213,7 @@ class TensorflowTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 datagen_sampling_pdf,
                  train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
@@ -227,7 +231,8 @@ class TensorflowTrainer(ModelsTrainer):
                                                 scale_factor=self.scale_factor, 
                                                 crappifier_name=self.crappifier_method, 
                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
-                                                num_patches=self.num_patches)
+                                                num_patches=self.num_patches,
+                                                datagen_sampling_pdf=self.datagen_sampling_pdf)
 
         if self.scale_factor is None:
             self.scale_factor = actual_scale_factor
@@ -268,7 +273,8 @@ class TensorflowTrainer(ModelsTrainer):
                                                 scale_factor=self.scale_factor, 
                                                 crappifier_name=self.crappifier_method, 
                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
-                                                num_patches=self.num_patches)            
+                                                num_patches=self.num_patches,
+                                                datagen_sampling_pdf=self.datagen_sampling_pdf)            
 
             X_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_wf])
             Y_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_gt])
@@ -322,7 +328,7 @@ class TensorflowTrainer(ModelsTrainer):
                                       parameters=None, additional_configuration=self.model_configuration)
             
         model = model_utils.select_model(model_name=self.model_name, input_shape=self.input_data_shape, output_channels=self.output_data_shape[-1], 
-                             scale_factor=self.scale_factor, model_configuration=self.model_configuration)
+                             scale_factor=self.scale_factor, datagen_sampling_pdf=self.datagen_sampling_pdf, model_configuration=self.model_configuration)
         
         loss_funct = 'mean_absolute_error'
         eval_metric = 'mean_squared_error'
@@ -388,7 +394,8 @@ class TensorflowTrainer(ModelsTrainer):
                                         scale_factor=self.scale_factor, 
                                         crappifier_name=self.crappifier_method, 
                                         lr_patch_shape=None, 
-                                        num_patches=1)
+                                        num_patches=1,
+                                        datagen_sampling_pdf=1)
     
         hr_images = np.expand_dims(hr_images, axis=-1)
         lr_images = np.expand_dims(lr_images, axis=-1)
@@ -425,7 +432,7 @@ class TensorflowTrainer(ModelsTrainer):
                                  parameters=None, additional_configuration=self.model_configuration)
 
         model = model_utils.select_model(model_name=self.model_name, input_shape=lr_images.shape, output_channels=hr_images.shape[-1],
-                             scale_factor=self.scale_factor, model_configuration=self.model_configuration)
+                             scale_factor=self.scale_factor, datagen_sampling_pdf=self.datagen_sampling_pdf, model_configuration=self.model_configuration)
         
         loss_funct = 'mean_absolute_error'
         eval_metric = 'mean_squared_error'
@@ -477,6 +484,7 @@ class PytorchTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 datagen_sampling_pdf,
                  train_config,
                  discriminator_optimizer=None, 
                  discriminator_lr_scheduler=None,
@@ -495,6 +503,7 @@ class PytorchTrainer(ModelsTrainer):
                  model_configuration, seed,
                  num_patches, patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
+                 datagen_sampling_pdf,
                  train_config,
                  discriminator_optimizer=discriminator_optimizer, 
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
@@ -513,6 +522,7 @@ class PytorchTrainer(ModelsTrainer):
         model = model_utils.select_model(model_name=self.model_name, input_shape=None, output_channels=None,
                              scale_factor=self.scale_factor, batch_size=self.batch_size, num_patches=self.num_patches,
                              lr_patch_size_x=self.lr_patch_size_x, lr_patch_size_y=self.lr_patch_size_y,
+                             datagen_sampling_pdf=self.datagen_sampling_pdf,
                              learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
                              g_optimizer = self.optimizer_name, d_optimizer = self.discriminator_optimizer, 
                              g_scheduler = self.lr_scheduler_name, d_scheduler = self.discriminator_lr_scheduler,
@@ -622,6 +632,7 @@ class PytorchTrainer(ModelsTrainer):
     
         model = model_utils.select_model(model_name=self.model_name, scale_factor=self.scale_factor, batch_size=self.batch_size, 
                              save_basedir = self.saving_path, model_configuration=self.model_configuration, 
+                             datagen_sampling_pdf=self.datagen_sampling_pdf,
                              checkpoint=os.path.join(self.saving_path,'best_checkpoint.pth'))
 
         trainer = Trainer(accelerator="gpu", devices=1)
@@ -633,7 +644,8 @@ class PytorchTrainer(ModelsTrainer):
                                  crappifier_name=self.crappifier_method, 
                                  lr_patch_shape=None, 
                                  num_patches=1, 
-                                 transformations=datasets.ToTensor())
+                                 transformations=datasets.ToTensor(),
+                                 datagen_sampling_pdf= datagen_sampling_pdf)
 
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 

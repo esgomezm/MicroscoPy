@@ -11,6 +11,49 @@ from skimage import transform
 
 from . import crappifiers 
 
+#####
+# Functions to sample an image using probability density function
+#####
+# Functions from https://github.com/esgomezm/microscopy-dl-suite-tf/blob/fcb8870624208bfb72dc7aea18a90738a081217f/dl-suite/utils
+
+def index_from_pdf(pdf_im):
+    prob = np.copy(pdf_im)
+    # Normalize values to create a pdf with sum = 1
+    prob = prob.ravel() / np.sum(prob)
+    # Convert into a 1D pdf
+    choices = np.prod(pdf_im.shape)
+    index = np.random.choice(choices, size=1, p=prob)
+    # Recover 2D shape
+    coordinates = np.unravel_index(index, shape=pdf_im.shape)
+    # Extract index
+    indexh = coordinates[0][0]
+    indexw = coordinates[1][0]
+    return indexh, indexw
+
+def sampling_pdf(y, pdf, height, width):
+    h, w = y.shape[0], y.shape[1]
+    if pdf == 1:
+        indexw = np.random.randint(np.floor(width // 2), \
+                                   w - np.floor(width // 2))
+        indexh = np.random.randint(np.floor(height // 2), \
+                                   h - np.floor(height // 2))
+    else:
+        # Assign pdf values to foreground
+        pdf_im = np.ones(y.shape, dtype=np.float32)
+        pdf_im[y > 0] = pdf
+        # crop to fix patch size
+        pdf_im = pdf_im[np.int(np.floor(height // 2)):-np.int(np.floor(height // 2)), \
+                 np.int(np.floor(width // 2)):-np.int(np.floor(width // 2))]
+        indexh, indexw = index_from_pdf(pdf_im)
+        indexw = indexw + np.int(np.floor(width // 2))
+        indexh = indexh + np.int(np.floor(height // 2))
+
+    return indexh, indexw
+
+#####
+#
+#####
+
 def normalization(data, desired_accuracy=np.float32):
     return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy)
 
@@ -52,7 +95,8 @@ def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     return hr_img, lr_img
 
 def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor, 
-                                      crappifier_name, lr_patch_shape, num_patches):
+                                      crappifier_name, lr_patch_shape, num_patches,
+                                      datagen_sampling_pdf):
 
     hr_img, lr_img = read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name)
 
@@ -66,27 +110,31 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
     if lr_img.shape[0] < lr_patch_size_width or hr_img.shape[0] < lr_patch_size_width * scale_factor:
         raise ValueError('Patch size is bigger than the given images.')
 
-    hr_patch_size_width = lr_patch_size_width * scale_factor
-    hr_patch_size_height = lr_patch_size_height * scale_factor
-
     lr_patches = []
     hr_patches = []
 
     for _ in range(num_patches):
-        lr_idx_width = np.random.randint(0, max(1, lr_img.shape[0] - lr_patch_size_width))
-        lr_idx_height = np.random.randint(0, max(1, lr_img.shape[1] - lr_patch_size_height))
-        hr_idx_width = lr_idx_width * scale_factor
-        hr_idx_height = lr_idx_height * scale_factor
         
-        lr_patches.append(lr_img[lr_idx_width : lr_idx_width + lr_patch_size_width,
-                                 lr_idx_height : lr_idx_height + lr_patch_size_height])
-        hr_patches.append(hr_img[hr_idx_width : hr_idx_width + hr_patch_size_width,
-                                 hr_idx_height : hr_idx_height + hr_patch_size_height])
+        lr_idx_width, lr_idx_height = sampling_pdf(y=lr_img, pdf=1, height=lr_patch_size_height, width=lr_patch_size_width)
+
+        lr = lr_idx_height - np.floor(lr_patch_size_height[0] // 2)
+        lr = lr.astype(np.int)
+        ur = lr_idx_height + np.round(lr_patch_size_height[0] // 2)
+        ur = ur.astype(np.int)
+
+        lc = lr_idx_width - np.floor(lr_patch_size_width[1] // 2)
+        lc = lc.astype(np.int)
+        uc = lr_idx_width + np.round(lr_patch_size_width[1] // 2)
+        uc = uc.astype(np.int)
+        
+        lr_patches.append(lr_img[lr:ur, lc:uc])
+        hr_patches.append(hr_img[lr*scale_factor:ur*scale_factor, 
+                                 lc*scale_factor:uc*scale_factor])
 
     return np.array(lr_patches), np.array(hr_patches)
 
 def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, scale_factor, 
-                                      crappifier_name, lr_patch_shape, num_patches):
+                                      crappifier_name, lr_patch_shape, num_patches, datagen_sampling_pdf):
 
     # First lets check what is the scale factor, in case None is given
     actual_scale_factor = obtain_scale_factor(hr_filename=os.path.join(hr_data_path, filenames[0]), 
@@ -104,7 +152,7 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
         else:
             lr_image_path = None
         lr_patches, hr_patches = extract_random_patches_from_image(hr_image_path, lr_image_path, actual_scale_factor, 
-                                                                   crappifier_name, lr_patch_shape, num_patches)
+                                                                   crappifier_name, lr_patch_shape, num_patches, datagen_sampling_pdf)
         final_lr_patches.append(lr_patches)
         final_hr_patches.append(hr_patches)
 
@@ -291,7 +339,7 @@ class PytorchDataset(Dataset):
     '''
     def __init__(self, hr_data_path, lr_data_path, filenames, 
                  scale_factor, crappifier_name, lr_patch_shape, 
-                 num_patches, transformations, 
+                 num_patches, transformations, datagen_sampling_pdf,
                  val_split=None, validation=False):
 
         self.hr_data_path = hr_data_path
@@ -310,6 +358,7 @@ class PytorchDataset(Dataset):
         self.lr_patch_shape = lr_patch_shape
 
         self.num_patches = num_patches
+        self.datagen_sampling_pdf = datagen_sampling_pdf
 
     def __len__(self):
         return self.num_patches * len(self.filenames)
@@ -324,7 +373,7 @@ class PytorchDataset(Dataset):
 
         lr_patch, hr_patch = extract_random_patches_from_image(hr_filename, lr_filename, 
                                     self.scale_factor, self.crappifier_name, 
-                                    self.lr_patch_shape, 1)
+                                    self.lr_patch_shape, 1, self.datagen_sampling_pdf)
 
         lr_patch = np.expand_dims(lr_patch[0], axis=-1)
         hr_patch = np.expand_dims(hr_patch[0], axis=-1)

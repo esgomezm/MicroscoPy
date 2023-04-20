@@ -5,8 +5,8 @@ from . import model
 ######
 
 def select_model(model_name=None, input_shape=None, output_channels=None, scale_factor=None, model_configuration=None,
-                 batch_size=None, num_patches=None, lr_patch_size_x=None, lr_patch_size_y=None, learning_rate_g=None,
-                 learning_rate_d=None, epochs=None, train_hr_path=None, train_lr_path=None, train_filenames = None,
+                 batch_size=None, num_patches=None, lr_patch_size_x=None, lr_patch_size_y=None, datagen_sampling_pdf=None,
+                 learning_rate_g=None, learning_rate_d=None, epochs=None, train_hr_path=None, train_lr_path=None, train_filenames = None,
                  val_hr_path=None, val_lr_path=None, val_filenames=None, crappifier_method=None,
                  save_basedir=None, g_optimizer=None, d_optimizer=None, g_scheduler=None, d_scheduler=None,
                  checkpoint=None):
@@ -44,6 +44,7 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
     		lr_patch_size_x=lr_patch_size_x,
     		lr_patch_size_y=lr_patch_size_y,
             scale_factor=scale_factor,
+            datagen_sampling_pdf=datagen_sampling_pdf,
             recloss=model_configuration['wgan']['recloss'],
             lambda_gp=model_configuration['wgan']['lambda_gp'],
             learning_rate_g=learning_rate_g,
@@ -75,6 +76,7 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
                                     lr_patch_size_x=lr_patch_size_x,
                                     lr_patch_size_y=lr_patch_size_y,
                                     scale_factor=scale_factor,
+                                    datagen_sampling_pdf=datagen_sampling_pdf,
                                     learning_rate_d=learning_rate_d,
                                     learning_rate_g=learning_rate_g,
                                     n_critic_steps=model_configuration['esrganplus']['n_critic_steps'],

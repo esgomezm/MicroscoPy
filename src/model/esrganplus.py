@@ -468,6 +468,7 @@ class ESRGANplus(LightningModule):
                lr_patch_size_x: int = 128,
                lr_patch_size_y: int = 128,
                scale_factor: int = 2,
+               datagen_sampling_pdf: int = 1,
                learning_rate_d: float = 0.0001,
                learning_rate_g: float = 0.0001,
                n_critic_steps: int = 5,
@@ -733,7 +734,7 @@ class ESRGANplus(LightningModule):
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                     num_patches=self.hparams.num_patches,
-                                    transformations=transf,
+                                    transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=False)
             
         else:
@@ -744,7 +745,8 @@ class ESRGANplus(LightningModule):
                                 crappifier_name=self.hparams.crappifier_method,
                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                 num_patches=self.hparams.num_patches,
-                                transformations=transf)
+                                transformations=transf,
+                                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
 
         return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=12)
         
@@ -759,7 +761,7 @@ class ESRGANplus(LightningModule):
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                     num_patches=self.hparams.num_patches,
-                                    transformations=transf,
+                                    transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=True)
         else:
             dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
@@ -769,7 +771,8 @@ class ESRGANplus(LightningModule):
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                     num_patches=self.hparams.num_patches,
-                                    transformations=transf)
+                                    transformations=transf,
+                                    datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
         
         return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False)#, num_workers=12)
     
@@ -796,7 +799,7 @@ class ESRGANplus(LightningModule):
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                     num_patches=self.hparams.num_patches,
-                                    transformations=transf,
+                                    transformations=transf,datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=False)
             
         else:
@@ -807,9 +810,10 @@ class ESRGANplus(LightningModule):
                                 crappifier_name=self.hparams.crappifier_method,
                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                 num_patches=self.hparams.num_patches,
-                                transformations=transf)
+                                transformations=transf, 
+                                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
 
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=0)
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=1)
         
     def val_dataloader(self):
         transf = ToTensor()
@@ -822,7 +826,7 @@ class ESRGANplus(LightningModule):
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                     num_patches=self.hparams.num_patches,
-                                    transformations=transf,
+                                    transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=True)
         else:
             dataset = PytorchDataset(hr_data_path=self.hparams.val_hr_path,
@@ -832,6 +836,7 @@ class ESRGANplus(LightningModule):
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
                                     num_patches=self.hparams.num_patches,
-                                    transformations=transf)
+                                    transformations=transf,
+                                    datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
         
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0)
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=1)
