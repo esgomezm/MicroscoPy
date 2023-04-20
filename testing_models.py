@@ -4,7 +4,7 @@ from src.utils import load_yaml
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
 os.environ["CUDA_VISIBLE_DEVICES"] = "2";
 
-dataset_config = load_yaml('./general_configs/dataset_configurations.yaml')
+dataset_config = load_yaml('./general_configs/dataset_configuration.yaml')
 model_config = load_yaml('./general_configs/model_configuration.yaml')
 
 test_metric_indexes = [69,  7, 36, 75, 74, 30, 12, 42, 87, 0]
@@ -59,7 +59,7 @@ for dataset_name in ['F-actin', 'ER', 'MT', 'LiveFActinDataset', 'MT-SMLM_all']:
        train_config['dataset_config'] = dataset_config[dataset_name]
        train_config['model_config'] = model_config[model_name]
        train_config['optim_config'] = model_config['optim']
-       train_config['other_config'] = model_config['other']
+       train_config['other_config'] = model_config['others']
 
        model = train_configuration(
                      data_name=dataset_name, 

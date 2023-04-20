@@ -144,7 +144,7 @@ class ModelsTrainer:
 
         os.makedirs(self.saving_path, exist_ok=True)
 
-        utils.save_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'))
+        utils.save_yaml(train_config, os.path.join(self.saving_path, 'train_configuration.yaml'))
     
     def launch(self):
         self.prepare_data()                     
