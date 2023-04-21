@@ -23,7 +23,7 @@ ER:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: none
+  scale: null
 F-actin:
   crappifier: downsampleonly
   data_paths:
@@ -36,7 +36,7 @@ F-actin:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: none
+  scale: null
 LiveFActinDataset:
   crappifier: downsampleonly
   data_paths:
@@ -49,7 +49,7 @@ LiveFActinDataset:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: none
+  scale: null
 MT:
   crappifier: downsampleonly
   data_paths:
@@ -62,7 +62,7 @@ MT:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: none
+  scale: null
 MT-SMLM_all:
   crappifier: downsampleonly
   data_paths:
@@ -75,7 +75,7 @@ MT-SMLM_all:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: none
+  scale: null
 MitoTracker_small:
   crappifier: fluo_em_poisson_crappify
   data_paths:
