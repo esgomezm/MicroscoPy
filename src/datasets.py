@@ -138,9 +138,9 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
         print('lr: {}, ur: {}'.format(lr, ur))
         print('lc: {}, uc: {}'.format(lc, uc))
         
-        lr_patches.append(lr_img[lr:ur, lc:uc])
-        hr_patches.append(hr_img[lr*scale_factor:ur*scale_factor, 
-                                 lc*scale_factor:uc*scale_factor])
+        lr_patches.append(lr_img[lc:uc, lr:ur])
+        hr_patches.append(hr_img[lc*scale_factor:uc*scale_factor, 
+                                 lr*scale_factor:ur*scale_factor])
         print('lr_patches[-1].shape: {}'.format(lr_patches[-1].shape))
         print('hr_patches[-1].shape: {}'.format(hr_patches[-1].shape))
 
