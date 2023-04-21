@@ -46,9 +46,9 @@ LiveFActinDataset:
   - val_split/gt
   - test_split/wf
   - test_split/gt
-  num_patches: 4
-  patch_size_x: 64
-  patch_size_y: 64
+  num_patches: 1
+  patch_size_x: 128
+  patch_size_y: 128
   scale: null
 MT:
   crappifier: downsampleonly

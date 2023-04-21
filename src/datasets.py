@@ -35,9 +35,9 @@ def sampling_pdf(y, pdf, height, width):
 
     if pdf == 1:
         indexw = np.random.randint(np.floor(width // 2),
-                                   w - np.floor(width // 2))
+                                   max(w - np.floor(width // 2), np.floor(width // 2) + 1))
         indexh = np.random.randint(np.floor(height // 2),
-                                   h - np.floor(height // 2))
+                                   max(h - np.floor(height // 2), np.floor(height // 2) + 1))
     else:
         # crop to fix patch size
         # croped_y = y[int(np.floor(height // 2)):-int(np.floor(height // 2)),
