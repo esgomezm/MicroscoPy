@@ -33,22 +33,27 @@ def index_from_pdf(pdf_im):
 
 def sampling_pdf(y, pdf, height, width):
     h, w = y.shape[0], y.shape[1]
+
     if pdf == 1:
-        indexw = np.random.randint(np.floor(width // 2), \
+        indexw = np.random.randint(np.floor(width // 2),
                                    w - np.floor(width // 2))
-        indexh = np.random.randint(np.floor(height // 2), \
+        indexh = np.random.randint(np.floor(height // 2),
                                    h - np.floor(height // 2))
     else:
         print('img: {}x{}, crop: {}x{}'.format(y.shape[0], y.shape[1], height, width))
-        # Assign pdf values to foreground
-        pdf_im = np.ones(y.shape, dtype=np.float32)
-        pdf_im[y > 0] = pdf
         # crop to fix patch size
-        pdf_im = pdf_im[np.int(np.floor(height // 2)):-np.int(np.floor(height // 2)), \
-                 np.int(np.floor(width // 2)):-np.int(np.floor(width // 2))]
-        indexh, indexw = index_from_pdf(pdf_im)
-        indexw = indexw + np.int(np.floor(width // 2))
-        indexh = indexh + np.int(np.floor(height // 2))
+        # croped_y = y[int(np.floor(height // 2)):-int(np.floor(height // 2)),
+        #              int(np.floor(width // 2)) :-int(np.floor(width // 2))]
+        # indexh, indexw = index_from_pdf(croped_y)
+
+        kernel = np.ones((height,width))
+        pdf = np.fft.irfft2(np.fft.rfft2(y) * np.fft.rfft2(kernel, y.shape))
+        pdf_cropped = pdf[min(kernel.shape[0], pdf.shape[0]-1):, 
+                          min(kernel.shape[1], pdf.shape[1]-1):]
+        
+        indexh, indexw = index_from_pdf(pdf_cropped)
+        indexw = indexw + int(np.floor(width // 2))
+        indexh = indexh + int(np.floor(height // 2))
 
     return indexh, indexw
 
