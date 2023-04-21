@@ -5,9 +5,16 @@ from skimage.util import random_noise
 from scipy.ndimage.interpolation import zoom as npzoom
 from skimage.transform import rescale
 
+def norm(data):
+  return (data - data.min()) / (data.max() - data.min())
+
+def add_poisson_noise(img, lam=1.):
+    poisson_noise = np.random.poisson(lam=lam, size=img.shape)
+    noisy_img = img + norm(poisson_noise)
+    return (noisy_img - noisy_img.min()) / (noisy_img.max() - noisy_img.min())
+
 # Create corresponding training patches synthetically by adding noise
 # and downsampling the images (see https://www.biorxiv.org/content/10.1101/740548v3)
-
 
 def downsampleonly(x, scale=4):
     return npzoom(x, 1/scale, order=1)
@@ -129,6 +136,22 @@ def fluo_crappify(img,scale):
     #return npzoom(img, 1/scale, order=1)
     return img
 
+def em_poisson_crappify(img, scale, lam=1.):
+    img = transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
+
+    img = filters.gaussian(img, sigma=3) + 1e-10
+    img = add_poisson_noise(img, lam=lam)
+    return img
+
+def fluo_poisson_crappify(img,scale, lam=1.):
+    img = transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
+
+    img = filters.gaussian(img, sigma=5) + 1e-10
+    img = random_noise(img, mode='salt', amount=0.005)
+    img = random_noise(img, mode='pepper', amount=0.005)
+    img = add_poisson_noise(img, lam=lam)
+    return img
+
 def apply_crappifier(x, scale, crappifier_name):
     crappifier_dict = { 'downsampleonly':downsampleonly,
                         'fluo_G_D':fluo_G_D, 
@@ -143,7 +166,9 @@ def apply_crappifier(x, scale, crappifier_name):
                         'new_crap_AG_SP':new_crap_AG_SP,
                         'new_crap':new_crap,
                         'em_crappify':em_crappify,
-                        'fluo_crappify':fluo_crappify
+                        'fluo_crappify':fluo_crappify, 
+                        'em_poisson_crappify':em_poisson_crappify,
+                        'fluo_poisson_crappify':fluo_poisson_crappify, 
                       }
     
     if crappifier_name in crappifier_dict:

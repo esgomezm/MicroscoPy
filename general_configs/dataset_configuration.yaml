@@ -1,5 +1,5 @@
 EM:
-  crappifier: em_AG_D_sameas_preprint
+  crappifier: em_poisson_crappify
   data_paths:
   - null
   - train
@@ -23,7 +23,7 @@ ER:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: none
 F-actin:
   crappifier: downsampleonly
   data_paths:
@@ -36,7 +36,7 @@ F-actin:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: none
 LiveFActinDataset:
   crappifier: downsampleonly
   data_paths:
@@ -49,7 +49,7 @@ LiveFActinDataset:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: none
 MT:
   crappifier: downsampleonly
   data_paths:
@@ -62,7 +62,7 @@ MT:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: none
 MT-SMLM_all:
   crappifier: downsampleonly
   data_paths:
@@ -75,9 +75,9 @@ MT-SMLM_all:
   num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: none
 MitoTracker_small:
-  crappifier: fluo_SP_AG_D_sameas_preprint
+  crappifier: fluo_em_poisson_crappify
   data_paths:
   - null
   - train
