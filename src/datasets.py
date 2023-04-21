@@ -22,7 +22,6 @@ def index_from_pdf(pdf_im):
     prob = prob.ravel() / np.sum(prob)
     # Convert into a 1D pdf
     choices = np.prod(pdf_im.shape)
-    print(choices)
     index = np.random.choice(choices, size=1, p=prob)
     # Recover 2D shape
     coordinates = np.unravel_index(index, shape=pdf_im.shape)
@@ -138,6 +137,8 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
         lr_patches.append(lr_img[lr:ur, lc:uc])
         hr_patches.append(hr_img[lr*scale_factor:ur*scale_factor, 
                                  lc*scale_factor:uc*scale_factor])
+        print('lr_patches[-1].shape: {}'.format(lr_patches[-1].shape))
+        print('hr_patches[-1].shape: {}'.format(hr_patches[-1].shape))
 
     return np.array(lr_patches), np.array(hr_patches)
 

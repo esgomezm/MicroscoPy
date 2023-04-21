@@ -44,7 +44,7 @@ for dataset_name in ['LiveFActinDataset']:#['F-actin', 'ER', 'MT', 'LiveFActinDa
 
             validation_split = 0.1
             data_augmentation = ['rotation', 'horizontal_flip', 'vertical_flip']
-            datagen_sampling_pdf = 50000
+            datagen_sampling_pdf = 0
 
             train_config = {'model':model_name,
                         'dataset_name':dataset_name,
