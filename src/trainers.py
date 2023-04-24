@@ -49,7 +49,7 @@ class ModelsTrainer:
         self.train_hr_path = train_hr_path
         train_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.train_hr_path)]
         train_extension = max(set(train_extension_list), key = train_extension_list.count)
-        self.train_filenames = [x for x in os.listdir(self.train_hr_path) if x.endswith(train_extension)]
+        self.train_filenames = sorted([x for x in os.listdir(self.train_hr_path) if x.endswith(train_extension)])
 
         if val_hr_path is None or val_lr_path is None:
             self.val_lr_path = train_lr_path
@@ -63,13 +63,13 @@ class ModelsTrainer:
 
             val_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.val_hr_path)]
             val_extension = max(set(val_extension_list), key = val_extension_list.count)
-            self.val_filenames = [x for x in os.listdir(self.val_hr_path) if x.endswith(val_extension)]
+            self.val_filenames = sorted([x for x in os.listdir(self.val_hr_path) if x.endswith(val_extension)])
 
         self.test_lr_path = test_lr_path
         self.test_hr_path = test_hr_path
         test_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.test_hr_path)]
         test_extension = max(set(test_extension_list), key = test_extension_list.count)
-        self.test_filenames = [x for x in os.listdir(self.test_hr_path) if x.endswith(test_extension)]
+        self.test_filenames = sorted([x for x in os.listdir(self.test_hr_path) if x.endswith(test_extension)])
 
         self.crappifier_method = crappifier_method
         self.scale_factor = scale_factor

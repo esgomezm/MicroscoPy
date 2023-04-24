@@ -17,6 +17,8 @@ from . import crappifiers
 def index_from_pdf(pdf_im):
     prob = np.copy(pdf_im)
     # Normalize values to create a pdf with sum = 1
+    print('np.sum(prob): {}'.format(np.sum(prob)))
+    print('np.any(np.isnan(prob.ravel())): {}'.format(np.any(np.isnan(prob.ravel()))))
     prob = prob.ravel() / np.sum(prob)
     # Convert into a 1D pdf
     choices = np.prod(pdf_im.shape)
@@ -44,7 +46,6 @@ def sampling_pdf(y, pdf, height, width):
 
         kernel = np.ones((height,width))
         pdf = np.fft.irfft2(np.fft.rfft2(y) * np.fft.rfft2(kernel, y.shape))
-        print('pdf.mean(): {}'.format(pdf.mean()))
         pdf = (pdf - pdf.min()) / (pdf.max() - pdf.min())
         pdf_cropped = pdf[min(kernel.shape[0], pdf.shape[0]-1):, 
                           min(kernel.shape[1], pdf.shape[1]-1):]
