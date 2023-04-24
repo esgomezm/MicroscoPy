@@ -73,7 +73,7 @@ def sampling_pdf(y, pdf, height, width):
 #####
 
 def normalization(data, desired_accuracy=np.float32):
-    return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy + 1e-10)
+    return (data - data.min()) / (data.max() - data.min() + 1e-10).astype(desired_accuracy)
 
 def read_image(filename, desired_accuracy=np.float32):
     return normalization(io.imread(filename), desired_accuracy=desired_accuracy)
