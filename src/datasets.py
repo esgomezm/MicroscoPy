@@ -49,6 +49,10 @@ def sampling_pdf(y, pdf, height, width):
         kernel = np.ones((height,width))
         print(y.max())
         print(y.min())
+
+        print(y.shape)
+        print(kernel.shape)
+
         pdf = np.fft.irfft2(np.fft.rfft2(y) * np.fft.rfft2(kernel, y.shape))
         print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         print(pdf.max())
@@ -150,15 +154,11 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
         lr_idx_width, lr_idx_height = sampling_pdf(y=lr_img, pdf=datagen_sampling_pdf, 
                                                    height=lr_patch_size_height, width=lr_patch_size_width)
 
-        lr = lr_idx_height - np.floor(lr_patch_size_height // 2)
-        lr = lr.astype(np.int)
-        ur = lr_idx_height + np.round(lr_patch_size_height // 2)
-        ur = ur.astype(np.int)
+        lr = int(lr_idx_height - np.floor(lr_patch_size_height // 2))
+        ur = int(lr_idx_height + np.round(lr_patch_size_height // 2))
 
-        lc = lr_idx_width - np.floor(lr_patch_size_width // 2)
-        lc = lc.astype(np.int)
-        uc = lr_idx_width + np.round(lr_patch_size_width // 2)
-        uc = uc.astype(np.int)
+        lc = int(lr_idx_width - np.floor(lr_patch_size_width // 2))
+        uc = int8lr_idx_width + np.round(lr_patch_size_width // 2))
         
         lr_patches.append(lr_img[lc:uc, lr:ur])
         hr_patches.append(hr_img[lc*scale_factor:uc*scale_factor, 
