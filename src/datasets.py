@@ -141,6 +141,10 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, scale_factor, 
                                       crappifier_name, lr_patch_shape, num_patches, datagen_sampling_pdf):
 
+    print('hr_data_path: {}'.format(hr_data_path))
+    print('lr_data_path: {}'.format(lr_data_path))
+    print('filenames: {}'.format(filenames))
+
     # First lets check what is the scale factor, in case None is given
     actual_scale_factor = obtain_scale_factor(hr_filename=os.path.join(hr_data_path, filenames[0]), 
                                               lr_filename=None if lr_data_path is None else os.path.join(lr_data_path, filenames[0]), 
@@ -242,24 +246,15 @@ class DataGenerator(tf.keras.utils.Sequence):
         processed_y = np.copy(y)
 
         if apply_rotation:
-            print('rotation')
-            print(processed_y.shape)
             rotation_times = np.random.randint(0, 5)
             processed_x = np.rot90(processed_x, rotation_times, axes=(1,2))
             processed_y = np.rot90(processed_y, rotation_times, axes=(1,2))
-            print(processed_y.shape)
         if apply_horizontal_flip:
-            print('horizontal_flip')
-            print(processed_y.shape)
             processed_x = np.flip(processed_x, axis=2)
             processed_y = np.flip(processed_y, axis=2)
-            print(processed_y.shape)
         if apply_vertical_flip:
-            print('vertical_flip')
-            print(processed_y.shape)
             processed_x = np.flip(processed_x, axis=1)
             processed_y = np.flip(processed_y, axis=1)
-            print(processed_y.shape)
 
         return processed_x, processed_y
 

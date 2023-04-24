@@ -51,8 +51,6 @@ class ModelsTrainer:
         train_extension = max(set(train_extension_list), key = train_extension_list.count)
         self.train_filenames = [x for x in os.listdir(self.train_hr_path) if x.endswith(train_extension)]
 
-        
-
         if val_hr_path is not None or val_lr_path is not None:
             self.val_lr_path = train_lr_path
             self.val_hr_path = train_hr_path
