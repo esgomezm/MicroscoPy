@@ -213,7 +213,7 @@ class DataGenerator(tf.keras.utils.Sequence):
 
     def __len__(self):
         'Denotes the number of batches per epoch'
-        return int(np.floor(len(self.filenames) / (self.batch_size * self.num_pathces)))
+        return int(np.floor(len(self.filenames) / (self.batch_size * self.num_patches)))
 
     def get_sample(self, idx):
         x, y = self.__getitem__(idx)
