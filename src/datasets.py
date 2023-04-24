@@ -53,13 +53,19 @@ def sampling_pdf(y, pdf, height, width):
         print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         print(pdf.max())
         print(pdf.min())
+        print(pdf.mean())
         
         plt.subplot(1,2,1)
         plt.imshow(y)
         plt.subplot(1,2,2)
         plt.imshow(pdf)
         plt.show()
+
         pdf = normalization(pdf)
+        
+        print(pdf.max())
+        print(pdf.min())
+        print(pdf.mean())
         print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         pdf_cropped = pdf[min(kernel.shape[0], pdf.shape[0]-1):, 
                           min(kernel.shape[1], pdf.shape[1]-1):]

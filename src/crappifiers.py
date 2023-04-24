@@ -6,7 +6,7 @@ from scipy.ndimage.interpolation import zoom as npzoom
 from skimage.transform import rescale
 
 def norm(data):
-  return (data - data.min()) / (data.max() - data.min())
+  return (data - data.min()) / (data.max() - data.min() + 1e-10)
 
 def add_poisson_noise(img, lam=1.):
     poisson_noise = np.random.poisson(lam=lam, size=img.shape)
@@ -101,6 +101,7 @@ def new_crap_AG_SP(x, scale=4):
     x = rescale(x, scale=1/scale, order=1, multichannel=len(x.shape) > 2)
 
     lvar = filters.gaussian(x, sigma=5) + 1e-10
+    img = norm(img)
     x = random_noise(x, mode='localvar', local_vars=lvar*0.5)
 
     x = random_noise(x, mode='salt', amount=0.005)
@@ -124,6 +125,7 @@ def em_crappify(img, scale):
     img = transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
 
     img = filters.gaussian(img, sigma=3) + 1e-10
+    img = norm(img)
     #return npzoom(img, 1/scale, order=1)
     return img
 
@@ -133,20 +135,23 @@ def fluo_crappify(img,scale):
     img = random_noise(img, mode='salt', amount=0.005)
     img = random_noise(img, mode='pepper', amount=0.005)
     img = filters.gaussian(img, sigma=5) + 1e-10
+    img = norm(img)
     #return npzoom(img, 1/scale, order=1)
     return img
 
 def em_poisson_crappify(img, scale, lam=1.):
     img = transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
 
-    img = filters.gaussian(img, sigma=3) + 1e-10
+    img = filters.gaussian(img, sigma=2) + 1e-10
+    img = norm(img)
     img = add_poisson_noise(img, lam=lam)
     return img
 
 def fluo_poisson_crappify(img,scale, lam=1.):
     img = transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
 
-    img = filters.gaussian(img, sigma=5) + 1e-10
+    img = filters.gaussian(img, sigma=2) + 1e-10
+    img = norm(img)
     img = random_noise(img, mode='salt', amount=0.005)
     img = random_noise(img, mode='pepper', amount=0.005)
     img = add_poisson_noise(img, lam=lam)
