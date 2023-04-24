@@ -19,8 +19,6 @@ from matplotlib import pyplot as plt
 def index_from_pdf(pdf_im):
     prob = np.copy(pdf_im)
     # Normalize values to create a pdf with sum = 1
-    print('np.sum(prob): {}'.format(np.sum(prob)))
-    print('np.any(np.isnan(prob.ravel())): {}'.format(np.any(np.isnan(prob.ravel()))))
     prob = prob.ravel() / np.sum(prob)
     # Convert into a 1D pdf
     choices = np.prod(pdf_im.shape)
@@ -109,12 +107,6 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 
     hr_img, lr_img = read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name)
 
-    plt.subplot(1,2,1)
-    plt.imshow(lr_img)
-    plt.subplot(1,2,2)
-    plt.imshow(hr_img)
-    plt.show()
-
     if lr_patch_shape is None:
         lr_patch_size_width = lr_img.shape[0]
         lr_patch_size_height = lr_img.shape[1]
@@ -152,9 +144,6 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
 def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, scale_factor, 
                                       crappifier_name, lr_patch_shape, num_patches, datagen_sampling_pdf):
 
-    print('hr_data_path: {}'.format(hr_data_path))
-    print('lr_data_path: {}'.format(lr_data_path))
-    print('filenames: {}'.format(filenames))
 
     # First lets check what is the scale factor, in case None is given
     actual_scale_factor = obtain_scale_factor(hr_filename=os.path.join(hr_data_path, filenames[0]), 

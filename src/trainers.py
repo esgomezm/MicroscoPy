@@ -231,9 +231,6 @@ class TensorflowTrainer(ModelsTrainer):
         self.library_name ='tensorflow'
     
     def prepare_data(self):
-
-        print('len train filenames')
-        print(len(self.train_filenames))
         
         train_generator = datasets.DataGenerator(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
                                                  lr_data_path=self.train_hr_path, scale_factor=self.scale_factor, 
@@ -243,9 +240,6 @@ class TensorflowTrainer(ModelsTrainer):
                                                  validation_split=0.1, batch_size=self.batch_size, 
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  module='train', shuffle=True)
-        print(train_generator.__len__())
-        print('len val filenames')
-        print(len(self.val_filenames))
         val_generator = datasets.DataGenerator(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
                                                  lr_data_path=self.val_hr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 
@@ -254,7 +248,6 @@ class TensorflowTrainer(ModelsTrainer):
                                                  validation_split=0.1, batch_size=self.batch_size, 
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  module='train', shuffle=True)
-        print(val_generator.__len__())
         
         x_sample, y_sample, actual_scale_factor = train_generator.get_sample(0)
         self.input_data_shape = (x_sample.shape[0]*train_generator.__len__(),) + (x_sample.shape[1:])
