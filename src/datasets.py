@@ -53,7 +53,7 @@ def sampling_pdf(y, pdf, height, width):
         print(pdf.min())
         from matplotlib import pyplot as plt
         plt.subplot(1,2,1)
-        plt.imhow(y)
+        plt.imshow(y)
         plt.subplot(1,2,2)
         plt.imshow(pdf)
         plt.show()
