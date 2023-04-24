@@ -234,7 +234,6 @@ class TensorflowTrainer(ModelsTrainer):
 
         print('len train filenames')
         print(len(self.train_filenames))
-        print(self.train_filenames)
         
         train_generator = datasets.DataGenerator(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
                                                  lr_data_path=self.train_hr_path, scale_factor=self.scale_factor, 
@@ -247,7 +246,6 @@ class TensorflowTrainer(ModelsTrainer):
         print(train_generator.__len__())
         print('len val filenames')
         print(len(self.val_filenames))
-        print(self.val_filenames)
         val_generator = datasets.DataGenerator(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
                                                  lr_data_path=self.val_hr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 

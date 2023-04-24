@@ -174,6 +174,6 @@ def apply_crappifier(x, scale, crappifier_name):
     if crappifier_name in crappifier_dict:
         return crappifier_dict[crappifier_name](x, scale).astype(np.float32)
     else:
-        raise ValueError('The selected crappifier_name is not in: {}'.format(crappifier_dict))
+        raise ValueError('The selected `{}` crappifier_name is not in: {}'.format(crappifier_name, crappifier_dict.keys))
 
 

@@ -77,7 +77,7 @@ MT-SMLM_all:
   patch_size_y: 64
   scale: null
 MitoTracker_small:
-  crappifier: fluo_em_poisson_crappify
+  crappifier: fluo_poisson_crappify
   data_paths:
   - null
   - train
