@@ -231,6 +231,9 @@ class TensorflowTrainer(ModelsTrainer):
         self.library_name ='tensorflow'
     
     def prepare_data(self):
+
+        print('len train filenames')
+        print(len(self.train_filenames))
         
         train_generator = datasets.DataGenerator(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
                                                  lr_data_path=self.train_hr_path, scale_factor=self.scale_factor, 
@@ -250,12 +253,8 @@ class TensorflowTrainer(ModelsTrainer):
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  module='train', shuffle=True)
 
-        for i in range(100):
-            x_sample, y_sample, actual_scale_factor = train_generator.get_sample(i)
-            print('Data:')
-            print('HR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(x_sample.shape, np.max(y_sample), np.min(y_sample),  np.mean(y_sample), y_sample.dtype))
-            print('LR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(y_sample.shape, np.max(x_sample), np.min(x_sample),  np.mean(x_sample), x_sample.dtype))
-
+        
+        x_sample, y_sample, actual_scale_factor = train_generator.get_sample(0)
         self.input_data_shape = (x_sample.shape[0]*train_generator.__len__(),) + (x_sample.shape[1:])
         self.output_data_shape = (y_sample.shape[0]*train_generator.__len__(),) + (y_sample.shape[1:])
 
@@ -290,7 +289,6 @@ class TensorflowTrainer(ModelsTrainer):
         utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
                             'output_data_shape', self.output_data_shape)
 
-
         self.train_generator=train_generator
         self.val_generator=val_generator
 
@@ -316,7 +314,7 @@ class TensorflowTrainer(ModelsTrainer):
         if self.verbose:
             print('Trainable parameteres: {} \nNon trainable parameters: {} \nTotal parameters: {}'.format(trainableParams, 
                                                                                                             nonTrainableParams, 
-                                                                                                        totalParams))
+                                                                                                            totalParams))
     
 
         lr_schedule = optimizer_scheduler_utils.select_lr_schedule(library_name=self.library_name, lr_scheduler_name=self.lr_scheduler_name, 

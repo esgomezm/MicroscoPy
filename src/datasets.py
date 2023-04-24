@@ -227,9 +227,11 @@ class DataGenerator(tf.keras.utils.Sequence):
             np.random.shuffle(self.indexes)
 
     def __getitem__(self, index):
+        print(index)
         'Generate one batch of data'
         # Generate indexes of the batch
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
+        print(list(range(index * self.batch_size, (index + 1) * self.batch_size)))
         # Find list of IDs
         list_IDs_temp = [self.indexes[k] for k in indexes]
         # Generate data
