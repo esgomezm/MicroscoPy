@@ -158,7 +158,7 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
         ur = int(lr_idx_height + np.round(lr_patch_size_height // 2))
 
         lc = int(lr_idx_width - np.floor(lr_patch_size_width // 2))
-        uc = int8lr_idx_width + np.round(lr_patch_size_width // 2))
+        uc = int(lr_idx_width + np.round(lr_patch_size_width // 2))
         
         lr_patches.append(lr_img[lc:uc, lr:ur])
         hr_patches.append(hr_img[lc*scale_factor:uc*scale_factor, 
