@@ -286,6 +286,67 @@ class DataGenerator(tf.keras.utils.Sequence):
 # Pytorch dataset
 #####
 
+class ToTensor(object):
+    """Convert ndarrays in sample to Tensors."""
+
+    def __call__(self, sample):
+        hr, lr = sample['hr'], sample['lr']
+
+        # Pytorch is (batch, channels, width, height)
+        hr = hr.transpose((2, 0, 1))
+        lr = lr.transpose((2, 0, 1))
+        return {'hr': torch.from_numpy(hr),
+                'lr': torch.from_numpy(lr)}
+
+class RandomHorizontalFlip(object):
+    """Random horizontal flip"""
+
+    def __init__(self):
+        self.rng = np.random.default_rng()
+
+    def __call__(self, sample):
+        hr, lr = sample['hr'], sample['lr']
+
+        if self.rng.random() < 0.5:
+            hr = np.flip(hr, 1)
+            lr = np.flip(lr, 1)
+
+        return {'hr': hr.copy(),
+                'lr': lr.copy()}
+
+class RandomVerticalFlip(object):
+    """Random vertical flip"""
+
+    def __init__(self):
+        self.rng = np.random.default_rng()
+
+    def __call__(self, sample):
+        hr, lr = sample['hr'], sample['lr']
+
+        if self.rng.random() < 0.5:
+            hr = np.flip(hr, 0)
+            lr = np.flip(lr, 0)
+
+        return {'hr': hr.copy(),
+                'lr': lr.copy()}
+
+class RandomRotate(object):
+    """Random rotation"""
+
+    def __init__(self):
+        self.rng = np.random.default_rng()
+
+    def __call__(self, sample):
+        hr, lr = sample['hr'], sample['lr']
+
+        k = self.rng.integers(4)
+
+        hr = np.rot90(hr, k=k)
+        lr = np.rot90(lr, k=k)
+
+        return {'hr': hr.copy(),
+                'lr': lr.copy()}
+
 class PytorchDataset(Dataset):
     ''' Pytorch's Dataset type object used to obtain the train and 
         validation information during the training process. Saves the 
