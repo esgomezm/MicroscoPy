@@ -6,9 +6,6 @@ from skimage import io
 import tensorflow as tf
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from sklearn.model_selection import train_test_split
-from matplotlib import pyplot as plt
-from skimage import transform
 
 from . import crappifiers 
 
@@ -173,10 +170,6 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
 # TensorFlow dataset
 #####
 
-# Random rotation of an image by a multiple of 90 degrees
-def random_90rotation( img ):
-    return transform.rotate(img, 90*np.random.randint( 0, 5 ), preserve_range=True)
-
 class DataGenerator(tf.keras.utils.Sequence):
     
     def __init__(self, filenames, hr_data_path, lr_data_path,
@@ -204,25 +197,24 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.validation_split = validation_split
         self.batch_size = batch_size
 
-        random_rotation=random_90rotation
-        if not rotation:
-            random_rotation=None
-
-        # Image data generator distortion options
-        data_gen_args = dict(preprocessing_function=random_rotation,
-                             horizontal_flip=horizontal_flip,
-                             vertical_flip=vertical_flip,
-                             fill_mode='reflect')
-        
-        self.data_augm_args = data_gen_args
+        self.rotation = rotation
+        self.horizontal_flip = horizontal_flip
+        self.vertical_flip = vertical_flip
 
         self.module = module
         self.shuffle = shuffle  # #
         self.on_epoch_end()
 
+        self.actual_scale_factor = None
+
     def __len__(self):
         'Denotes the number of batches per epoch'
         return int(np.floor(len(self.filenames) / self.batch_size))
+
+    def get_sample(self):
+        x, y = self.__getitem__(0)
+
+        return x, y, self.actual_scale_factor
 
     def on_epoch_end(self):
         'Updates indexes after each epoch'
@@ -240,15 +232,27 @@ class DataGenerator(tf.keras.utils.Sequence):
         x, y = self.__data_generation(list_IDs_temp)
         return x, y
 
-    def __preprocessing(self, x, y):
-        X_datagen = ImageDataGenerator(**self.data_augm_args)
-        Y_datagen = ImageDataGenerator(**self.data_augm_args)
-        X_datagen.fit(x, augment=True)
-        Y_datagen.fit(y, augment=True)
-        preprocessed_x = X_datagen.flow(x, batch_size=1)
-        preprocessed_y = Y_datagen.flow(y, batch_size=1)
+    def __preprocess(self, x, y):
 
-        return preprocessed_x, preprocessed_y
+        apply_rotation = (np.random.random() < 0.5) * self.rotation
+        apply_horizontal_flip = (np.random.random() < 0.5) * self.horizontal_flip
+        apply_vertical_flip = (np.random.random() < 0.5) * self.vertical_flip
+
+        processed_x = np.copy(x)
+        processed_y = np.copy(y)
+
+        if apply_rotation:
+            rotation_times = np.random.randint(0, 5)
+            processed_x = np.rot90(processed_x, rotation_times)
+            processed_y = np.rot90(processed_y, rotation_times)
+        if apply_horizontal_flip:
+            processed_x = np.flip(processed_x, axis=-2)
+            processed_y = np.flip(processed_y, axis=-2)
+        if apply_vertical_flip:
+            processed_x = np.flip(processed_x, axis=-3)
+            processed_y = np.flip(processed_y, axis=-3)
+
+        return processed_x, processed_y
 
     def __data_generation(self, list_IDs_temp):
         # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
@@ -262,9 +266,12 @@ class DataGenerator(tf.keras.utils.Sequence):
                                                               num_patches=self.num_patches, 
                                                               datagen_sampling_pdf=self.datagen_sampling_pdf)
 
-            #x, y = self.__data_generation(aux_x, aux_y)
             x = np.expand_dims(aux_x, axis=-1)
             y = np.expand_dims(aux_y, axis=-1)
+
+            x, y = self.__preprocess(x, y)
+
+            self.actual_scale_factor = actual_scalefactor
 
         elif self.module == 'test':
             # print("Creating validation data...")
