@@ -245,20 +245,20 @@ class DataGenerator(tf.keras.utils.Sequence):
             print('rotation')
             print(processed_y.shape)
             rotation_times = np.random.randint(0, 5)
-            processed_x = np.rot90(processed_x, rotation_times)
-            processed_y = np.rot90(processed_y, rotation_times)
+            processed_x = np.rot90(processed_x, rotation_times, axes=(1,2))
+            processed_y = np.rot90(processed_y, rotation_times, axes=(1,2))
             print(processed_y.shape)
         if apply_horizontal_flip:
             print('horizontal_flip')
             print(processed_y.shape)
-            processed_x = np.flip(processed_x, axis=-2)
-            processed_y = np.flip(processed_y, axis=-2)
+            processed_x = np.flip(processed_x, axis=2)
+            processed_y = np.flip(processed_y, axis=2)
             print(processed_y.shape)
         if apply_vertical_flip:
             print('vertical_flip')
             print(processed_y.shape)
-            processed_x = np.flip(processed_x, axis=-3)
-            processed_y = np.flip(processed_y, axis=-3)
+            processed_x = np.flip(processed_x, axis=1)
+            processed_y = np.flip(processed_y, axis=1)
             print(processed_y.shape)
 
         return processed_x, processed_y
