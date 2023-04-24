@@ -46,7 +46,7 @@ def sampling_pdf(y, pdf, height, width):
         #              int(np.floor(width // 2)) :-int(np.floor(width // 2))]
         # indexh, indexw = index_from_pdf(croped_y)
 
-        kernel = np.ones((height,width))
+        kernel = np.ones((min(height, h-1), min(width, w-1)))
         print(y.max())
         print(y.min())
 
