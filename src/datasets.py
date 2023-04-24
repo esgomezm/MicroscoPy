@@ -49,6 +49,7 @@ def sampling_pdf(y, pdf, height, width):
         pdf = np.fft.irfft2(np.fft.rfft2(y) * np.fft.rfft2(kernel, y.shape))
         print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         pdf = (pdf - pdf.min()) / (pdf.max() - pdf.min())
+        print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         pdf_cropped = pdf[min(kernel.shape[0], pdf.shape[0]-1):, 
                           min(kernel.shape[1], pdf.shape[1]-1):]
         
