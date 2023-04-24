@@ -9,6 +9,8 @@ from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from . import crappifiers 
 
+from matplotlib import pyplot as plt
+
 #####
 # Functions to sample an image using probability density function
 #####
@@ -51,7 +53,7 @@ def sampling_pdf(y, pdf, height, width):
         print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         print(pdf.max())
         print(pdf.min())
-        from matplotlib import pyplot as plt
+        
         plt.subplot(1,2,1)
         plt.imshow(y)
         plt.subplot(1,2,2)
@@ -117,6 +119,12 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
                                       datagen_sampling_pdf):
 
     hr_img, lr_img = read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name)
+
+    plt.subplot(1,2,1)
+    plt.imshow(lr_img)
+    plt.subplot(1,2,2)
+    plt.imshow(hr_img)
+    plt.show()
 
     if lr_patch_shape is None:
         lr_patch_size_width = lr_img.shape[0]
