@@ -51,7 +51,13 @@ def sampling_pdf(y, pdf, height, width):
         print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         print(pdf.max())
         print(pdf.min())
-        pdf = (pdf - pdf.min()) / (pdf.max() - pdf.min())
+        from matplotlib import pyplot as plt
+        plt.subplot(1,2,1)
+        plt.imhow(y)
+        plt.subplot(1,2,2)
+        plt.imshow(pdf)
+        plt.show()
+        pdf = normalization(pdf)
         print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         pdf_cropped = pdf[min(kernel.shape[0], pdf.shape[0]-1):, 
                           min(kernel.shape[1], pdf.shape[1]-1):]
@@ -67,7 +73,7 @@ def sampling_pdf(y, pdf, height, width):
 #####
 
 def normalization(data, desired_accuracy=np.float32):
-    return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy)
+    return (data - data.min()) / (data.max() - data.min()).astype(desired_accuracy + 1e-10)
 
 def read_image(filename, desired_accuracy=np.float32):
     return normalization(io.imread(filename), desired_accuracy=desired_accuracy)
