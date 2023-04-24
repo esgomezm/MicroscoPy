@@ -44,6 +44,7 @@ def sampling_pdf(y, pdf, height, width):
 
         kernel = np.ones((height,width))
         pdf = np.fft.irfft2(np.fft.rfft2(y) * np.fft.rfft2(kernel, y.shape))
+        print('pdf.mean(): {}'.format(pdf.mean()))
         pdf = (pdf - pdf.min()) / (pdf.max() - pdf.min())
         pdf_cropped = pdf[min(kernel.shape[0], pdf.shape[0]-1):, 
                           min(kernel.shape[1], pdf.shape[1]-1):]
@@ -227,7 +228,6 @@ class DataGenerator(tf.keras.utils.Sequence):
             np.random.shuffle(self.indexes)
 
     def __getitem__(self, index):
-        print(index)
         # Generate indexes of the batch
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
         # Find list of IDs
