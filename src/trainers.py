@@ -252,7 +252,11 @@ class TensorflowTrainer(ModelsTrainer):
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  module='train', shuffle=True)
 
-        x_sample, y_sample, actual_scale_factor = train_generator.get_sample()
+        for i in range(100):
+            x_sample, y_sample, actual_scale_factor = train_generator.get_sample(i)
+            print('Data:')
+            print('HR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(x_sample.shape, np.max(y_sample), np.min(y_sample),  np.mean(y_sample), y_sample.dtype))
+            print('LR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(y_sample.shape, np.max(x_sample), np.min(x_sample),  np.mean(x_sample), x_sample.dtype))
 
         self.input_data_shape = (x_sample.shape[0]*train_generator.__len__(),) + (x_sample.shape[1:])
         self.output_data_shape = (y_sample.shape[0]*train_generator.__len__(),) + (y_sample.shape[1:])
