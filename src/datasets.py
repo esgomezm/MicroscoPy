@@ -46,31 +46,10 @@ def sampling_pdf(y, pdf, height, width):
         #              int(np.floor(width // 2)) :-int(np.floor(width // 2))]
         # indexh, indexw = index_from_pdf(croped_y)
 
-        kernel = np.ones((min(height, h-1), min(width, w-1)))
-        print(y.max())
-        print(y.min())
-
-        print(y.shape)
-        print(kernel.shape)
+        kernel = np.ones((height, width))
 
         pdf = np.fft.irfft2(np.fft.rfft2(y) * np.fft.rfft2(kernel, y.shape))
-        print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
-        print(pdf.max())
-        print(pdf.min())
-        print(pdf.mean())
-        
-        plt.subplot(1,2,1)
-        plt.imshow(y)
-        plt.subplot(1,2,2)
-        plt.imshow(pdf)
-        plt.show()
-
         pdf = normalization(pdf)
-        
-        print(pdf.max())
-        print(pdf.min())
-        print(pdf.mean())
-        print('np.any(np.isnan(pdf)): {}'.format(np.any(np.isnan(pdf))))
         pdf_cropped = pdf[min(kernel.shape[0], pdf.shape[0]-1):, 
                           min(kernel.shape[1], pdf.shape[1]-1):]
         
@@ -150,19 +129,23 @@ def extract_random_patches_from_image(hr_filename, lr_filename, scale_factor,
     hr_patches = []
 
     for _ in range(num_patches):
-        
-        lr_idx_width, lr_idx_height = sampling_pdf(y=lr_img, pdf=datagen_sampling_pdf, 
-                                                   height=lr_patch_size_height, width=lr_patch_size_width)
+        if lr_patch_size_width >= lr_img.shape[0] and lr_patch_size_height >= lr_img.shape[1]:
+            lr_patches.append(lr_img)
+            hr_patches.append(hr_img)
+  
+        else:
+            lr_idx_width, lr_idx_height = sampling_pdf(y=lr_img, pdf=datagen_sampling_pdf, 
+                                                    height=lr_patch_size_height, width=lr_patch_size_width)
 
-        lr = int(lr_idx_height - np.floor(lr_patch_size_height // 2))
-        ur = int(lr_idx_height + np.round(lr_patch_size_height // 2))
+            lr = int(lr_idx_height - np.floor(lr_patch_size_height // 2))
+            ur = int(lr_idx_height + np.round(lr_patch_size_height // 2))
 
-        lc = int(lr_idx_width - np.floor(lr_patch_size_width // 2))
-        uc = int(lr_idx_width + np.round(lr_patch_size_width // 2))
-        
-        lr_patches.append(lr_img[lc:uc, lr:ur])
-        hr_patches.append(hr_img[lc*scale_factor:uc*scale_factor, 
-                                 lr*scale_factor:ur*scale_factor])
+            lc = int(lr_idx_width - np.floor(lr_patch_size_width // 2))
+            uc = int(lr_idx_width + np.round(lr_patch_size_width // 2))
+            
+            lr_patches.append(lr_img[lc:uc, lr:ur])
+            hr_patches.append(hr_img[lc*scale_factor:uc*scale_factor, 
+                                    lr*scale_factor:ur*scale_factor])
 
     return np.array(lr_patches), np.array(hr_patches)
 
