@@ -213,7 +213,7 @@ class DataGenerator(tf.keras.utils.Sequence):
 
     def __len__(self):
         'Denotes the number of batches per epoch'
-        return int(np.floor(len(self.filenames) / (self.batch_size * self.num_patches)))
+        return int(np.floor(len(self.filenames) / self.batch_size))
 
     def get_sample(self, idx):
         x, y = self.__getitem__(idx)
@@ -230,7 +230,6 @@ class DataGenerator(tf.keras.utils.Sequence):
         print(index)
         # Generate indexes of the batch
         indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
-        print(list(range(index * self.batch_size, (index + 1) * self.batch_size)))
         # Find list of IDs
         list_IDs_temp = [self.indexes[k] for k in indexes]
         # Generate data
