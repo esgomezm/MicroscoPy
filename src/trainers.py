@@ -379,7 +379,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                                          scale = self.scale_factor)
             
             if self.verbose and (height_padding == (0,0) and width_padding == (0,0)):
-                print('No padding is needed to added.')
+                print('No padding has been needed to be added.')
             print(height_padding)
             print(width_padding)
 
