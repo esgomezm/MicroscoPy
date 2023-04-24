@@ -3,6 +3,7 @@ import os
 import torch
 from torch.utils.data import Dataset
 from skimage import io
+import tensorflow as tf
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from sklearn.model_selection import train_test_split
@@ -168,174 +169,122 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
 
     return final_lr_patches, final_hr_patches, actual_scale_factor
 
+#####
+# TensorFlow dataset
+#####
+
 # Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
     return transform.rotate(img, 90*np.random.randint( 0, 5 ), preserve_range=True)
 
-# Runtime data augmentation
-def get_train_val_generators(X_data, Y_data, validation_split=0.25,
-                             batch_size=32, seed=42, show_examples=False,
-                             rotation=True, horizontal_flip=True, vertical_flip=True ):
-    X_train, X_test, Y_train, Y_test = train_test_split(X_data,
-                                                      Y_data,
-                                                      train_size=1-validation_split,
-                                                      test_size=validation_split,
-                                                      random_state=seed, shuffle=False)
+class DataGenerator(tf.keras.utils.Sequence):
+    
+    def __init__(self, filenames, hr_data_path, lr_data_path,
+                 scale_factor, crappifier_name, lr_patch_shape,
+                 num_patches, datagen_sampling_pdf, validation_split,
+                 batch_size, rotation, horizontal_flip, vertical_flip, 
+                 module='train', shuffle=True):
+        """
+        Suffle is used to take everytime a different
+        sample from the list in a random way so the
+        training order differs. We create two instances
+        with the same arguments.
+        """
+        self.filenames = np.array(filenames)
+        self.indexes = np.arange(len(self.filenames))
 
-    random_rotation=random_90rotation
-    if not rotation:
-        random_rotation=None
+        self.hr_data_path = hr_data_path
+        self.lr_data_path = lr_data_path
+        self.scale_factor = scale_factor
+        self.crappifier_name = crappifier_name
+        self.lr_patch_shape = lr_patch_shape
+        self.num_patches = num_patches
+        self.datagen_sampling_pdf = datagen_sampling_pdf
 
-    # Image data generator distortion options
-    data_gen_args = dict( preprocessing_function=random_rotation,
-                        horizontal_flip=horizontal_flip,
-                        vertical_flip=vertical_flip,
-                        fill_mode='reflect')
+        self.validation_split = validation_split
+        self.batch_size = batch_size
 
-    # Train data, provide the same seed and keyword arguments to the fit and flow methods
-    X_datagen = ImageDataGenerator(**data_gen_args)
-    Y_datagen = ImageDataGenerator(**data_gen_args)
-    X_datagen.fit(X_train, augment=True, seed=seed)
-    Y_datagen.fit(Y_train, augment=True, seed=seed)
-    X_train_augmented = X_datagen.flow(X_train, batch_size=batch_size, shuffle=True, seed=seed)
-    Y_train_augmented = Y_datagen.flow(Y_train, batch_size=batch_size, shuffle=True, seed=seed)
+        random_rotation=random_90rotation
+        if not rotation:
+            random_rotation=None
+
+        # Image data generator distortion options
+        data_gen_args = dict(preprocessing_function=random_rotation,
+                             horizontal_flip=horizontal_flip,
+                             vertical_flip=vertical_flip,
+                             fill_mode='reflect')
+        
+        self.data_augm_args = data_gen_args
+
+        self.module = module
+        self.shuffle = shuffle  # #
+        self.on_epoch_end()
+
+    def __len__(self):
+        'Denotes the number of batches per epoch'
+        return int(np.floor(len(self.filenames) / self.batch_size))
+
+    def on_epoch_end(self):
+        'Updates indexes after each epoch'
+        self.indexes = np.arange(len(self.filenames))
+        if self.shuffle == True:
+            np.random.shuffle(self.indexes)
+
+    def __getitem__(self, index):
+        'Generate one batch of data'
+        # Generate indexes of the batch
+        indexes = self.indexes[index * self.batch_size:(index + 1) * self.batch_size]
+        # Find list of IDs
+        list_IDs_temp = [self.indexes[k] for k in indexes]
+        # Generate data
+        x, y = self.__data_generation(list_IDs_temp)
+        return x, y
+
+    def __preprocessing(self, x, y):
+        X_datagen = ImageDataGenerator(**self.data_augm_args)
+        Y_datagen = ImageDataGenerator(**self.data_augm_args)
+        X_datagen.fit(x, augment=True)
+        Y_datagen.fit(y, augment=True)
+        preprocessed_x = X_datagen.flow(x, batch_size=1)
+        preprocessed_y = Y_datagen.flow(y, batch_size=1)
+
+        return preprocessed_x, preprocessed_y
+
+    def __data_generation(self, list_IDs_temp):
+        # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
+        # Generate data
+        if self.module == 'train':
+            aux_x, aux_y, actual_scalefactor = extract_random_patches_from_folder(self.hr_data_path, self.lr_data_path, 
+                                                              self.filenames[list_IDs_temp], 
+                                                              scale_factor=self.scale_factor, 
+                                                              crappifier_name=self.crappifier_name, 
+                                                              lr_patch_shape=self.lr_patch_shape, 
+                                                              num_patches=self.num_patches, 
+                                                              datagen_sampling_pdf=self.datagen_sampling_pdf)
+
+            #x, y = self.__data_generation(aux_x, aux_y)
+            x = np.expand_dims(aux_x, axis=-1)
+            y = np.expand_dims(aux_y, axis=-1)
+
+        elif self.module == 'test':
+            # print("Creating validation data...")
+            aux_x, aux_y, actual_scalefactor = extract_random_patches_from_folder(self.hr_data_path, self.lr_data_path, 
+                                                      self.filenames[list_IDs_temp], 
+                                                      scale_factor=self.scale_factor, 
+                                                      crappifier_name=self.crappifier_name, 
+                                                      lr_patch_shape=self.lr_patch_shape, 
+                                                      num_patches=self.num_patches, 
+                                                      datagen_sampling_pdf=self.datagen_sampling_pdf)
+            
+            x = np.expand_dims(aux_x, axis=-1)
+            y = np.expand_dims(aux_y, axis=-1)
+
+        return x, y
 
 
-    # Validation data, no data augmentation, but we create a generator anyway
-    X_datagen_val = ImageDataGenerator()
-    Y_datagen_val = ImageDataGenerator()
-    X_datagen_val.fit(X_test, augment=True, seed=seed)
-    Y_datagen_val.fit(Y_test, augment=True, seed=seed)
-    X_test_augmented = X_datagen_val.flow(X_test, batch_size=batch_size, shuffle=False, seed=seed)
-    Y_test_augmented = Y_datagen_val.flow(Y_test, batch_size=batch_size, shuffle=False, seed=seed)
-  
-    if show_examples:
-        plt.figure(figsize=(10,10))
-        # generate samples and plot
-        for i in range(9):
-            # define subplot
-            plt.subplot(330 + 1 + i)
-            # generate batch of images
-            batch = X_train_augmented.next()
-            # convert to unsigned integers for viewing
-            image = batch[0]
-            # plot raw pixel data
-            plt.imshow(image[:,:,0], vmin=0, vmax=1, cmap='gray')
-        # show the figure
-        plt.show()
-        X_train_augmented.reset()
-  
-    # combine generators into one which yields image and masks
-    train_generator = zip(X_train_augmented, Y_train_augmented)
-    test_generator = zip(X_test_augmented, Y_test_augmented)
-
-    return train_generator, test_generator
-
-def get_generator(X_data, Y_data, batch_size=32, seed=42, 
-                  show_examples=False,rotation=True, 
-                  horizontal_flip=True, vertical_flip=True):
-
-    random_rotation=random_90rotation
-    if not rotation:
-        random_rotation=None
-
-    # Image data generator distortion options
-    data_gen_args = dict( preprocessing_function=random_rotation,
-                        horizontal_flip=horizontal_flip,
-                        vertical_flip=vertical_flip,
-                        fill_mode='reflect')
-
-    # Train data, provide the same seed and keyword arguments to the fit and flow methods
-    X_datagen = ImageDataGenerator(**data_gen_args)
-    Y_datagen = ImageDataGenerator(**data_gen_args)
-    X_datagen.fit(X_data, augment=True, seed=seed)
-    Y_datagen.fit(Y_data, augment=True, seed=seed)
-    X_train_augmented = X_datagen.flow(X_data, batch_size=batch_size, shuffle=True, seed=seed)
-    Y_train_augmented = Y_datagen.flow(Y_data, batch_size=batch_size, shuffle=True, seed=seed)
-
-    if show_examples:
-        plt.figure(figsize=(10,10))
-        # generate samples and plot
-        for i in range(9):
-            # define subplot
-            plt.subplot(330 + 1 + i)
-            # generate batch of images
-            batch = X_train_augmented.next()
-            # convert to unsigned integers for viewing
-            image = batch[0]
-            # plot raw pixel data
-            plt.imshow(image[:,:,0], vmin=0, vmax=1, cmap='gray')
-        # show the figure
-        plt.show()
-        X_train_augmented.reset()
-  
-    # combine generators into one which yields image and masks
-    train_generator = zip(X_train_augmented, Y_train_augmented)
-
-    return train_generator
-
-#### Pytorch dataset ####
-
-class ToTensor(object):
-    """Convert ndarrays in sample to Tensors."""
-
-    def __call__(self, sample):
-        hr, lr = sample['hr'], sample['lr']
-
-        # Pytorch is (batch, channels, width, height)
-        hr = hr.transpose((2, 0, 1))
-        lr = lr.transpose((2, 0, 1))
-        return {'hr': torch.from_numpy(hr),
-                'lr': torch.from_numpy(lr)}
-
-class RandomHorizontalFlip(object):
-    """Random horizontal flip"""
-
-    def __init__(self):
-        self.rng = np.random.default_rng()
-
-    def __call__(self, sample):
-        hr, lr = sample['hr'], sample['lr']
-
-        if self.rng.random() < 0.5:
-            hr = np.flip(hr, 1)
-            lr = np.flip(lr, 1)
-
-        return {'hr': hr.copy(),
-                'lr': lr.copy()}
-
-class RandomVerticalFlip(object):
-    """Random vertical flip"""
-
-    def __init__(self):
-        self.rng = np.random.default_rng()
-
-    def __call__(self, sample):
-        hr, lr = sample['hr'], sample['lr']
-
-        if self.rng.random() < 0.5:
-            hr = np.flip(hr, 0)
-            lr = np.flip(lr, 0)
-
-        return {'hr': hr.copy(),
-                'lr': lr.copy()}
-
-class RandomRotate(object):
-    """Random rotation"""
-
-    def __init__(self):
-        self.rng = np.random.default_rng()
-
-    def __call__(self, sample):
-        hr, lr = sample['hr'], sample['lr']
-
-        k = self.rng.integers(4)
-
-        hr = np.rot90(hr, k=k)
-        lr = np.rot90(lr, k=k)
-
-        return {'hr': hr.copy(),
-                'lr': lr.copy()}
+#####
+# Pytorch dataset
+#####
 
 class PytorchDataset(Dataset):
     ''' Pytorch's Dataset type object used to obtain the train and 

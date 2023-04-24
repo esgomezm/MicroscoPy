@@ -51,11 +51,21 @@ class ModelsTrainer:
         train_extension = max(set(train_extension_list), key = train_extension_list.count)
         self.train_filenames = [x for x in os.listdir(self.train_hr_path) if x.endswith(train_extension)]
 
-        self.val_lr_path = val_lr_path
-        self.val_hr_path = val_hr_path
-        val_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.val_hr_path)]
-        val_extension = max(set(val_extension_list), key = val_extension_list.count)
-        self.val_filenames = [x for x in os.listdir(self.val_hr_path) if x.endswith(val_extension)]
+        
+
+        if val_hr_path is not None or val_lr_path is not None:
+            self.val_lr_path = train_lr_path
+            self.val_hr_path = train_hr_path
+
+            self.train_filenames = self.train_filenames[:int(len(self.train_filenames)*(1 - validation_split))]
+            self.val_filenames = self.train_filenames[int(len(self.train_filenames)*(1 - validation_split)):]
+        else:
+            self.val_lr_path = val_lr_path
+            self.val_hr_path = val_hr_path
+
+            val_extension_list = [os.path.splitext(e)[1] for e in os.listdir(self.val_hr_path)]
+            val_extension = max(set(val_extension_list), key = val_extension_list.count)
+            self.val_filenames = [x for x in os.listdir(self.val_hr_path) if x.endswith(val_extension)]
 
         self.test_lr_path = test_lr_path
         self.test_hr_path = test_hr_path
@@ -223,29 +233,41 @@ class TensorflowTrainer(ModelsTrainer):
         self.library_name ='tensorflow'
     
     def prepare_data(self):
+        
+        train_generator = datasets.DataGenerator(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
+                                                 lr_data_path=self.train_hr_path, scale_factor=self.scale_factor, 
+                                                 crappifier_name=self.crappifier_method, 
+                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                                                 num_patches=self.num_patches, datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                                 validation_split=0.1, batch_size=self.batch_size, 
+                                                 rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
+                                                 module='train', shuffle=True)
+        
+        val_generator = datasets.DataGenerator(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
+                                                 lr_data_path=self.val_hr_path, scale_factor=self.scale_factor, 
+                                                 crappifier_name=self.crappifier_method, 
+                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                                                 num_patches=self.num_patches, datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                                 validation_split=0.1, batch_size=self.batch_size, 
+                                                 rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
+                                                 module='train', shuffle=True)
 
-        train_patches_wf, train_patches_gt, actual_scale_factor = datasets.extract_random_patches_from_folder(
-                                                hr_data_path=self.train_hr_path, 
-                                                lr_data_path=self.train_lr_path, 
-                                                filenames=self.train_filenames, 
-                                                scale_factor=self.scale_factor, 
-                                                crappifier_name=self.crappifier_method, 
-                                                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
-                                                num_patches=self.num_patches,
-                                                datagen_sampling_pdf=self.datagen_sampling_pdf)
+        x_sample, y_sample, actual_scale_factor = train_generator.get_sample()
 
-        if self.scale_factor is None:
+        self.input_data_shape = (x_sample.shape[0]*train_generator.__len__(),) + (x_sample.shape[1:])
+        self.output_data_shape = (y_sample.shape[0]*train_generator.__len__(),) + (y_sample.shape[1:])
+
+        if self.scale_factor is None or self.scale_factor != actual_scale_factor:
             self.scale_factor = actual_scale_factor
+            utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
+                              'actual_scale_factor', actual_scale_factor)
             if self.verbose:
                 print('Actual scale factor that will be used is: {}'.format(self.scale_factor))
-
-        X_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_wf])
-        Y_train = np.array([np.expand_dims(x, axis=-1) for x in train_patches_gt])
            
         if self.verbose:
             print('Data:')
-            print('HR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(Y_train.shape, np.max(Y_train), np.min(Y_train),  np.mean(Y_train), Y_train.dtype))
-            print('LR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(X_train.shape, np.max(X_train), np.min(X_train),  np.mean(X_train), X_train.dtype))
+            print('HR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(self.output_data_shape, np.max(y_sample), np.min(y_sample),  np.mean(y_sample), y_sample.dtype))
+            print('LR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(self.input_data_shape, np.max(x_sample), np.min(x_sample),  np.mean(x_sample), x_sample.dtype))
             '''
             plt.figure(figsize=(10,5))
             plt.subplot(1,2,1)
@@ -257,65 +279,15 @@ class TensorflowTrainer(ModelsTrainer):
             plt.show()
             '''
 
-        assert np.max(X_train[0]) <= 1.0 and np.max(Y_train[0]) <= 1.0
-        assert np.min(X_train[0]) >= 0.0 and np.min(Y_train[0]) >= 0.0            
-        assert len(X_train.shape) == 4 and len(Y_train.shape) == 4
-
-        if self.model_configuration['others']['positional_encoding']:
-            X_train = utils.concatenate_encoding(X_train, self.model_configuration['others']['positional_encoding_channels'])
-
-        if self.val_hr_path is not None or self.val_lr_path is not None:
-
-            val_patches_wf, val_patches_gt, _ = datasets.extract_random_patches_from_folder(
-                                                hr_data_path=self.val_hr_path, 
-                                                lr_data_path=self.val_lr_path, 
-                                                filenames=self.val_filenames, 
-                                                scale_factor=self.scale_factor, 
-                                                crappifier_name=self.crappifier_method, 
-                                                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y), 
-                                                num_patches=self.num_patches,
-                                                datagen_sampling_pdf=self.datagen_sampling_pdf)            
-
-            X_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_wf])
-            Y_val = np.array([np.expand_dims(x, axis=-1) for x in val_patches_gt])
-
-            if self.model_configuration['others']['positional_encoding']:
-                X_val = utils.concatenate_encoding(X_val, self.model_configuration['others']['positional_encoding_channels'])
-
-            assert np.max(Y_val[0]) <= 1.0 and np.max(X_val[0]) <= 1.0
-            assert np.min(Y_val[0]) >= 0.0 and np.min(X_val[0]) >= 0.0            
-            assert len(X_val.shape) == 4 and len(Y_val.shape) == 4
+        assert np.max(x_sample[0]) <= 1.0 and np.max(y_sample[0]) <= 1.0
+        assert np.min(x_sample[0]) >= 0.0 and np.min(y_sample[0]) >= 0.0            
+        assert len(x_sample.shape) == 4 and len(y_sample.shape) == 4
         
-        self.input_data_shape = X_train.shape
-        self.output_data_shape = Y_train.shape
+        utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
+                                'input_data_shape', self.input_data_shape)
+        utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
+                            'output_data_shape', self.output_data_shape)
 
-        if self.val_hr_path is None or self.val_lr_path is None:
-            print('Both train and validation data will be extracted from the received train path.')
-            train_generator, val_generator = datasets.get_train_val_generators(X_data=X_train,
-                                                                      Y_data=Y_train,
-                                                                      validation_split=self.validation_split,
-                                                                      batch_size=self.batch_size,
-                                                                      show_examples=False,
-                                                                      rotation=self.rotation,
-                                                                      horizontal_flip=self.horizontal_flip,
-                                                                      vertical_flip=self.vertical_flip)
-        else:
-            print('There are different train and validation paths.')
-            train_generator = datasets.get_generator(X_data=X_train,
-                                            Y_data=Y_train,
-                                            batch_size=self.batch_size,
-                                            show_examples=False,
-                                            rotation=self.rotation,
-                                            horizontal_flip=self.horizontal_flip,
-                                            vertical_flip=self.vertical_flip)
-            
-            val_generator = datasets.get_generator(X_data=X_val,
-                                          Y_data=Y_val,
-                                          batch_size=self.batch_size,
-                                          show_examples=False,
-                                          rotation=self.rotation,
-                                          horizontal_flip=self.horizontal_flip,
-                                          vertical_flip=self.vertical_flip)
 
         self.train_generator=train_generator
         self.val_generator=val_generator
@@ -645,7 +617,7 @@ class PytorchTrainer(ModelsTrainer):
                                  lr_patch_shape=None, 
                                  num_patches=1, 
                                  transformations=datasets.ToTensor(),
-                                 datagen_sampling_pdf= datagen_sampling_pdf)
+                                 datagen_sampling_pdf= self.datagen_sampling_pdf)
 
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 

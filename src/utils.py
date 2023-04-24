@@ -43,6 +43,11 @@ def print_info(image_name, data):
     except:
         print('{} \n\nNot same shapes'.format(image_name))
 
+def update_yaml(yaml_file_path, key_value, new_value):
+    file_information = load_yaml(yaml_file_path)
+    file_information[key_value] = new_value
+    save_yaml(file_information, yaml_file_path)
+
 def load_yaml(yaml_file_path):
     with open(yaml_file_path) as file:
         file_information = yaml.full_load(file)
