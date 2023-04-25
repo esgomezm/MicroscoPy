@@ -353,46 +353,6 @@ class TensorflowTrainer(ModelsTrainer):
 
     def predict_images(self):
 
-        lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
-                                        hr_data_path=self.test_hr_path, 
-                                        lr_data_path=self.test_lr_path, 
-                                        filenames=self.test_filenames, 
-                                        scale_factor=self.scale_factor, 
-                                        crappifier_name=self.crappifier_method, 
-                                        lr_patch_shape=None, 
-                                        num_patches=1,
-                                        datagen_sampling_pdf=1)
-    
-        hr_images = np.expand_dims(hr_images, axis=-1)
-        lr_images = np.expand_dims(lr_images, axis=-1)
-
-        if self.model_name == 'unet':
-            if self.verbose:
-                print('Padding will be added to the images.')
-                print('LR images before padding:')
-                print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
-
-            height_padding, width_padding = utils.calculate_pad_for_Unet(lr_img_shape = lr_images[0].shape, 
-                                                                         depth_Unet = self.model_configuration['unet']['depth'], 
-                                                                         is_pre = True, 
-                                                                         scale = self.scale_factor)
-            
-            if self.verbose and (height_padding == (0,0) and width_padding == (0,0)):
-                print('No padding has been needed to be added.')
-            print(height_padding)
-            print(width_padding)
-
-            lr_images = utils.add_padding_for_Unet(lr_imgs = lr_images, 
-                                                   height_padding = height_padding, 
-                                                   width_padding = width_padding)
-
-        if self.verbose:
-            print('HR images - shape:{} dtype:{}'.format(hr_images.shape, hr_images.dtype))
-            print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
-        
-        if self.model_configuration['others']['positional_encoding']:
-            lr_images = utils.concatenate_encoding(lr_images, self.model_configuration['others']['positional_encoding_channels'])
-            
         optim = optimizer_scheduler_utils.select_optimizer(library_name=self.library_name, optimizer_name=self.optimizer_name, 
                                  learning_rate=self.learning_rate, check_point=None,
                                  parameters=None, additional_configuration=self.model_configuration)
@@ -407,18 +367,64 @@ class TensorflowTrainer(ModelsTrainer):
             
         # Load old weights
         model.load_weights( os.path.join(self.saving_path, 'weights_best.h5') )   
-        
+
+        predictions = []
         print('Prediction is going to start:')
-        predictions = model.predict(lr_images, batch_size=1)
+        for test_filename in self.test_filenames:
+            lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
+                                            hr_data_path=self.test_hr_path, 
+                                            lr_data_path=self.test_lr_path, 
+                                            filenames=[test_filename], 
+                                            scale_factor=self.scale_factor, 
+                                            crappifier_name=self.crappifier_method, 
+                                            lr_patch_shape=None, 
+                                            num_patches=1,
+                                            datagen_sampling_pdf=1)
     
-        if self.model_name == 'unet':
-            predictions = utils.remove_padding_for_Unet(pad_hr_imgs = predictions, 
-                                                        height_padding = height_padding, 
-                                                        width_padding = width_padding, 
-                                                        scale = self.scale_factor)
+            hr_images = np.expand_dims(hr_images, axis=-1)
+            lr_images = np.expand_dims(lr_images, axis=-1)
+
+            if self.model_name == 'unet':
+                if self.verbose:
+                    print('Padding will be added to the images.')
+                    print('LR images before padding:')
+                    print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
+
+                height_padding, width_padding = utils.calculate_pad_for_Unet(lr_img_shape = lr_images[0].shape, 
+                                                                            depth_Unet = self.model_configuration['unet']['depth'], 
+                                                                            is_pre = True, 
+                                                                            scale = self.scale_factor)
+                
+                if self.verbose and (height_padding == (0,0) and width_padding == (0,0)):
+                    print('No padding has been needed to be added.')
+                print(height_padding)
+                print(width_padding)
+
+                lr_images = utils.add_padding_for_Unet(lr_imgs = lr_images, 
+                                                    height_padding = height_padding, 
+                                                    width_padding = width_padding)
+
+            if self.verbose:
+                print('HR images - shape:{} dtype:{}'.format(hr_images.shape, hr_images.dtype))
+                print('LR images - shape:{} dtype:{}'.format(lr_images.shape, lr_images.dtype))
+            
+            if self.model_configuration['others']['positional_encoding']:
+                lr_images = utils.concatenate_encoding(lr_images, self.model_configuration['others']['positional_encoding_channels'])
+                
+            aux_prediction = model.predict(lr_images, batch_size=1)
+
+            if self.model_name == 'unet':
+                aux_prediction = utils.remove_padding_for_Unet(pad_hr_imgs = predictions, 
+                                                            height_padding = height_padding, 
+                                                            width_padding = width_padding, 
+                                                            scale = self.scale_factor)
+            
+            aux_prediction = np.clip(aux_prediction, a_min=0, a_max=1)
+
+            predictions.append(aux_prediction)
 
         self.Y_test = hr_images
-        self.predictions = np.clip(predictions, a_min=0, a_max=1)
+        self.predictions = predictions
         
         assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
         assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
