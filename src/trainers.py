@@ -414,7 +414,7 @@ class TensorflowTrainer(ModelsTrainer):
             aux_prediction = model.predict(lr_images, batch_size=1)
 
             if self.model_name == 'unet':
-                aux_prediction = utils.remove_padding_for_Unet(pad_hr_imgs = predictions, 
+                aux_prediction = utils.remove_padding_for_Unet(pad_hr_imgs = aux_prediction, 
                                                             height_padding = height_padding, 
                                                             width_padding = width_padding, 
                                                             scale = self.scale_factor)
