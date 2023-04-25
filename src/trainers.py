@@ -353,21 +353,6 @@ class TensorflowTrainer(ModelsTrainer):
 
     def predict_images(self):
 
-        optim = optimizer_scheduler_utils.select_optimizer(library_name=self.library_name, optimizer_name=self.optimizer_name, 
-                                 learning_rate=self.learning_rate, check_point=None,
-                                 parameters=None, additional_configuration=self.model_configuration)
-
-        model = model_utils.select_model(model_name=self.model_name, input_shape=lr_images.shape, output_channels=hr_images.shape[-1],
-                             scale_factor=self.scale_factor, datagen_sampling_pdf=self.datagen_sampling_pdf, model_configuration=self.model_configuration)
-        
-        loss_funct = 'mean_absolute_error'
-        eval_metric = 'mean_squared_error'
-        
-        model.compile(optimizer=optim, loss=loss_funct, metrics=[eval_metric, utils.ssim_loss])
-            
-        # Load old weights
-        model.load_weights( os.path.join(self.saving_path, 'weights_best.h5') )   
-
         predictions = []
         print('Prediction is going to start:')
         for test_filename in self.test_filenames:
@@ -411,6 +396,21 @@ class TensorflowTrainer(ModelsTrainer):
             if self.model_configuration['others']['positional_encoding']:
                 lr_images = utils.concatenate_encoding(lr_images, self.model_configuration['others']['positional_encoding_channels'])
                 
+            optim = optimizer_scheduler_utils.select_optimizer(library_name=self.library_name, optimizer_name=self.optimizer_name, 
+                                    learning_rate=self.learning_rate, check_point=None,
+                                    parameters=None, additional_configuration=self.model_configuration)
+
+            model = model_utils.select_model(model_name=self.model_name, input_shape=lr_images.shape, output_channels=hr_images.shape[-1],
+                                scale_factor=self.scale_factor, datagen_sampling_pdf=self.datagen_sampling_pdf, model_configuration=self.model_configuration)
+            
+            loss_funct = 'mean_absolute_error'
+            eval_metric = 'mean_squared_error'
+            
+            model.compile(optimizer=optim, loss=loss_funct, metrics=[eval_metric, utils.ssim_loss])
+                
+            # Load old weights
+            model.load_weights( os.path.join(self.saving_path, 'weights_best.h5') )   
+
             aux_prediction = model.predict(lr_images, batch_size=1)
 
             if self.model_name == 'unet':
