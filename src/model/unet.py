@@ -341,7 +341,7 @@ def preResUNet(image_shape, output_channels, activation='elu', kernel_initialize
     else:
         conv_strides = (1,1) if maxpooling else (2,2)
 
-        x = level_block(s, depth, numInitChannels, 3, activation, kernel_initializer,
+        x = level_block(inputs, depth, numInitChannels, 3, activation, kernel_initializer,
                         dropout_value, batchnorm, conv_strides, separable, True,
                         maxpooling)
     outputs = Conv2D(output_channels, (1, 1), activation=final_activation) (x)

@@ -350,7 +350,6 @@ class TensorflowTrainer(ModelsTrainer):
         for key in history.history:
             np.save(self.saving_path + '/train_metrics/' + key + '.npy', history.history[key])
         np.save(self.saving_path + '/train_metrics/time.npy', np.array([dt]))
-        
 
     def predict_images(self):
 
