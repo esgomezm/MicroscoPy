@@ -437,7 +437,7 @@ class TensorflowTrainer(ModelsTrainer):
         os.makedirs(self.saving_path + '/predicted_images', exist_ok=True)
                 
         for i, image  in enumerate(predictions):
-          tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+self.test_filenames[i], image, 
+          tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+self.test_filenames[i], image[0,...], 
                                                 data_format=None, file_format=None)
         print('Predicted images have been saved in: ' + self.saving_path + '/predicted_images')
         
