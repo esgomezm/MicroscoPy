@@ -421,7 +421,7 @@ class TensorflowTrainer(ModelsTrainer):
             
             aux_prediction = np.clip(aux_prediction, a_min=0, a_max=1)
 
-            predictions.append(aux_prediction)
+            predictions.append(aux_prediction[0,...])
 
         self.Y_test = hr_images
         self.predictions = predictions
@@ -437,7 +437,7 @@ class TensorflowTrainer(ModelsTrainer):
         os.makedirs(self.saving_path + '/predicted_images', exist_ok=True)
                 
         for i, image  in enumerate(predictions):
-          tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+self.test_filenames[i], image[0,...], 
+          tf.keras.preprocessing.image.save_img(self.saving_path+'/predicted_images/'+self.test_filenames[i], image, 
                                                 data_format=None, file_format=None)
         print('Predicted images have been saved in: ' + self.saving_path + '/predicted_images')
         

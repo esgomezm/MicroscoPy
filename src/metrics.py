@@ -27,8 +27,8 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
     
     for i in tqdm(range(test_data_length)):
         
-        gt_image = gt_image_list[i,:,:,0]
-        predicted_image = predicted_image_list[i,:,:,0]
+        gt_image = gt_image_list[i][:,:,0]
+        predicted_image = predicted_image_list[i][:,:,0]
             
         gt_image_piq = np.expand_dims(gt_image, axis=0)
         gt_image_piq = np.expand_dims(gt_image_piq, axis=0)
