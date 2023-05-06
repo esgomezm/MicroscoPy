@@ -1,13 +1,13 @@
 import tensorflow as tf
 import math
 
-def sinusoidal_embedding(x, **kwargs):
+def sinusoidal_embedding(x, embedding_max_frequency, embedding_dims):
     embedding_min_frequency = 1.0
     frequencies = tf.exp(
         tf.linspace(
             tf.math.log(embedding_min_frequency),
-            tf.math.log(kwargs['embedding_max_frequency']),
-            kwargs['embedding_dims'] // 2,
+            tf.math.log(embedding_max_frequency),
+            embedding_dims // 2,
         )
     )
     angular_speeds = 2.0 * math.pi * frequencies
@@ -63,9 +63,7 @@ def get_network(image_shape, widths, block_depth, embedding_max_frequency, embed
     noisy_images = tf.keras.layers.Input(shape=image_shape[:-1]+(image_shape[-1]*2,))
     noise_variances = tf.keras.layers.Input(shape=(1, 1, 1))
 
-    e = tf.keras.layers.Lambda(sinusoidal_embedding)(noise_variances, 
-                                                     **{'embedding_max_frequency':embedding_max_frequency, 
-                                                        'embedding_dims':embedding_dims})
+    e = tf.keras.layers.Lambda(sinusoidal_embedding)(noise_variances, embedding_max_frequency, embedding_dims)
     e = tf.keras.layers.UpSampling2D(size=image_shape[0], interpolation="nearest")(e)
 
     x = tf.keras.layers.Conv2D(widths[0], kernel_size=1)(noisy_images)
