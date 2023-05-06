@@ -1,13 +1,13 @@
 import tensorflow as tf
 import math
 
-def sinusoidal_embedding(x, embedding_max_frequency, embedding_dims):
+def sinusoidal_embedding(x, **kwargs):
     embedding_min_frequency = 1.0
     frequencies = tf.exp(
         tf.linspace(
             tf.math.log(embedding_min_frequency),
-            tf.math.log(embedding_max_frequency),
-            embedding_dims // 2,
+            tf.math.log(kwargs['embedding_max_frequency']),
+            kwargs['embedding_dims'] // 2,
         )
     )
     angular_speeds = 2.0 * math.pi * frequencies
