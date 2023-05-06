@@ -39,7 +39,8 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
             image_shape=input_shape[1:], widths=model_configuration['cddpm']['widths'], 
             block_depth=model_configuration['cddpm']['block_depth'], 
             min_signal_rate=0.02, max_signal_rate=0.95, 
-            batch_size=batch_size, ema=0.999)
+            batch_size=batch_size, ema=0.999,
+            embedding_max_frequency=1000.0, embedding_dims=32)
 
     elif model_name == 'wgan':
         return model.wgan.WGANGP(

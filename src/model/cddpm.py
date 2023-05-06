@@ -86,13 +86,14 @@ def get_network(image_shape, widths, block_depth, embedding_max_frequency, embed
 
 class DiffusionModel(tf.keras.Model):
     def __init__(self, image_shape, widths, block_depth, 
-                 min_signal_rate, max_signal_rate, batch_size, ema):
+                 min_signal_rate, max_signal_rate, batch_size, 
+                 ema, embedding_max_frequency, embedding_dims):
         super().__init__()
 
         self.image_shape = image_shape
 
         self.normalizer = tf.keras.layers.experimental.preprocessing.Normalization()
-        self.network = get_network(image_shape, widths, block_depth)
+        self.network = get_network(image_shape, widths, block_depth, embedding_max_frequency, embedding_dims)
         self.ema_network = tf.keras.models.clone_model(self.network)
 
         self.min_signal_rate = min_signal_rate 
