@@ -64,8 +64,8 @@ def get_network(image_shape, widths, block_depth, embedding_max_frequency, embed
     noise_variances = tf.keras.layers.Input(shape=(1, 1, 1))
 
     e = tf.keras.layers.Lambda(sinusoidal_embedding)(noise_variances, 
-                                                     **['embedding_max_frequency':embedding_max_frequency, 
-                                                        'embedding_dims':embedding_dims])
+                                                     **{'embedding_max_frequency':embedding_max_frequency, 
+                                                        'embedding_dims':embedding_dims})
     e = tf.keras.layers.UpSampling2D(size=image_shape[0], interpolation="nearest")(e)
 
     x = tf.keras.layers.Conv2D(widths[0], kernel_size=1)(noisy_images)
