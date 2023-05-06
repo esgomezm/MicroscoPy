@@ -47,6 +47,13 @@ unet:
   upsample_method: SubpixelConv2D
 wdsr:
   num_res_blocks: 32
+cddpm:
+  widths:
+  - 32
+  - 64
+  - 96
+  - 128
+  block_depth: 4
 wgan:
   g_layers: 15
   lambda_gp: 10

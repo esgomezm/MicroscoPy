@@ -34,6 +34,17 @@ def set_seed(seedValue=42):
     torch.cuda.manual_seed_all(seedValue)
 
 def print_info(image_name, data):
+    """
+    Prints information about the given image data.
+
+    Args:
+        image_name (str): The name of the image.
+        data (list): A list of image data.
+
+    Returns:
+        None
+    """
+
     try:
         np_data = np.array(data)
         print('{} \n\nShape: {} \nType: {} \nNumpy type: {} \nMin: {} \nMax: {} \nMean: {}\n'.format(image_name, 
@@ -44,16 +55,46 @@ def print_info(image_name, data):
         print('{} \n\nNot same shapes'.format(image_name))
 
 def update_yaml(yaml_file_path, key_value, new_value):
+    """
+    Updates a value in a yaml file.
+
+    :param yaml_file_path: The path to the yaml file.
+    :type yaml_file_path: str
+    :param key_value: The key representing the value to be updated.
+    :type key_value: str
+    :param new_value: The new value to update the given key with.
+    :type new_value: Any
+    :return: None
+    """
+
     file_information = load_yaml(yaml_file_path)
     file_information[key_value] = new_value
     save_yaml(file_information, yaml_file_path)
 
 def load_yaml(yaml_file_path):
+    """
+    Load and parse a YAML file.
+
+    :param yaml_file_path: A string representing the path to the YAML file.
+    :return: A dictionary representing the parsed YAML data.
+    """
+
     with open(yaml_file_path) as file:
         file_information = yaml.full_load(file)
     return file_information
 
 def save_yaml(dict_to_save, saving_path):
+    """
+    Saves a dictionary to a YAML file at the provided path.
+
+    Args:
+        dict_to_save (dict): The dictionary to save to a YAML file.
+        saving_path (str): The path to save the YAML file to.
+
+    Returns:
+        None
+    """
+
     with open(saving_path, 'w') as file:
         yaml.dump(dict_to_save, file)
 

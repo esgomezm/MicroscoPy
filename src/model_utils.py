@@ -11,7 +11,16 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
                  save_basedir=None, g_optimizer=None, d_optimizer=None, g_scheduler=None, d_scheduler=None,
                  checkpoint=None):
         
-    if model_name == 'rcan':
+    if model_name == 'unet':
+        return model.unet.preResUNet( output_channels=output_channels,
+                            numInitChannels=model_configuration['unet']['init_channels'], 
+                            image_shape = input_shape[1:], 
+                            depth = model_configuration['unet']['depth'],
+                            upsampling_factor = scale_factor, 
+                            maxpooling=model_configuration['unet']['maxpooling'],
+                            upsample_method=model_configuration['unet']['upsample_method'], 
+                            final_activation = 'linear')
+    elif model_name == 'rcan':
         return model.rcan.rcan(n_sub_block=int(np.log2(scale_factor)), 
                      filters=model_configuration['rcan']['num_filters'], 
                      out_channels = 1)
@@ -25,18 +34,14 @@ def select_model(model_name=None, input_shape=None, output_channels=None, scale_
         # Custom WDSR B model (0.62M parameters)
         return model.wdsr.wdsr_b(scale=scale_factor, num_res_blocks=model_configuration['wdsr']['num_res_blocks'])
         
-    elif model_name == 'unet':
-        return model.unet.preResUNet( output_channels=output_channels,
-                            numInitChannels=model_configuration['unet']['init_channels'], 
-                            image_shape = input_shape[1:], 
-                            depth = model_configuration['unet']['depth'],
-                            upsampling_factor = scale_factor, 
-                            maxpooling=model_configuration['unet']['maxpooling'],
-                            upsample_method=model_configuration['unet']['upsample_method'], 
-                            final_activation = 'linear')
+    elif model_name =='cddpm':
+        return model.cddpm.DiffusionModel(
+            image_shape=input_shape[1:], widths=model_configuration['cddpm']['widths'], 
+            block_depth=model_configuration['cddpm']['block_depth'], 
+            min_signal_rate=0.02, max_signal_rate=0.95, 
+            batch_size=batch_size, ema=0.999)
 
     elif model_name == 'wgan':
-
         return model.wgan.WGANGP(
             g_layers=model_configuration['wgan']['g_layers'],
             batchsize=batch_size,

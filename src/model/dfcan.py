@@ -23,9 +23,9 @@ logging.getLogger('tensorflow').setLevel(logging.ERROR)
 
 ######
 
+mse = tf.keras.losses.MeanSquaredError()
 ## Loss function definition used in the paper from nature methods
 def loss_dfcan(y_true, y_pred):
-  mse = tf.keras.losses.MeanSquaredError()
   ssim = tf.image.ssim_multiscale(y_true, y_pred, max_val=1)
   res = mse(y_true, y_pred) + 0.1*(1-ssim)
   return res
