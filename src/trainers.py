@@ -697,7 +697,7 @@ def train_configuration(data_name,
                  discriminator_lr_scheduler=discriminator_lr_scheduler,
                  verbose=verbose, gpu_id=gpu_id
                 )
-    elif model_name in ['rcan', 'dfcan', 'wdsr', 'unet']:
+    elif model_name in ['rcan', 'dfcan', 'wdsr', 'unet', 'cddpm']:
         model_trainer = TensorflowTrainer(data_name, 
                  train_lr_path, train_hr_path, 
                  val_lr_path, val_hr_path,
