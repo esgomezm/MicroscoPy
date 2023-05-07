@@ -2,7 +2,7 @@ from src.trainers import *
 from src.utils import load_yaml
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
-os.environ["CUDA_VISIBLE_DEVICES"] = "2";
+os.environ["CUDA_VISIBLE_DEVICES"] = "1";
 
 dataset_config = load_yaml('./general_configs/dataset_configuration.yaml')
 model_config = load_yaml('./general_configs/model_configuration.yaml')

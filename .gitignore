@@ -1,3 +1,5 @@
 data_example/test/*
 data_example/train/*
-*/__pycache__/*
+datasets/*
+src/model/__pycache__/*
+src/__pycache__/*

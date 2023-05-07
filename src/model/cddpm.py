@@ -187,7 +187,6 @@ class DiffusionModel(tf.keras.Model):
         return generated_images
 
     def train_step(self, data):
-
         hr_images, lr_images = data
 
         # normalize images to have standard deviation of 1, like the noises
