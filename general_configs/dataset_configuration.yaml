@@ -7,7 +7,6 @@ EM:
   - null
   - null
   - test
-  num_patches: 16
   patch_size_x: 64
   patch_size_y: 64
   scale: 4
@@ -20,7 +19,6 @@ ER:
   - val/validate_gt
   - test/test_wf/level_01
   - test/test_gt/level_06
-  num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
   scale: null
@@ -33,7 +31,6 @@ F-actin:
   - val/validate_gt
   - test/test_wf/level_01
   - test/test_gt
-  num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
   scale: null
@@ -46,7 +43,6 @@ LiveFActinDataset:
   - val_split/gt
   - test_split/wf
   - test_split/gt
-  num_patches: 1
   patch_size_x: 128
   patch_size_y: 128
   scale: null
@@ -59,7 +55,6 @@ MT:
   - val/validate_gt
   - test/test_wf/level_01
   - test/test_gt
-  num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
   scale: null
@@ -72,7 +67,6 @@ MT-SMLM_all:
   - null
   - test/wf
   - test/gt
-  num_patches: 4
   patch_size_x: 64
   patch_size_y: 64
   scale: null
@@ -85,7 +79,6 @@ MitoTracker_small:
   - null
   - null
   - test
-  num_patches: 1
   patch_size_x: 64
   patch_size_y: 64
   scale: 4

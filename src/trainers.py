@@ -34,7 +34,7 @@ class ModelsTrainer:
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
+                 patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
                  datagen_sampling_pdf, 
                  train_config,
@@ -73,7 +73,6 @@ class ModelsTrainer:
 
         self.crappifier_method = crappifier_method
         self.scale_factor = scale_factor
-        self.num_patches = num_patches
         self.lr_patch_size_x = patch_size_x     
         self.lr_patch_size_y = patch_size_y
         self.datagen_sampling_pdf = datagen_sampling_pdf
@@ -137,7 +136,6 @@ class ModelsTrainer:
         print('Preprocessing info:')
         print('\tScale factor: {}'.format(self.scale_factor))
         print('\tCrappifier method: {}'.format(crappifier_method))
-        print('\tNum patches: {}'.format(num_patches))
         print('\tPatch size: {} x {}'.format(patch_size_x, patch_size_y))
         print('Training info:')
         print('\tEpochs: {}'.format(number_of_epochs))
@@ -200,7 +198,7 @@ class TensorflowTrainer(ModelsTrainer):
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
+                 patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
                  datagen_sampling_pdf,
                  train_config,
@@ -219,7 +217,7 @@ class TensorflowTrainer(ModelsTrainer):
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
+                 patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
                  datagen_sampling_pdf,
                  train_config,
@@ -236,7 +234,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                  lr_data_path=self.train_lr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 
                                                  lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-                                                 num_patches=self.num_patches, datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                                 datagen_sampling_pdf=self.datagen_sampling_pdf, 
                                                  validation_split=0.1, batch_size=self.batch_size, 
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  module='train', shuffle=True)
@@ -244,7 +242,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                  lr_data_path=self.val_lr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 
                                                  lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-                                                 num_patches=self.num_patches, datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                                 datagen_sampling_pdf=self.datagen_sampling_pdf, 
                                                  validation_split=0.1, batch_size=self.batch_size, 
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  module='train', shuffle=True)
@@ -373,7 +371,6 @@ class TensorflowTrainer(ModelsTrainer):
                                             scale_factor=self.scale_factor, 
                                             crappifier_name=self.crappifier_method, 
                                             lr_patch_shape=None, 
-                                            num_patches=1,
                                             datagen_sampling_pdf=1)
     
             hr_images = np.expand_dims(hr_images, axis=-1)
@@ -464,7 +461,7 @@ class PytorchTrainer(ModelsTrainer):
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
+                 patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
                  datagen_sampling_pdf,
                  train_config,
@@ -483,7 +480,7 @@ class PytorchTrainer(ModelsTrainer):
                  optimizer_name, lr_scheduler_name, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
+                 patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
                  datagen_sampling_pdf,
                  train_config,
@@ -502,7 +499,7 @@ class PytorchTrainer(ModelsTrainer):
     def train_model(self):
 
         model = model_utils.select_model(model_name=self.model_name, input_shape=None, output_channels=None,
-                             scale_factor=self.scale_factor, batch_size=self.batch_size, num_patches=self.num_patches,
+                             scale_factor=self.scale_factor, batch_size=self.batch_size,
                              lr_patch_size_x=self.lr_patch_size_x, lr_patch_size_y=self.lr_patch_size_y,
                              datagen_sampling_pdf=self.datagen_sampling_pdf,
                              learning_rate_g=self.learning_rate, learning_rate_d=self.discriminator_learning_rate,
@@ -625,7 +622,6 @@ class PytorchTrainer(ModelsTrainer):
                                  scale_factor=self.scale_factor, 
                                  crappifier_name=self.crappifier_method, 
                                  lr_patch_shape=None, 
-                                 num_patches=1, 
                                  transformations=datasets.ToTensor(),
                                  datagen_sampling_pdf= self.datagen_sampling_pdf)
 
@@ -670,7 +666,6 @@ def train_configuration(data_name,
     
     crappifier_method = train_config['dataset_config']['crappifier']
     scale_factor = train_config['dataset_config']['scale']
-    num_patches = train_config['dataset_config']['num_patches']
     patch_size_x = train_config['dataset_config']['patch_size_x']
     patch_size_y = train_config['dataset_config']['patch_size_y']
     
@@ -699,7 +694,7 @@ def train_configuration(data_name,
                  optimizer, scheduler, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
+                 patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
                  datagen_sampling_pdf,
                  train_config=train_config,
@@ -718,7 +713,7 @@ def train_configuration(data_name,
                  optimizer, scheduler, 
                  test_metric_indexes, additional_folder, 
                  model_configuration, seed,
-                 num_patches, patch_size_x, patch_size_y, 
+                 patch_size_x, patch_size_y, 
                  validation_split, data_augmentation,
                  datagen_sampling_pdf,
                  train_config=train_config,

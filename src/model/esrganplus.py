@@ -464,7 +464,6 @@ def define_F(use_bn=False):
 class ESRGANplus(LightningModule):
     def __init__(self,
                batchsize: int = 8,
-               num_patches: int = 4,
                lr_patch_size_x: int = 128,
                lr_patch_size_y: int = 128,
                scale_factor: int = 2,
@@ -733,7 +732,6 @@ class ESRGANplus(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=False)
             
@@ -744,7 +742,6 @@ class ESRGANplus(LightningModule):
                                 scale_factor=self.hparams.scale_factor,
                                 crappifier_name=self.hparams.crappifier_method,
                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                num_patches=self.hparams.num_patches,
                                 transformations=transf,
                                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
 
@@ -760,7 +757,6 @@ class ESRGANplus(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=True)
         else:
@@ -770,7 +766,6 @@ class ESRGANplus(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf,
                                     datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
         
@@ -798,7 +793,6 @@ class ESRGANplus(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf,datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=False)
             
@@ -809,7 +803,6 @@ class ESRGANplus(LightningModule):
                                 scale_factor=self.hparams.scale_factor,
                                 crappifier_name=self.hparams.crappifier_method,
                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                num_patches=self.hparams.num_patches,
                                 transformations=transf, 
                                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
 
@@ -825,7 +818,6 @@ class ESRGANplus(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=True)
         else:
@@ -835,7 +827,6 @@ class ESRGANplus(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf,
                                     datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
         
