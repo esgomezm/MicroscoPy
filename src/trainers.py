@@ -229,7 +229,7 @@ class TensorflowTrainer(ModelsTrainer):
         self.library_name ='tensorflow'
     
     def prepare_data(self):
-        
+        '''
         train_generator = datasets.DataGenerator(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
                                                  lr_data_path=self.train_lr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 
@@ -237,7 +237,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                  datagen_sampling_pdf=self.datagen_sampling_pdf, 
                                                  validation_split=0.1, batch_size=self.batch_size, 
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
-                                                 module='train', shuffle=True)
+                                                 shuffle=True)
         val_generator = datasets.DataGenerator(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
                                                  lr_data_path=self.val_lr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 
@@ -245,8 +245,26 @@ class TensorflowTrainer(ModelsTrainer):
                                                  datagen_sampling_pdf=self.datagen_sampling_pdf, 
                                                  validation_split=0.1, batch_size=self.batch_size, 
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
-                                                 module='train', shuffle=True)
-        
+                                                 shuffle=True)
+        '''
+        train_generator = datasets.TFDataset(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
+                                            lr_data_path=self.train_lr_path, scale_factor=self.scale_factor,
+                                            crappifier_name=self.crappifier_method, 
+                                            lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                                            datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                            validation_split=0.1, batch_size=self.batch_size, 
+                                            rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
+                                            mode='train')
+
+        val_generator = datasets.TFDataset(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
+                                            lr_data_path=self.val_lr_path, scale_factor=self.scale_factor, 
+                                            crappifier_name=self.crappifier_method, 
+                                            lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                                            datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                            validation_split=0.1, batch_size=self.batch_size, 
+                                            rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
+                                            mode='train')
+
         x_sample, y_sample, actual_scale_factor = train_generator.get_sample(0)
         self.input_data_shape = (x_sample.shape[0]*train_generator.__len__(),) + (x_sample.shape[1:])
         self.output_data_shape = (y_sample.shape[0]*train_generator.__len__(),) + (y_sample.shape[1:])

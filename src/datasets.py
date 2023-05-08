@@ -171,8 +171,7 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
 class TFDataGenerator:
     def __init__(self, filenames, hr_data_path, lr_data_path,
                  scale_factor, crappifier_name, lr_patch_shape,
-                 datagen_sampling_pdf, validation_split,
-                 module='train'):
+                 datagen_sampling_pdf, validation_split):
         
         self.filenames = np.array(filenames)
         self.indexes = np.arange(len(self.filenames))
@@ -196,32 +195,18 @@ class TFDataGenerator:
     def __getitem__(self,idx):
         # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
         # Generate data
-        if self.module == 'train':
-            aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
-                                                                self.hr_data_path, self.lr_data_path, 
-                                                                [self.filenames[idx]], 
-                                                                scale_factor=self.scale_factor, 
-                                                                crappifier_name=self.crappifier_name, 
-                                                                lr_patch_shape=self.lr_patch_shape,
-                                                                datagen_sampling_pdf=self.datagen_sampling_pdf)
+        aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
+                                                            self.hr_data_path, self.lr_data_path, 
+                                                            [self.filenames[idx]], 
+                                                            scale_factor=self.scale_factor, 
+                                                            crappifier_name=self.crappifier_name, 
+                                                            lr_patch_shape=self.lr_patch_shape,
+                                                            datagen_sampling_pdf=self.datagen_sampling_pdf)
 
-            lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
-            hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
+        lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
+        hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
 
-            self.actual_scale_factor = actual_scale_factor
-
-        elif self.module == 'test':
-            # print("Creating validation data...")
-            aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
-                                                        self.hr_data_path, self.lr_data_path, 
-                                                        [self.filenames[idx]], 
-                                                        scale_factor=self.scale_factor, 
-                                                        crappifier_name=self.crappifier_name, 
-                                                        lr_patch_shape=self.lr_patch_shape, 
-                                                        datagen_sampling_pdf=self.datagen_sampling_pdf)
-            
-            lr_patches = np.expand_dims(aux_lr_patches[0], axis=-1)
-            hr_patches = np.expand_dims(aux_hr_patches[0], axis=-1)
+        self.actual_scale_factor = actual_scale_factor
 
         return lr_patches, hr_patches
         
@@ -246,27 +231,28 @@ def prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip):
         y = tf.image.flip_up_down(y)
     return x, y
 
-def multi_preproc(x, y):
-    if (tf.random.uniform(shape=[]) < 0.5):
-        return x*100, y*100
-    else:
-        return x*0, y*0
+def TFDataset(self, filenames, hr_data_path, lr_data_path,
+                 scale_factor, crappifier_name, lr_patch_shape,
+                 datagen_sampling_pdf, validation_split,
+                 batch_size, rotation, horizontal_flip, vertical_flip):
         
-data_generator = TFDataGenerator(filenames=train_filenames[1:2]*1000000, hr_data_path=train_hr_path, 
-                                    lr_data_path=train_lr_path, scale_factor=scale_factor, 
-                                    crappifier_name=crappifier_method, 
-                                    lr_patch_shape=(502, 502),
+    data_generator = TFDataGenerator(filenames=filenames, hr_data_path=hr_data_path, 
+                                    lr_data_path=lr_data_path, scale_factor=scale_factor, 
+                                    crappifier_name=crappifier_name, 
+                                    lr_patch_shape=lr_patch_shape,
                                     datagen_sampling_pdf=datagen_sampling_pdf, 
-                                    validation_split=0.1, module='train', shuffle=True)
+                                    validation_split=validation_split)
+    
+    lr,hr = data_generator.__getitem__(0)
 
-import tensorflow as tf
-dataset = tf.data.Dataset.from_generator(data_generator, 
-                                        output_types=(tf.float64,tf.float64),
-                                        output_shapes=(tf.TensorShape((502, 502, 1)), tf.TensorShape((1004, 1004, 1))))
-
-#dataset = dataset.map(lambda x, y: prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip))
-dataset = dataset.map(multi_preproc)
-dataset = dataset.batch(batch_size)
+    dataset = tf.data.Dataset.from_generator(data_generator, 
+                                            output_types=(lr.dtype, hr.dtype),
+                                            output_shapes=(tf.TensorShape(lr.shape), tf.TensorShape(hr.shape)))
+  
+    dataset = dataset.map(lambda x, y: prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip))
+    dataset = dataset.batch(batch_size)
+    
+    return dataset
 
 #####
 # TensorFlow Sequence dataset
@@ -278,7 +264,7 @@ class DataGenerator(tf.keras.utils.Sequence):
                  scale_factor, crappifier_name, lr_patch_shape,
                  datagen_sampling_pdf, validation_split,
                  batch_size, rotation, horizontal_flip, vertical_flip, 
-                 module='train', shuffle=True):
+                 shuffle=True):
         """
         Suffle is used to take everytime a different
         sample from the list in a random way so the
@@ -361,34 +347,20 @@ class DataGenerator(tf.keras.utils.Sequence):
     def __data_generation(self, list_IDs_temp):
         # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
         # Generate data
-        if self.module == 'train':
-            aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
-                                                                self.hr_data_path, self.lr_data_path, 
-                                                                self.filenames[list_IDs_temp], 
-                                                                scale_factor=self.scale_factor, 
-                                                                crappifier_name=self.crappifier_name, 
-                                                                lr_patch_shape=self.lr_patch_shape, 
-                                                                datagen_sampling_pdf=self.datagen_sampling_pdf)
+        aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
+                                                            self.hr_data_path, self.lr_data_path, 
+                                                            self.filenames[list_IDs_temp], 
+                                                            scale_factor=self.scale_factor, 
+                                                            crappifier_name=self.crappifier_name, 
+                                                            lr_patch_shape=self.lr_patch_shape, 
+                                                            datagen_sampling_pdf=self.datagen_sampling_pdf)
 
-            lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
-            hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
+        lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
+        hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
 
-            lr_patches, hr_patches = self.__preprocess(lr_patches, hr_patches)
+        lr_patches, hr_patches = self.__preprocess(lr_patches, hr_patches)
 
-            self.actual_scale_factor = actual_scale_factor
-
-        elif self.module == 'test':
-            # print("Creating validation data...")
-            aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
-                                                        self.hr_data_path, self.lr_data_path, 
-                                                        self.filenames[list_IDs_temp], 
-                                                        scale_factor=self.scale_factor, 
-                                                        crappifier_name=self.crappifier_name, 
-                                                        lr_patch_shape=self.lr_patch_shape, 
-                                                        datagen_sampling_pdf=self.datagen_sampling_pdf)
-            
-            lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
-            hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
+        self.actual_scale_factor = actual_scale_factor
 
         return lr_patches, hr_patches
 
