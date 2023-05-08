@@ -188,7 +188,6 @@ class WGANGP(LightningModule):
                recloss: float = 10.0,
                lambda_gp: float = 10.0,
                n_critic_steps: int = 5,
-               num_patches: int = 4,
                lr_patch_size_x: int = 128,
                lr_patch_size_y: int = 128,
                batchsize: int = 8,
@@ -435,7 +434,6 @@ class WGANGP(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=False)
             
@@ -446,7 +444,6 @@ class WGANGP(LightningModule):
                                 scale_factor=self.hparams.scale_factor,
                                 crappifier_name=self.hparams.crappifier_method,
                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                num_patches=self.hparams.num_patches,
                                 transformations=transf,
                                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
 
@@ -462,7 +459,6 @@ class WGANGP(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=True)
         else:
@@ -472,7 +468,6 @@ class WGANGP(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf,
                                     datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
         
@@ -500,7 +495,6 @@ class WGANGP(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf,datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=False)
             
@@ -511,7 +505,6 @@ class WGANGP(LightningModule):
                                 scale_factor=self.hparams.scale_factor,
                                 crappifier_name=self.hparams.crappifier_method,
                                 lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                num_patches=self.hparams.num_patches,
                                 transformations=transf, 
                                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
 
@@ -527,7 +520,6 @@ class WGANGP(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf, datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                                     val_split=0.1, validation=True)
         else:
@@ -537,7 +529,6 @@ class WGANGP(LightningModule):
                                     scale_factor=self.hparams.scale_factor,
                                     crappifier_name=self.hparams.crappifier_method,
                                     lr_patch_shape=(self.hparams.lr_patch_size_x, self.hparams.lr_patch_size_y), 
-                                    num_patches=self.hparams.num_patches,
                                     transformations=transf,
                                     datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
         
