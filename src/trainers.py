@@ -247,27 +247,27 @@ class TensorflowTrainer(ModelsTrainer):
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  shuffle=True)
         '''
-        train_generator = datasets.TFDataset(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
-                                            lr_data_path=self.train_lr_path, scale_factor=self.scale_factor,
-                                            crappifier_name=self.crappifier_method, 
-                                            lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-                                            datagen_sampling_pdf=self.datagen_sampling_pdf, 
-                                            validation_split=0.1, batch_size=self.batch_size, 
-                                            rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
-                                            mode='train')
+        train_generator, train_input_shape, train_output_shape, actual_scale_factor = datasets.TFDataset(
+                                                filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
+                                                lr_data_path=self.train_lr_path, scale_factor=self.scale_factor,
+                                                crappifier_name=self.crappifier_method, 
+                                                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                                                datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                                validation_split=0.1, batch_size=self.batch_size, 
+                                                rotation=self.rotation, horizontal_flip=self.horizontal_flip, 
+                                                vertical_flip=self.vertical_flip, mode='train')
 
-        val_generator = datasets.TFDataset(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
+        val_generator, _, _, _ = datasets.TFDataset(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
                                             lr_data_path=self.val_lr_path, scale_factor=self.scale_factor, 
                                             crappifier_name=self.crappifier_method, 
                                             lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
                                             datagen_sampling_pdf=self.datagen_sampling_pdf, 
                                             validation_split=0.1, batch_size=self.batch_size, 
-                                            rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
-                                            mode='train')
+                                            rotation=self.rotation, horizontal_flip=self.horizontal_flip, 
+                                            vertical_flip=self.vertical_flip, mode='train')
 
-        x_sample, y_sample, actual_scale_factor = train_generator.get_sample(0)
-        self.input_data_shape = (x_sample.shape[0]*train_generator.__len__(),) + (x_sample.shape[1:])
-        self.output_data_shape = (y_sample.shape[0]*train_generator.__len__(),) + (y_sample.shape[1:])
+        self.input_data_shape = train_input_shape
+        self.output_data_shape = train_output_shape
 
         if self.scale_factor is None or self.scale_factor != actual_scale_factor:
             self.scale_factor = actual_scale_factor
@@ -275,25 +275,6 @@ class TensorflowTrainer(ModelsTrainer):
                               'actual_scale_factor', actual_scale_factor)
             if self.verbose:
                 print('Actual scale factor that will be used is: {}'.format(self.scale_factor))
-           
-        if self.verbose:
-            print('Data:')
-            print('HR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(self.output_data_shape, np.max(y_sample), np.min(y_sample),  np.mean(y_sample), y_sample.dtype))
-            print('LR - shape:{} max:{} min:{} mean:{} dtype:{}'.format(self.input_data_shape, np.max(x_sample), np.min(x_sample),  np.mean(x_sample), x_sample.dtype))
-            '''
-            plt.figure(figsize=(10,5))
-            plt.subplot(1,2,1)
-            plt.imshow(Y_train[0])
-            plt.title('Y_train - gt')
-            plt.subplot(1,2,2)
-            plt.imshow(X_train[0])
-            plt.title('X_train - wf')
-            plt.show()
-            '''
-
-        assert np.max(x_sample[0]) <= 1.0 and np.max(y_sample[0]) <= 1.0
-        assert np.min(x_sample[0]) >= 0.0 and np.min(y_sample[0]) >= 0.0            
-        assert len(x_sample.shape) == 4 and len(y_sample.shape) == 4
         
         utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
                                 'input_data_shape', self.input_data_shape)
@@ -327,7 +308,6 @@ class TensorflowTrainer(ModelsTrainer):
                                                                                                             nonTrainableParams, 
                                                                                                             totalParams))
     
-
         lr_schedule = optimizer_scheduler_utils.select_lr_schedule(library_name=self.library_name, lr_scheduler_name=self.lr_scheduler_name, 
                                                                     data_len=self.input_data_shape[0]//self.batch_size, 
                                                                     number_of_epochs=self.number_of_epochs, learning_rate=self.learning_rate,
@@ -345,9 +325,8 @@ class TensorflowTrainer(ModelsTrainer):
                                      verbose=1, restore_best_weights=True)
 
         if self.model_name == 'cddpm':
-            lr_train_data = np.concatenate([self.train_generator.__getitem__(i)[0] for i in range(self.train_generator.__len__())])
             # calculate mean and variance of training dataset for normalization
-            model.normalizer.adapt(lr_train_data)
+            model.normalizer.adapt(self.train_generator)
 
         start = time.time()
         

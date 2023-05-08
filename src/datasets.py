@@ -184,9 +184,6 @@ class TFDataGenerator:
         self.datagen_sampling_pdf = datagen_sampling_pdf
 
         self.validation_split = validation_split
-
-        self.module = module
-
         self.actual_scale_factor = None
 
     def __len__(self):
@@ -244,6 +241,7 @@ def TFDataset(self, filenames, hr_data_path, lr_data_path,
                                     validation_split=validation_split)
     
     lr,hr = data_generator.__getitem__(0)
+    actual_scale_factor = data_generator.actual_scale_factor
 
     dataset = tf.data.Dataset.from_generator(data_generator, 
                                             output_types=(lr.dtype, hr.dtype),
@@ -252,7 +250,7 @@ def TFDataset(self, filenames, hr_data_path, lr_data_path,
     dataset = dataset.map(lambda x, y: prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip))
     dataset = dataset.batch(batch_size)
     
-    return dataset
+    return dataset, (data_generator.__len__(),) + (lr.shape), (data_generator.__len__(),) + (hr.shape), actual_scale_factor
 
 #####
 # TensorFlow Sequence dataset
@@ -288,7 +286,6 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
 
-        self.module = module
         self.shuffle = shuffle  # #
         self.on_epoch_end()
 
