@@ -158,9 +158,9 @@ def extract_random_patches_from_folder(hr_data_path, lr_data_path, filenames, sc
                                                                    crappifier_name, lr_patch_shape, datagen_sampling_pdf)
         final_lr_patches.append(lr_patches)
         final_hr_patches.append(hr_patches)
-
-    final_lr_patches = np.concatenate(final_lr_patches)
-    final_hr_patches = np.concatenate(final_hr_patches)
+        
+    final_lr_patches = np.array(final_lr_patches)
+    final_hr_patches = np.array(final_hr_patches)
 
     return final_lr_patches, final_hr_patches, actual_scale_factor
 
@@ -200,8 +200,9 @@ class TFDataGenerator:
                                                             lr_patch_shape=self.lr_patch_shape,
                                                             datagen_sampling_pdf=self.datagen_sampling_pdf)
 
-        lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
-        hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
+        # As we are only taking one element and the batch is obtained outside, we take the [0] element
+        lr_patches = np.expand_dims(aux_lr_patches[0], axis=-1)
+        hr_patches = np.expand_dims(aux_hr_patches[0], axis=-1)
 
         self.actual_scale_factor = actual_scale_factor
 
@@ -212,9 +213,9 @@ class TFDataGenerator:
             yield self.__getitem__(i)
 
 def prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip):
-    apply_rotation = (tf.random.uniform(shape=[]) < 0.5) * rotation
-    apply_horizontal_flip = (tf.random.uniform(shape=[]) < 0.5) * horizontal_flip
-    apply_vertical_flip = (tf.random.uniform(shape=[]) < 0.5) * vertical_flip
+    apply_rotation = (tf.random.uniform(shape=[]) < 0.5) and rotation
+    apply_horizontal_flip = (tf.random.uniform(shape=[]) < 0.5) and horizontal_flip
+    apply_vertical_flip = (tf.random.uniform(shape=[]) < 0.5) and vertical_flip
 
     if apply_rotation:
         rotation_times = np.random.randint(0, 5)
@@ -228,10 +229,10 @@ def prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip):
         y = tf.image.flip_up_down(y)
     return x, y
 
-def TFDataset(self, filenames, hr_data_path, lr_data_path,
-                 scale_factor, crappifier_name, lr_patch_shape,
-                 datagen_sampling_pdf, validation_split,
-                 batch_size, rotation, horizontal_flip, vertical_flip):
+def TFDataset(filenames, hr_data_path, lr_data_path,
+              scale_factor, crappifier_name, lr_patch_shape,
+              datagen_sampling_pdf, validation_split,
+              batch_size, rotation, horizontal_flip, vertical_flip):
         
     data_generator = TFDataGenerator(filenames=filenames, hr_data_path=hr_data_path, 
                                     lr_data_path=lr_data_path, scale_factor=scale_factor, 

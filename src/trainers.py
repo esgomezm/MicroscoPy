@@ -255,7 +255,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                 datagen_sampling_pdf=self.datagen_sampling_pdf, 
                                                 validation_split=0.1, batch_size=self.batch_size, 
                                                 rotation=self.rotation, horizontal_flip=self.horizontal_flip, 
-                                                vertical_flip=self.vertical_flip, mode='train')
+                                                vertical_flip=self.vertical_flip)
 
         val_generator, _, _, _ = datasets.TFDataset(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
                                             lr_data_path=self.val_lr_path, scale_factor=self.scale_factor, 
@@ -264,7 +264,7 @@ class TensorflowTrainer(ModelsTrainer):
                                             datagen_sampling_pdf=self.datagen_sampling_pdf, 
                                             validation_split=0.1, batch_size=self.batch_size, 
                                             rotation=self.rotation, horizontal_flip=self.horizontal_flip, 
-                                            vertical_flip=self.vertical_flip, mode='train')
+                                            vertical_flip=self.vertical_flip)
 
         self.input_data_shape = train_input_shape
         self.output_data_shape = train_output_shape
@@ -326,14 +326,15 @@ class TensorflowTrainer(ModelsTrainer):
 
         if self.model_name == 'cddpm':
             # calculate mean and variance of training dataset for normalization
-            model.normalizer.adapt(self.train_generator)
+            model.normalizer.adapt(self.train_generator.map(lambda x, y: x))
 
         start = time.time()
         
         print('Training is going to start:')
-        history = model.fit(self.train_generator, validation_data=self.val_generator,
-                          epochs=self.number_of_epochs, 
-                          callbacks=[lr_schedule, model_checkpoint, earlystopper])
+        history = model.fit(self.train_generator, 
+                            validation_data=self.val_generator,
+                            epochs=self.number_of_epochs, 
+                            callbacks=[lr_schedule, model_checkpoint, earlystopper])
         '''
         history = model.fit(self.train_generator, validation_data=self.val_generator,
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
