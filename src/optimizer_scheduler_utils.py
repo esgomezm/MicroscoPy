@@ -1,5 +1,5 @@
 import tensorflow as tf
-
+import tensorflow_addons as tfa
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 
 import torch
@@ -30,13 +30,13 @@ def select_tensorflow_optimizer(optimizer_name, learning_rate, additional_config
                                         beta_2=additional_configuration['optim']['adam']['beta2'],
                                         epsilon=additional_configuration['optim']['adam']['epsilon'])
     elif optimizer_name == 'Adamax':
-        return tf.keras.optimizers.experimental.Adamax(learning_rate=learning_rate,
+        return tf.keras.optimizers.Adamax(learning_rate=learning_rate,
 				                        beta_1=additional_configuration['optim']['adamax']['beta1'],
 				                        beta_2=additional_configuration['optim']['adamax']['beta2'],
 				                        epsilon=additional_configuration['optim']['adamax']['epsilon'])
     elif optimizer_name == 'AdamW':
-        return tf.keras.optimizers.experimental.AdamW(learning_rate=learning_rate,
-				                        weight_decay=additional_configuration['optim']['adamW']['weight_decay'],
+        return tfa.optimizers.AdamW(learning_rate=learning_rate,
+				                        weight_decay=additional_configuration['optim']['adamW']['decay'],
 				                        beta_1=additional_configuration['optim']['adamW']['beta1'],
 				                        beta_2=additional_configuration['optim']['adamW']['beta2'],
 				                        epsilon=additional_configuration['optim']['adamW']['epsilon'])

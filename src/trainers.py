@@ -233,7 +233,7 @@ class TensorflowTrainer(ModelsTrainer):
     def prepare_data(self):
         
         train_generator = datasets.DataGenerator(filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
-                                                 lr_data_path=self.train_hr_path, scale_factor=self.scale_factor, 
+                                                 lr_data_path=self.train_lr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 
                                                  lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
                                                  num_patches=self.num_patches, datagen_sampling_pdf=self.datagen_sampling_pdf, 
@@ -241,7 +241,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                  rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip, 
                                                  module='train', shuffle=True)
         val_generator = datasets.DataGenerator(filenames=self.val_filenames, hr_data_path=self.val_hr_path, 
-                                                 lr_data_path=self.val_hr_path, scale_factor=self.scale_factor, 
+                                                 lr_data_path=self.val_lr_path, scale_factor=self.scale_factor, 
                                                  crappifier_name=self.crappifier_method, 
                                                  lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
                                                  num_patches=self.num_patches, datagen_sampling_pdf=self.datagen_sampling_pdf, 
@@ -327,16 +327,26 @@ class TensorflowTrainer(ModelsTrainer):
         			     patience=self.model_configuration['optim']['early_stop']['patience'], 
                                      min_delta=0.005, mode=self.model_configuration['optim']['early_stop']['mode'],
                                      verbose=1, restore_best_weights=True)
-        
+
+        if self.model_name == 'cddpm':
+            lr_train_data = np.concatenate([self.train_generator.__getitem__(i)[0] for i in range(self.train_generator.__len__())])
+            # calculate mean and variance of training dataset for normalization
+            model.normalizer.adapt(lr_train_data)
+
         start = time.time()
         
         print('Training is going to start:')
+        history = model.fit(self.train_generator, validation_data=self.val_generator,
+                          epochs=self.number_of_epochs, 
+                          callbacks=[lr_schedule, model_checkpoint, earlystopper])
+        '''
         history = model.fit(self.train_generator, validation_data=self.val_generator,
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
                           steps_per_epoch=np.ceil(self.input_data_shape[0]/self.batch_size),
                           epochs=self.number_of_epochs, 
                           callbacks=[lr_schedule, model_checkpoint, earlystopper])
-        
+        '''
+
         dt = time.time() - start
         mins, sec = divmod(dt, 60) 
         hour, mins = divmod(mins, 60) 

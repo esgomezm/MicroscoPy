@@ -13,7 +13,7 @@ for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFAct
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_paths']
 
-    dataset_root = '../datasets'
+    dataset_root = 'datasets'
     train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
     train_hr_path = os.path.join(dataset_root, dataset_name, train_hr) if train_hr is not None else None
     val_lr_path = os.path.join(dataset_root, dataset_name, val_lr) if val_lr is not None else None
@@ -21,13 +21,13 @@ for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFAct
     test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
     test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
-    for model_name in ['unet']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
+    for model_name in ['cddpm']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus']:
 
         if train_config is None:
             test_metric_indexes = [69,  7, 36, 75, 74, 30, 12, 42, 87, 0]
 
-            optimizer = 'Adam'  #'Adam', 'Adamax', 'RMSprop', 'SGD'
-            discriminator_optimizer = 'Adam'  #'Adam', 'Adamax', 'RMSprop', 'SGD'
+            optimizer = 'AdamW'  #'Adam', 'AdamW' 'Adamax', 'RMSprop', 'SGD'
+            discriminator_optimizer = 'AdamW'  #'Adam', 'AdamW', 'Adamax', 'RMSprop', 'SGD'
             scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
             discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 

@@ -224,7 +224,6 @@ class DiffusionModel(tf.keras.Model):
         return {m.name: m.result() for m in self.metrics[:-1]}
 
     def test_step(self, data):
-
         hr_images, lr_images = data
 
         # normalize images to have standard deviation of 1, like the noises
@@ -249,15 +248,27 @@ class DiffusionModel(tf.keras.Model):
 
         self.image_loss_tracker.update_state(image_loss)
         self.noise_loss_tracker.update_state(noise_loss)
-
-        # measure KID between real and generated images
-        # this is computationally demanding, kid_diffusion_steps has to be small
-        '''
-        images = self.denormalize(images)
-        generated_images = self.generate(
-            num_images=batch_size, diffusion_steps=kid_diffusion_steps
-        )
-        self.kid.update_state(images, generated_images)
-        '''
         
         return {m.name: m.result() for m in self.metrics}
+    
+    def call(self, data):
+        print(data)
+        hr_images, lr_images = data
+
+        # normalize images to have standard deviation of 1, like the noises
+        hr_images = self.normalizer(hr_images, training=True)
+        noises = tf.random.normal(shape=(self.batch_size,)+self.image_shape)
+
+        # sample uniform random diffusion times
+        diffusion_times = tf.random.uniform(
+            shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
+        )
+        noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
+        # mix the images with noises accordingly
+        noisy_images = signal_rates * hr_images + noise_rates * noises
+
+        _, pred_images = self.denoise_conditioned(
+            noisy_images, lr_images, noise_rates, signal_rates, training=True
+        )
+
+        return pred_images

@@ -232,9 +232,13 @@ class DataGenerator(tf.keras.utils.Sequence):
         # Find list of IDs
         list_IDs_temp = [self.indexes[k] for k in indexes]
         # Generate data
-        x, y = self.__data_generation(list_IDs_temp)
-        return x, y
+        lr_patches, hr_patches = self.__data_generation(list_IDs_temp)
+        return lr_patches, hr_patches
 
+    def __call__(self):
+        for i in range(self.__len__()):
+            yield self.__getitem__(i)
+            
     def __preprocess(self, x, y):
 
         apply_rotation = (np.random.random() < 0.5) * self.rotation
@@ -261,35 +265,37 @@ class DataGenerator(tf.keras.utils.Sequence):
         # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
         # Generate data
         if self.module == 'train':
-            aux_x, aux_y, actual_scalefactor = extract_random_patches_from_folder(self.hr_data_path, self.lr_data_path, 
-                                                              self.filenames[list_IDs_temp], 
-                                                              scale_factor=self.scale_factor, 
-                                                              crappifier_name=self.crappifier_name, 
-                                                              lr_patch_shape=self.lr_patch_shape, 
-                                                              num_patches=self.num_patches, 
-                                                              datagen_sampling_pdf=self.datagen_sampling_pdf)
+            aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
+                                                                self.hr_data_path, self.lr_data_path, 
+                                                                self.filenames[list_IDs_temp], 
+                                                                scale_factor=self.scale_factor, 
+                                                                crappifier_name=self.crappifier_name, 
+                                                                lr_patch_shape=self.lr_patch_shape, 
+                                                                num_patches=self.num_patches, 
+                                                                datagen_sampling_pdf=self.datagen_sampling_pdf)
 
-            x = np.expand_dims(aux_x, axis=-1)
-            y = np.expand_dims(aux_y, axis=-1)
+            lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
+            hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
 
-            x, y = self.__preprocess(x, y)
+            lr_patches, hr_patches = self.__preprocess(lr_patches, hr_patches)
 
-            self.actual_scale_factor = actual_scalefactor
+            self.actual_scale_factor = actual_scale_factor
 
         elif self.module == 'test':
             # print("Creating validation data...")
-            aux_x, aux_y, actual_scalefactor = extract_random_patches_from_folder(self.hr_data_path, self.lr_data_path, 
-                                                      self.filenames[list_IDs_temp], 
-                                                      scale_factor=self.scale_factor, 
-                                                      crappifier_name=self.crappifier_name, 
-                                                      lr_patch_shape=self.lr_patch_shape, 
-                                                      num_patches=self.num_patches, 
-                                                      datagen_sampling_pdf=self.datagen_sampling_pdf)
+            aux_lr_patches, aux_hr_patches, actual_scale_factor = extract_random_patches_from_folder(
+                                                        self.hr_data_path, self.lr_data_path, 
+                                                        self.filenames[list_IDs_temp], 
+                                                        scale_factor=self.scale_factor, 
+                                                        crappifier_name=self.crappifier_name, 
+                                                        lr_patch_shape=self.lr_patch_shape, 
+                                                        num_patches=self.num_patches, 
+                                                        datagen_sampling_pdf=self.datagen_sampling_pdf)
             
-            x = np.expand_dims(aux_x, axis=-1)
-            y = np.expand_dims(aux_y, axis=-1)
+            lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
+            hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
 
-        return x, y
+        return lr_patches, hr_patches
 
 
 #####
