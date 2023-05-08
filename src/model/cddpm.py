@@ -84,15 +84,16 @@ def get_network(image_shape, widths, block_depth, embedding_max_frequency, embed
     return tf.keras.Model([noisy_images, noise_variances], x, name="residual_unet")
 
 class DiffusionModel(tf.keras.Model):
-    def __init__(self, image_shape, widths, block_depth, 
+    def __init__(self, image_shape, widths, block_depth, scale_factor,
                  min_signal_rate, max_signal_rate, batch_size, 
                  ema, embedding_max_frequency, embedding_dims):
         super().__init__()
 
-        self.image_shape = image_shape
+        # image shape must be a tuple with 3 values (h,w,c)
+        self.image_shape = (image_shape[0]*scale_factor, image_shape[1]*scale_factor, image_shape[2]) 
 
         self.normalizer = tf.keras.layers.experimental.preprocessing.Normalization()
-        self.network = get_network(image_shape, widths, block_depth, embedding_max_frequency, embedding_dims)
+        self.network = get_network(self.image_shape, widths, block_depth, embedding_max_frequency, embedding_dims)
         self.ema_network = tf.keras.models.clone_model(self.network)
 
         self.min_signal_rate = min_signal_rate 
@@ -192,6 +193,7 @@ class DiffusionModel(tf.keras.Model):
 
         # normalize images to have standard deviation of 1, like the noises
         hr_images = self.normalizer(hr_images, training=True)
+        
         noises = tf.random.normal(shape=(self.batch_size,)+self.image_shape)
 
         # sample uniform random diffusion times

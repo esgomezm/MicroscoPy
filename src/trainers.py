@@ -292,10 +292,11 @@ class TensorflowTrainer(ModelsTrainer):
                                       parameters=None, additional_configuration=self.model_configuration)
             
         model = model_utils.select_model(model_name=self.model_name, input_shape=self.input_data_shape, output_channels=self.output_data_shape[-1], 
-                             scale_factor=self.scale_factor, datagen_sampling_pdf=self.datagen_sampling_pdf, model_configuration=self.model_configuration)
+                             scale_factor=self.scale_factor, datagen_sampling_pdf=self.datagen_sampling_pdf, model_configuration=self.model_configuration,
+                             batch_size=self.batch_size)
         
-        loss_funct = 'mean_absolute_error'
-        eval_metric = 'mean_squared_error'
+        loss_funct = tf.keras.losses.mean_absolute_error
+        eval_metric = tf.keras.losses.mean_squared_error
         
         model.compile(optimizer=self.optim, loss=loss_funct, metrics=[eval_metric, utils.ssim_loss])
         
