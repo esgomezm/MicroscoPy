@@ -103,6 +103,8 @@ class ModelsTrainer:
         self.additional_folder = additional_folder
         self.seed = seed
         
+        self.train_config = train_config
+
         self.verbose = verbose
         
         utils.set_seed(self.seed)
@@ -147,18 +149,22 @@ class ModelsTrainer:
         print('\tGen scheduler: {}'.format(lr_scheduler_name))
         print('\tDisc scheduler: {}'.format(discriminator_lr_scheduler))
         print('-'*10)
-
-        os.makedirs(self.saving_path, exist_ok=True)
-
-        utils.save_yaml(train_config, os.path.join(self.saving_path, 'train_configuration.yaml'))
     
     def launch(self):
-        self.prepare_data()                     
-        self.train_model()
-        self.predict_images()
-        self.eval_model()
+        test_metric_path = os.path.join(self.saving_path, 'test_metrics')
+        if os.path.exists(test_metric_path) and len(os.listdir(test_metric_path)) > 0:
+            print('Model combination already trained.')
+            return None
+        else:
+            os.makedirs(self.saving_path, exist_ok=True)
+            utils.save_yaml(self.train_config, os.path.join(self.saving_path, 'train_configuration.yaml'))
+
+            self.prepare_data()                     
+            self.train_model()
+            self.predict_images()
+            self.eval_model()
         
-        return self.history
+            return self.history
     
     def prepare_data(self):                  
         raise NotImplementedError('prepare_data() not implemented.')          
@@ -182,8 +188,9 @@ class ModelsTrainer:
         os.makedirs(self.saving_path + '/test_metrics', exist_ok=True)
         
         for key in metrics_dict.keys():
-            print('{}: {}'.format(key, np.mean(metrics_dict[key])))
-            np.save(self.saving_path + '/test_metrics/' + key + '.npy', metrics_dict[key])
+            if len(metrics_dict[key]) > 0:
+                print('{}: {}'.format(key, np.mean(metrics_dict[key])))
+                np.save(self.saving_path + '/test_metrics/' + key + '.npy', metrics_dict[key])
             
 
 class TensorflowTrainer(ModelsTrainer):

@@ -447,7 +447,7 @@ class WGANGP(LightningModule):
                                 transformations=transf,
                                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
 
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=12)
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=0)
         
     def val_dataloader(self):
         transf = ToTensor()
@@ -471,7 +471,7 @@ class WGANGP(LightningModule):
                                     transformations=transf,
                                     datagen_sampling_pdf=self.hparams.datagen_sampling_pdf)
         
-        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False)#, num_workers=12)
+        return DataLoader(dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0)
     
     def train_dataloader(self):
       

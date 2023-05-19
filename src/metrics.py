@@ -3,15 +3,16 @@ import torch
 from tqdm import tqdm
 
 from skimage import metrics as skimge_metrics
+from skimage.util import img_as_ubyte
 #from torchmetrics.image.fid import FrechetInceptionDistance
 
-# from ILNIQE import calculate_ilniqe
-'''
+#from .ILNIQE import calculate_ilniqe
+
 import lpips
 
 lpips_alex = lpips.LPIPS(net='alex',version='0.1')
 lpips_vgg = lpips.LPIPS(net='vgg',version='0.1')
-'''
+
 # import piq
 
 # dists_loss = piq.DISTS()
@@ -69,9 +70,9 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
         #metrics_dict['dists'].append(dists_loss(predicted_image_piq, gt_image_piq).item())
         #metrics_dict['brisqe'].append(piq.brisque(predicted_image_piq).item())
         if i in test_metric_indexes:
-            pass
-            #metrics_dict['alex'].append(np.squeeze(lpips_alex(gt_image_piq.float(), predicted_image_piq.float()).detach().numpy()))
-            #metrics_dict['vgg'].append(np.squeeze(lpips_vgg(gt_image_piq.float(), predicted_image_piq.float()).detach().numpy()))
+            
+            metrics_dict['alex'].append(np.squeeze(lpips_alex(gt_image_piq.float(), predicted_image_piq.float()).detach().numpy()))
+            metrics_dict['vgg'].append(np.squeeze(lpips_vgg(gt_image_piq.float(), predicted_image_piq.float()).detach().numpy()))
             #metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0, 
             #                                  input_order='HW', resize=True, version='python'))
             #metrics_dict['pieapp'].append(pieapp_loss(predicted_image_piq.float(), gt_image_piq.float()).item())

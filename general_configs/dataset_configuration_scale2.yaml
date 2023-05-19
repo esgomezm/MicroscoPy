@@ -9,7 +9,7 @@ EM:
   - test
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: 2
 ER:
   crappifier: downsampleonly
   data_paths:
@@ -81,4 +81,4 @@ MitoTracker_small:
   - test
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: 2

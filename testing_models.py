@@ -2,9 +2,17 @@ from src.trainers import *
 from src.utils import load_yaml
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID";
-os.environ["CUDA_VISIBLE_DEVICES"] = "1";
+os.environ["CUDA_VISIBLE_DEVICES"] = "0";
 
-dataset_config = load_yaml('./general_configs/dataset_configuration.yaml')
+print('\n'*2)
+import tensorflow as tf
+if tf.test.gpu_device_name():
+    print('Default GPU Device: {}'.format(tf.test.gpu_device_name()))
+else:
+    print("Please install GPU version of TF")
+print('\n'*2)
+
+dataset_config = load_yaml('./general_configs/dataset_configuration_scale2.yaml')
 model_config = load_yaml('./general_configs/model_configuration.yaml')
 
 train_config = None
@@ -21,12 +29,12 @@ for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFAct
     test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
     test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
-    for model_name in ['unet']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
+    for model_name in ['dfcan']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
 
         test_metric_indexes = [69,  7, 36, 75, 74, 30, 12, 42, 87, 0]
 
-        optimizer = 'AdamW'  #'Adam', 'AdamW' 'Adamax', 'RMSprop', 'SGD'
-        discriminator_optimizer = 'AdamW'  #'Adam', 'AdamW', 'Adamax', 'RMSprop', 'SGD'
+        optimizer = 'Adam'  #'Adam', 'AdamW' 'Adamax', 'RMSprop', 'SGD'
+        discriminator_optimizer = 'Adam'  #'Adam', 'AdamW', 'Adamax', 'RMSprop', 'SGD'
         scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
         discriminator_lr_scheduler = 'OneCycle'  #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
 
@@ -37,9 +45,9 @@ for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFAct
         discriminator_lr = 0.001
         additional_folder = ""
 
-        for batch_szie in [1,2,4]:
-            for number_of_epochs in [5,10,20]:
-                for lr in [0.001, 0.005, 0.0005]:
+        for batch_szie in [4]: #[1,2,4]:
+            for number_of_epochs in [100]: #[5,10,20]:
+                for lr in [0.001]: #[0.001, 0.005, 0.0005]:
 
                     # Update the patience to be equal to the number of epochs
                     model_config['optim']['early_stop']['patience'] = number_of_epochs
@@ -77,5 +85,5 @@ for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFAct
                                     test_lr_path=test_lr_path, test_hr_path=test_hr_path, 
                                     additional_folder=additional_folder, train_config=train_config,
                                     model_name=model_name, model_configuration=model_config,
-                                    verbose=1
+                                    verbose=0
                                     )
