@@ -221,9 +221,15 @@ def DFCAN(input_shape, scale=4, n_ResGroup = 4, n_RCAB = 4, pretrained_weights=N
     for _ in range(n_ResGroup):
         conv = ResidualGroup(conv, 64, size_psc, n_RCAB = 4)
     conv = Conv2D(64 * (scale ** 2), kernel_size=3, padding='same')(conv)
-    conv = Lambda(gelu)(conv)
-    upsampled = Lambda(pixel_shiffle, arguments={'scale': scale})(conv)
-    conv = Conv2D(1, kernel_size=3, padding='same')(upsampled)
+    conv = Lambda(gelu)(conv) 
+
+    if scale > 1:
+        upsampled = Lambda(pixel_shiffle, arguments={'scale': scale})(conv)
+        conv = Conv2D(1, kernel_size=3, padding='same')(upsampled)
+
+    else:
+        conv = Conv2D(1, kernel_size=3, padding='same')(conv)
+    
     output = Activation('sigmoid')(conv)
     model = Model(inputs=inputs, outputs=output)
     return model
