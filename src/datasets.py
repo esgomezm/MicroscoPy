@@ -372,7 +372,6 @@ class ToTensor(object):
 
     def __call__(self, sample):
         hr, lr = sample['hr'], sample['lr']
-
         # Pytorch is (batch, channels, width, height)
         hr = hr.transpose((2, 0, 1))
         lr = lr.transpose((2, 0, 1))
@@ -473,9 +472,9 @@ class PytorchDataset(Dataset):
                                                                crappifier_name=self.crappifier_name, 
                                                                lr_patch_shape=self.lr_patch_shape, 
                                                                datagen_sampling_pdf=self.datagen_sampling_pdf)
-        
-        lr_patch = np.expand_dims(lr_patch[0], axis=-1)
-        hr_patch = np.expand_dims(hr_patch[0], axis=-1)
+
+        lr_patch = np.expand_dims(lr_patch, axis=-1)
+        hr_patch = np.expand_dims(hr_patch, axis=-1)
 
         sample = {'hr': hr_patch, 'lr': lr_patch}
 
