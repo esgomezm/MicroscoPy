@@ -467,10 +467,13 @@ class PytorchDataset(Dataset):
         hr_filename = os.path.join(self.hr_data_path, self.filenames[idx]) 
         lr_filename = None if self.lr_data_path is None else os.path.join(self.lr_data_path, self.filenames[idx]) 
 
-        lr_patch, hr_patch = extract_random_patches_from_image(hr_filename, lr_filename, 
-                                    self.scale_factor, self.crappifier_name, 
-                                    self.lr_patch_shape, 1, self.datagen_sampling_pdf)
-
+        lr_patch, hr_patch = extract_random_patches_from_image(hr_filename=hr_filename, 
+                                                               lr_filename=lr_filename, 
+                                                               scale_factor=self.scale_factor, 
+                                                               crappifier_name=self.crappifier_name, 
+                                                               lr_patch_shape=self.lr_patch_shape, 
+                                                               datagen_sampling_pdf=self.datagen_sampling_pdf)
+        
         lr_patch = np.expand_dims(lr_patch[0], axis=-1)
         hr_patch = np.expand_dims(hr_patch[0], axis=-1)
 
