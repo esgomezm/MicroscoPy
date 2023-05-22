@@ -52,12 +52,17 @@ class GeneratorUpsample(nn.Module):
             nn.PReLU()
         )
         
-        upsamples = [UpsampleBlock(64, 2) for x in range(int(np.log2(scale_factor)))]
         
-        self.upsample = nn.Sequential(
-            *upsamples,
-            nn.Conv2d(64, 1, kernel_size=5, padding=2)
-        )
+        if scale_factor > 1:
+            upsamples = [UpsampleBlock(64, 2) for x in range(int(np.log2(scale_factor)))]
+            self.upsample = nn.Sequential(
+                *upsamples,
+                nn.Conv2d(64, 1, kernel_size=5, padding=2)
+            )
+        else:
+            self.upsample = nn.Sequential(
+                nn.Conv2d(64, 1, kernel_size=5, padding=2)
+            )
 
     def forward(self, lr):
         #x = torch.cat((lr, noise), dim=1)

@@ -12,12 +12,12 @@ else:
     print("Please install GPU version of TF")
 print('\n'*2)
 
-dataset_config = load_yaml('./general_configs/dataset_configuration_scale2.yaml')
+dataset_config = load_yaml('./general_configs/dataset_configuration.yaml')
 model_config = load_yaml('./general_configs/model_configuration.yaml')
 
 train_config = None
 
-for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFActinDataset']: #, 'MT-SMLM_all']:
+for dataset_name in ['LiveFActinDataset']: #'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'MT-SMLM_all']:
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_paths']
 
@@ -29,7 +29,7 @@ for dataset_name in ['EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'LiveFAct
     test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
     test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
-    for model_name in ['dfcan']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
+    for model_name in ['wgan']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
 
         test_metric_indexes = [69,  7, 36, 75, 74, 30, 12, 42, 87, 0]
 

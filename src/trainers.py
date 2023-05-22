@@ -499,8 +499,32 @@ class PytorchTrainer(ModelsTrainer):
         
         self.library_name ='pytorch'
         
-    def prepare_data(self):                  
-        pass 
+    def prepare_data(self):
+        train_generator, train_input_shape, train_output_shape, actual_scale_factor = datasets.TFDataset(
+                                                filenames=self.train_filenames, hr_data_path=self.train_hr_path, 
+                                                lr_data_path=self.train_lr_path, scale_factor=self.scale_factor,
+                                                crappifier_name=self.crappifier_method, 
+                                                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                                                datagen_sampling_pdf=self.datagen_sampling_pdf, 
+                                                validation_split=0.1, batch_size=self.batch_size, 
+                                                rotation=self.rotation, horizontal_flip=self.horizontal_flip, 
+                                                vertical_flip=self.vertical_flip)
+
+        self.input_data_shape = train_input_shape
+        self.output_data_shape = train_output_shape
+
+        if self.scale_factor is None or self.scale_factor != actual_scale_factor:
+            self.scale_factor = actual_scale_factor
+            utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
+                              'actual_scale_factor', actual_scale_factor)
+            if self.verbose:
+                print('Actual scale factor that will be used is: {}'.format(self.scale_factor))
+        
+        utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
+                                'input_data_shape', self.input_data_shape)
+        utils.update_yaml(os.path.join(self.saving_path, 'train_configuration.yaml'), 
+                            'output_data_shape', self.output_data_shape)
+
 
     def train_model(self):
 
