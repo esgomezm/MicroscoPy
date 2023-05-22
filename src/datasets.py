@@ -464,8 +464,8 @@ class PytorchDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        hr_filename = os.path.join(self.hr_data_path, self.filenames[filename_idx]) 
-        lr_filename = None if self.lr_data_path is None else os.path.join(self.lr_data_path, self.filenames[filename_idx]) 
+        hr_filename = os.path.join(self.hr_data_path, self.filenames[idx]) 
+        lr_filename = None if self.lr_data_path is None else os.path.join(self.lr_data_path, self.filenames[idx]) 
 
         lr_patch, hr_patch = extract_random_patches_from_image(hr_filename, lr_filename, 
                                     self.scale_factor, self.crappifier_name, 
