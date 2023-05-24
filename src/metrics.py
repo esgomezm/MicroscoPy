@@ -36,12 +36,17 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
             
         gt_image_piq = np.expand_dims(gt_image, axis=0)
         gt_image_piq = np.expand_dims(gt_image_piq, axis=0)
+        if gt_image_piq.dtype == np.uint16:
+            gt_image_piq = gt_image_piq.astype(np.uint8) # Pytorch does not support uint16
         gt_image_piq = torch.from_numpy(gt_image_piq)
         
         predicted_image_piq = np.expand_dims(predicted_image, axis=0)
         predicted_image_piq = np.expand_dims(predicted_image_piq, axis=0)
+        if predicted_image_piq.dtype == np.uint16:
+            predicted_image_piq = predicted_image_piq.astype(np.uint8) # Pytorch does not support uint16
         predicted_image_piq = torch.from_numpy(predicted_image_piq)
 
+        '''
         gt_image_piq_3c = np.expand_dims(gt_image, axis=0)
         gt_image_piq_3c = np.concatenate((gt_image_piq_3c,gt_image_piq_3c,gt_image_piq_3c), axis=0)
         gt_image_piq_3c = np.expand_dims(gt_image_piq_3c, axis=0)
@@ -51,6 +56,7 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
         predicted_image_piq_3c = np.concatenate((predicted_image_piq_3c,predicted_image_piq_3c,predicted_image_piq_3c), axis=0)
         predicted_image_piq_3c = np.expand_dims(predicted_image_piq_3c, axis=0)
         predicted_image_piq_3c = torch.from_numpy(predicted_image_piq_3c)
+        '''
 
         # the input is expected to be mini-batches of 3-channel RGB images of shape (3 x H x W)
         # All images will be resized to 299 x 299 which is the size of the original training data.
@@ -58,7 +64,11 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
         #fid.update(gt_image_piq_3c, real=True)
         #fid.update(predicted_image_piq_3c, real=False)
         #fid.compute()
-        
+       
+        print(f'gt_image: {gt_image.shape} - {gt_image.min()} {gt_image.max()} - {gt_image.dtype}')
+        print(f'predicted_image: {predicted_image.shape} - {predicted_image.min()} {predicted_image.max()} - {predicted_image.dtype}')
+
+
         metrics_dict['mse'].append(skimge_metrics.mean_squared_error(gt_image, predicted_image))
         metrics_dict['ssim'].append(skimge_metrics.structural_similarity(predicted_image, gt_image))
         metrics_dict['psnr'].append(skimge_metrics.peak_signal_noise_ratio(gt_image, predicted_image))

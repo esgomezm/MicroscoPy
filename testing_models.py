@@ -12,16 +12,16 @@ else:
     print("Please install GPU version of TF")
 print('\n'*2)
 
-dataset_config = load_yaml('./general_configs/dataset_configuration.yaml')
+dataset_config = load_yaml('./general_configs/dataset_configuration_placebo.yaml')
 model_config = load_yaml('./general_configs/model_configuration.yaml')
 
 train_config = None
 
-for dataset_name in ['LiveFActinDataset']: #'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'MT-SMLM_all']:
+for dataset_name in ['Placebo_2x', 'Placebo_4x']: #'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'MT-SMLM_all']:
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_paths']
 
-    dataset_root = 'datasets'
+    dataset_root = '../datasets'
     train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
     train_hr_path = os.path.join(dataset_root, dataset_name, train_hr) if train_hr is not None else None
     val_lr_path = os.path.join(dataset_root, dataset_name, val_lr) if val_lr is not None else None
@@ -29,7 +29,7 @@ for dataset_name in ['LiveFActinDataset']: #'EM', 'MitoTracker_small', 'F-actin'
     test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
     test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
-    for model_name in ['wgan']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
+    for model_name in ['unet']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
 
         test_metric_indexes = [69,  7, 36, 75, 74, 30, 12, 42, 87, 0]
 
@@ -46,7 +46,7 @@ for dataset_name in ['LiveFActinDataset']: #'EM', 'MitoTracker_small', 'F-actin'
         additional_folder = ""
 
         for batch_szie in [4]: #[1,2,4]:
-            for number_of_epochs in [100]: #[5,10,20]:
+            for number_of_epochs in [50]: #[5,10,20]:
                 for lr in [0.001]: #[0.001, 0.005, 0.0005]:
 
                     # Update the patience to be equal to the number of epochs
@@ -66,7 +66,7 @@ for dataset_name in ['LiveFActinDataset']: #'EM', 'MitoTracker_small', 'F-actin'
                                 'batch_size':batch_size,
                                 'number_of_epochs':number_of_epochs,
                                 'learning_rate':lr,
-                                'discriminator_learning_rate':discriminator_lr,
+                                'discriminator_learning_rate':lr,
                                 'validation_split':validation_split,
                                 'data_augmentation':data_augmentation,
                                 'test_metric_indexes':test_metric_indexes,

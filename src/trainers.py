@@ -366,7 +366,8 @@ class TensorflowTrainer(ModelsTrainer):
         np.save(self.saving_path + '/train_metrics/time.npy', np.array([dt]))
 
     def predict_images(self):
-
+            
+        ground_truths = []
         predictions = []
         print('Prediction is going to start:')
         for test_filename in self.test_filenames:
@@ -433,10 +434,11 @@ class TensorflowTrainer(ModelsTrainer):
                                                             scale = self.scale_factor)
             
             aux_prediction = np.clip(aux_prediction, a_min=0, a_max=1)
-
+            
+            ground_truths.append(hr_images[0,...])
             predictions.append(aux_prediction[0,...])
 
-        self.Y_test = hr_images
+        self.Y_test = ground_truths
         self.predictions = predictions
         
         assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
