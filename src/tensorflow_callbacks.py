@@ -3,6 +3,39 @@ from matplotlib import pyplot as plt
 import tensorflow as tf
 import numpy as np
 
+from . import utils
+
+def tf_normalization(img):
+    return (img - tf.math.reduce_min(img))/(tf.math.reduce_max(img) - tf.math.reduce_min(img) + 1e-10)
+
+class PerformancePlotCallback(Callback):
+    def __init__(self, x_test, y_test, img_saving_path, frequency=1):
+        self.x_test = x_test
+        self.y_test = y_test
+        self.img_saving_path = img_saving_path
+        self.frequency = frequency
+        
+    def on_epoch_end(self, epoch, logs={}):
+        if epoch % self.frequency == 0:
+            y_pred = self.model.predict(self.x_test)
+            
+            ssim = utils.ssim_loss(self.y_test[0], y_pred[0])
+
+            plt.figure(figsize=(15,5))
+            plt.subplot(1,3,1)
+            plt.title('Ground truth')
+            plt.imshow(self.y_test[0], 'gray')
+            plt.subplot(1,3,2)
+            plt.title('Prediction')
+            plt.imshow(y_pred[0], 'gray')
+            plt.subplot(1,3,3)
+            plt.title(str(ssim.numpy()))
+            plt.imshow(1 - tf_normalization(self.y_test[0] - y_pred[0]), 'inferno')
+
+            plt.tight_layout()
+            plt.savefig(f'{self.img_saving_path}/{epoch}.png')
+            plt.close() 
+
 class LearningRateObserver(Callback):
     def __init__(self):
         super(LearningRateObserver, self).__init__()

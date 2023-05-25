@@ -20,6 +20,7 @@ from . import utils
 from . import metrics
 from . import model_utils
 from . import optimizer_scheduler_utils
+from . import tensorflow_callbacks
 
 #######
 
@@ -275,6 +276,10 @@ class TensorflowTrainer(ModelsTrainer):
 
         self.input_data_shape = train_input_shape
         self.output_data_shape = train_output_shape
+        
+        if self.verbose:
+            print('input_data_shape: {}'.format(self.input_data_shape))
+            print('output_data_shape: {}'.format(self.output_data_shape))
 
         if self.scale_factor is None or self.scale_factor != actual_scale_factor:
             self.scale_factor = actual_scale_factor
@@ -310,11 +315,6 @@ class TensorflowTrainer(ModelsTrainer):
         trainableParams = np.sum([np.prod(v.get_shape()) for v in model.trainable_weights])
         nonTrainableParams = np.sum([np.prod(v.get_shape()) for v in model.non_trainable_weights])
         totalParams = trainableParams + nonTrainableParams
-	
-        if self.verbose:
-            print('Trainable parameteres: {} \nNon trainable parameters: {} \nTotal parameters: {}'.format(trainableParams, 
-                                                                                                            nonTrainableParams, 
-                                                                                                            totalParams))
     
         lr_schedule = optimizer_scheduler_utils.select_lr_schedule(library_name=self.library_name, lr_scheduler_name=self.lr_scheduler_name, 
                                                                     data_len=self.input_data_shape[0]//self.batch_size, 
@@ -332,6 +332,26 @@ class TensorflowTrainer(ModelsTrainer):
                                      min_delta=0.005, mode=self.model_configuration['optim']['early_stop']['mode'],
                                      verbose=1, restore_best_weights=True)
 
+        for x,y in self.val_generator:
+            x_val = x
+            y_val = y
+            break
+
+        plt_saving_path = os.path.join(self.saving_path, 'training_images')
+        os.makedirs(plt_saving_path, exist_ok=True)
+        plot_callback = tensorflow_callbacks.PerformancePlotCallback(x_val, y_val,plt_saving_path, 5)
+        
+        if self.verbose:
+            print('Model configuration:')
+            print(f'\tModel_name: {self.model_name}')
+            print(f'\tOptimizer: {self.optim}')
+            print(f'\tLR scheduler: {self.lr_schedule}')
+            print(f'\tLoss: {self.loss_funct}')
+            print(f'\tEval: {self.eval_metric}')
+            print('Trainable parameteres: {} \nNon trainable parameters: {} \nTotal parameters: {}'.format(trainableParams, 
+                                                                                                            nonTrainableParams, 
+                                                                                                            totalParams))
+
         if self.model_name == 'cddpm':
             # calculate mean and variance of training dataset for normalization
             model.normalizer.adapt(self.train_generator.map(lambda x, y: x))
@@ -342,7 +362,7 @@ class TensorflowTrainer(ModelsTrainer):
         history = model.fit(self.train_generator, 
                             validation_data=self.val_generator,
                             epochs=self.number_of_epochs, 
-                            callbacks=[lr_schedule, model_checkpoint, earlystopper])
+                            callbacks=[lr_schedule, model_checkpoint, earlystopper, plot_callback])
         '''
         history = model.fit(self.train_generator, validation_data=self.val_generator,
                           validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
@@ -396,8 +416,6 @@ class TensorflowTrainer(ModelsTrainer):
                 
                 if self.verbose and (height_padding == (0,0) and width_padding == (0,0)):
                     print('No padding has been needed to be added.')
-                print(height_padding)
-                print(width_padding)
 
                 lr_images = utils.add_padding_for_Unet(lr_imgs = lr_images, 
                                                     height_padding = height_padding, 

@@ -10,11 +10,11 @@ EM:
   patch_size_x: 64
   patch_size_y: 64
   scale: 4
-Placeno_2x:
+Placebo_2x:
   crappifier: downsampleonly
   data_paths:
-  - training_wf
-  - training_gt
+  - train_wf
+  - train_gt
   - null
   - null
   - test_wf
@@ -22,11 +22,11 @@ Placeno_2x:
   patch_size_x: 64
   patch_size_y: 64
   scale: null
-Placeno_4x:
+Placebo_4x:
   crappifier: downsampleonly
   data_paths:
-  - training_wf
-  - training_gt
+  - train_wf
+  - train_gt
   - null
   - null
   - test_wf
