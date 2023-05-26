@@ -45,9 +45,9 @@ for dataset_name in ['EM']: #'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', '
         discriminator_lr = 0.001
         additional_folder = "visualization"
 
-        for batch_size in [2]: #[1,2,4]:
-            for number_of_epochs in [400]: #[5,10,20]:
-                for lr in [0.001]: #[0.001, 0.005, 0.0005]:
+        for batch_size in [4]: #[1,2,4]:
+            for number_of_epochs in [5]: #[5,10,20]:
+                for lr in [0.002, 0.005, 0.0005]: #[0.001, 0.005, 0.0005]:
 
                     # Update the patience to be equal to the number of epochs
                     model_config['optim']['early_stop']['patience'] = number_of_epochs
