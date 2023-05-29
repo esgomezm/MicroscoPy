@@ -21,6 +21,7 @@ class PerformancePlotCallback(Callback):
             
             ssim = utils.ssim_loss(self.y_test[0], y_pred[0])
 
+            plt.switch_backend('agg')
             plt.figure(figsize=(15,5))
             plt.subplot(1,3,1)
             plt.title('Ground truth')

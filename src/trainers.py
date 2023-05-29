@@ -451,7 +451,7 @@ class TensorflowTrainer(ModelsTrainer):
                                                             width_padding = width_padding, 
                                                             scale = self.scale_factor)
             
-            aux_prediction = np.clip(aux_prediction, a_min=0, a_max=1)
+            aux_prediction = datasets.normalization(aux_prediction)
             
             ground_truths.append(hr_images[0,...])
             predictions.append(aux_prediction[0,...])

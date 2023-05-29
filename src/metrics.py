@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from skimage import metrics as skimge_metrics
+from skimage import metrics as skimage_metrics
 from skimage.util import img_as_ubyte
 #from torchmetrics.image.fid import FrechetInceptionDistance
 
@@ -69,9 +69,9 @@ def obtain_metrics(gt_image_list, predicted_image_list, test_metric_indexes):
         print(f'predicted_image: {predicted_image.shape} - {predicted_image.min()} {predicted_image.max()} - {predicted_image.dtype}')
 
 
-        metrics_dict['mse'].append(skimge_metrics.mean_squared_error(gt_image, predicted_image))
-        metrics_dict['ssim'].append(skimge_metrics.structural_similarity(predicted_image, gt_image))
-        metrics_dict['psnr'].append(skimge_metrics.peak_signal_noise_ratio(gt_image, predicted_image))
+        metrics_dict['mse'].append(skimage_metrics.mean_squared_error(gt_image, predicted_image))
+        metrics_dict['ssim'].append(skimage_metrics.structural_similarity(predicted_image, gt_image, data_range=1.0))
+        metrics_dict['psnr'].append(skimage_metrics.peak_signal_noise_ratio(gt_image, predicted_image))
         #metrics_dict['fsim'].append(piq.fsim(predicted_image_piq, gt_image_piq, chromatic=False).item())
         #metrics_dict['gmsd'].append(piq.gmsd(predicted_image_piq, gt_image_piq).item())
         #metrics_dict['vsi'].append(piq.vsi(predicted_image_piq, gt_image_piq).item())
