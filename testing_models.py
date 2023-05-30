@@ -35,7 +35,7 @@ for dataset_name in ['LiveFActinDataset', 'F-actin', 'ER', 'MT']: #'EM', 'MitoTr
     test_lr_path = os.path.join(dataset_root, dataset_name, test_lr) if test_lr is not None else None
     test_hr_path = os.path.join(dataset_root, dataset_name, test_hr) if test_hr is not None else None
 
-    for model_name in ['unet', 'rcan', 'dfcan', 'wdsr']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
+    for model_name in ['unet', 'rcan', 'wdsr']: #['unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm']:
 
         test_metric_indexes = [69,  7, 36, 75, 74, 30, 12, 42, 87, 0]
 
@@ -52,7 +52,7 @@ for dataset_name in ['LiveFActinDataset', 'F-actin', 'ER', 'MT']: #'EM', 'MitoTr
         additional_folder = "visualization"
 
         for batch_size in [4]: #[1,2,4]:
-            for number_of_epochs in [10,50,100,500]: #[5,10,20]:
+            for number_of_epochs in [10,50,100]: #[5,10,20]:
                 for lr, discriminator_lr in [(0.001,0.001), (0.005,0.005), (0.0001,0.0001), (0.0005,0.0005)]: #[0.001, 0.005, 0.0005]:
 
                     # Update the patience to be equal to the number of epochs
@@ -117,7 +117,7 @@ for dataset_name in ['LiveFActinDataset', 'F-actin', 'ER', 'MT']: #'EM', 'MitoTr
                                             verbose=0
                                             )
                             del model
-                    except:
-                      print(f'Config {dataset_name} {model_name} {number_of_epochs} {lr}')
-
+                    except Exception as e:
+                      print(f'\033[91mERROR\033[0m - In config {dataset_name} {model_name} {number_of_epochs} {lr}')
+                      print(e)
                     gc.collect()

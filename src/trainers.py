@@ -126,6 +126,9 @@ class ModelsTrainer:
                                                                               self.optimizer_name,
                                                                               self.lr_scheduler_name,
                                                                               self.seed)
+        
+        os.makedirs(self.saving_path, exist_ok=True)
+        utils.save_yaml(self.train_config, os.path.join(self.saving_path, 'train_configuration.yaml'))
 
         print('\n' + '-'*10)
         print('{} model will be trained with the next configuration'.format(self.model_name))
@@ -152,20 +155,13 @@ class ModelsTrainer:
         print('-'*10)
     
     def launch(self):
-        test_metric_path = os.path.join(self.saving_path, 'test_metrics')
-        if os.path.exists(test_metric_path) and len(os.listdir(test_metric_path)) > 0:
-            print('Model combination already trained.')
-            return None
-        else:
-            os.makedirs(self.saving_path, exist_ok=True)
-            utils.save_yaml(self.train_config, os.path.join(self.saving_path, 'train_configuration.yaml'))
 
-            self.prepare_data()                     
-            self.train_model()
-            self.predict_images()
-            self.eval_model()
-        
-            return self.history
+        self.prepare_data()                     
+        self.train_model()
+        self.predict_images()
+        self.eval_model()
+    
+        return self.history
     
     def prepare_data(self):                  
         raise NotImplementedError('prepare_data() not implemented.')          
