@@ -38,12 +38,10 @@ others:
   positional_encoding_channels: 64
 rcan:
   num_filters: 16
-  percp_coef: 1000
 unet:
   depth: 4
   init_channels: 16
   maxpooling: false
-  percp_coef: 10
   upsample_method: SubpixelConv2D
 wdsr:
   num_res_blocks: 32
