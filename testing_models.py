@@ -27,7 +27,7 @@ for dataset_name in ['LiveFActinDataset', 'F-actin', 'ER', 'MT']: #'EM', 'MitoTr
 
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = dataset_config[dataset_name]['data_paths']
 
-    dataset_root = 'datasets'
+    dataset_root = 'datasets' if os.path.exists('datasets') else '../datasets'
     train_lr_path = os.path.join(dataset_root, dataset_name, train_lr) if train_lr is not None else None
     train_hr_path = os.path.join(dataset_root, dataset_name, train_hr) if train_hr is not None else None
     val_lr_path = os.path.join(dataset_root, dataset_name, val_lr) if val_lr is not None else None
@@ -51,8 +51,8 @@ for dataset_name in ['LiveFActinDataset', 'F-actin', 'ER', 'MT']: #'EM', 'MitoTr
         discriminator_lr = 0.001
         additional_folder = "visualization"
 
-        for batch_size in [4]: #[1,2,4]:
-            for number_of_epochs in [10,50,100]: #[5,10,20]:
+        for batch_size in [4,8,16]: #[1,2,4]:
+            for number_of_epochs in [500,1000]: #[5,10,20]:
                 for lr, discriminator_lr in [(0.001,0.001), (0.005,0.005), (0.0001,0.0001), (0.0005,0.0005)]: #[0.001, 0.005, 0.0005]:
 
                     # Update the patience to be equal to the number of epochs
