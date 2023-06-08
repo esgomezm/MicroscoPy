@@ -4,3 +4,4 @@ datasets/*
 results/*
 src/__pycache__/*
 src/model/__pycache__/*
+.DS_Store
