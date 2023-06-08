@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "microscopy"
+version = "0.1.0"
+description = "Personal repository to train, test and use super-resolution models."
+authors = ["IvanHCenalmor <ivanhcenalmor@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+torch = "^2.0.1"
+matplotlib = "^3.7.1"
+pytorch-lightning = "^2.0.3"
+tqdm = "^4.65.0"
+lpips = "^0.1.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
