@@ -2,7 +2,8 @@ data_example/test/*
 data_example/train/*
 datasets/*
 results/*
-src/__pycache__/*
-src/model/__pycache__/*
+microscopy/__pycache__/*
+microscopy/model/__pycache__/*
 .DS_Store
 dist/*
+outputs/*

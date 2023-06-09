@@ -2,9 +2,19 @@ from microscopy.trainers import *
 from microscopy.utils import load_yaml
 import gc
 
+import hydra
+
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def main(cfg):
+    print(cfg)
+    return
+
+main()
+
+'''
 dataset_config = load_yaml("./general_configs/dataset_configuration_placebo.yaml")
 model_config = load_yaml("./general_configs/model_configuration.yaml")
 
@@ -143,3 +153,4 @@ for dataset_name in [
                         )
                         print(e)
                     gc.collect()
+'''
