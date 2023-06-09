@@ -46,7 +46,7 @@ print(len(drawn_test_filenames))
 # In[38]:
 
 
-from src.datasets import read_image
+from microscopy.datasets import read_image
 hr_img = read_image(os.path.join(train_path, train_filenames[0]))
 test_img = read_image(os.path.join(test_path, test_filenames[0]))
 drawn_test_img = read_image(os.path.join(drawn_test_path, drawn_test_filenames[0]))
@@ -60,7 +60,7 @@ print_info(drawn_test_img)
 
 scale = 4
 
-from src.datasets import extract_random_patches_from_folder
+from microscopy.datasets import extract_random_patches_from_folder
 
 train_patches_wf, train_patches_gt = extract_random_patches_from_folder(
                                         hr_data_path=train_path, 
@@ -83,7 +83,7 @@ print_info(Y_train)
 
 # In[50]:
 
-from src.datasets import get_train_val_generators 
+from microscopy.datasets import get_train_val_generators 
 batch_size = 8
 
 train_generator, val_generator = get_train_val_generators(X_data=X_train,
@@ -143,7 +143,7 @@ model_configuration = {'optim': {'early_stop':{'loss':'val_ssim_loss','mode':'ma
                                   'positional_encoding_channels':64}
                       }
 
-from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
+from microscopy.optimizer_scheduler_utils import select_optimizer, select_optimizer
 optim = select_optimizer(library_name=library_name, optimizer_name=optimizer, 
                                 learning_rate=0.001, check_point=None,
                                 parameters=None, additional_configuration=model_configuration)
@@ -151,8 +151,8 @@ optim = select_optimizer(library_name=library_name, optimizer_name=optimizer,
 
 model_name = 'unet'
 
-from src.model_utils import select_model
-from src.utils import ssim_loss
+from microscopy.model_utils import select_model
+from microscopy.utils import ssim_loss
 model = select_model(model_name=model_name, input_shape=X_train.shape, output_channels=Y_train.shape[-1], 
                         scale_factor=scale, model_configuration=model_configuration)
 
@@ -184,7 +184,7 @@ epochs = 20
 
 scheduler = 'OneCycle'
 
-from src.optimizer_scheduler_utils import select_lr_schedule
+from microscopy.optimizer_scheduler_utils import select_lr_schedule
 lr_schedule = select_lr_schedule(library_name='tensorflow', lr_scheduler_name=scheduler, 
                                     data_len=X_train.shape[0]//batch_size, 
                                     number_of_epochs=epochs, learning_rate=0.001,

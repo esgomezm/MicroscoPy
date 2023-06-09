@@ -1,4 +1,4 @@
-from src.trainers import *
+from microscopy.trainers import *
 
 
 from matplotlib import pyplot as plt
@@ -160,7 +160,7 @@ for dataset_name in ['EM']:
 
     model_trainer.train_model()
     
-    from src.datasets import extract_random_patches_from_folder
+    from microscopy.datasets import extract_random_patches_from_folder
     test_path = '../datasets/TFM - dataset Electron Microscopy/test'
     drawn_test_path = './data_example/drawn_test'
 
@@ -207,8 +207,8 @@ for dataset_name in ['EM']:
     print_info(drawn_lr_images)
     print('\n')
 
-    from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
-    from src.model_utils import select_model
+    from microscopy.optimizer_scheduler_utils import select_optimizer, select_optimizer
+    from microscopy.model_utils import select_model
 
 
     optim = select_optimizer(library_name='tensorflow', optimizer_name=optimizer, 

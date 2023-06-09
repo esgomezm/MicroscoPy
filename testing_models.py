@@ -1,5 +1,5 @@
-from src.trainers import *
-from src.utils import load_yaml
+from microscopy.trainers import *
+from microscopy.utils import load_yaml
 import gc
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"

@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from src.trainers import *
+from microscopy.trainers import *
 
 import os
 
@@ -42,7 +42,7 @@ print(len(drawn_test_filenames))
 
 # # See one image
 
-from src.datasets import read_image
+from microscopy.datasets import read_image
 hr_img = read_image(os.path.join(train_path, train_filenames[0]))
 test_img = read_image(os.path.join(test_path, test_filenames[0]))
 drawn_test_img = read_image(os.path.join(drawn_test_path, drawn_test_filenames[0]))
@@ -54,7 +54,7 @@ print_info(drawn_test_img)
 
 scale = 4
 
-from src.datasets import extract_random_patches_from_folder
+from microscopy.datasets import extract_random_patches_from_folder
 
 train_patches_wf, train_patches_gt = extract_random_patches_from_folder(
                                         hr_data_path=train_path, 
@@ -79,7 +79,7 @@ input_data_shape = X_train.shape
 output_data_shape = Y_train.shape
 
 
-from src.datasets import get_train_val_generators 
+from microscopy.datasets import get_train_val_generators 
 batch_size = 8
 
 train_generator, val_generator = get_train_val_generators(X_data=X_train,
@@ -200,7 +200,7 @@ model_trainer.output_data_shape = output_data_shape
 model_trainer.train_model()
 
 
-from src.datasets import extract_random_patches_from_folder
+from microscopy.datasets import extract_random_patches_from_folder
 
 test_path = '../datasets/TFM - dataset Electron Microscopy/test'
 drawn_test_path = './data_example/drawn_test'
@@ -248,8 +248,8 @@ print('Drawn LR images')
 print_info(drawn_lr_images)
 print('\n')
 
-from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
-from src.model_utils import select_model
+from microscopy.optimizer_scheduler_utils import select_optimizer, select_optimizer
+from microscopy.model_utils import select_model
 
 
 optim = select_optimizer(library_name='tensorflow', optimizer_name=optimizer, 

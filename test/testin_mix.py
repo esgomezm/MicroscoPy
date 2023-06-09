@@ -1,4 +1,4 @@
-from src.trainers import *
+from microscopy.trainers import *
 
 
 from matplotlib import pyplot as plt
@@ -135,7 +135,7 @@ for lr,hr in model_trainer.train_generator:
     break
 
 
-from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
+from microscopy.optimizer_scheduler_utils import select_optimizer, select_optimizer
 optim = select_optimizer(library_name=library_name, optimizer_name=optimizer, 
                                 learning_rate=0.001, check_point=None,
                                 parameters=None, additional_configuration=model_configuration)
@@ -143,8 +143,8 @@ optim = select_optimizer(library_name=library_name, optimizer_name=optimizer,
 
 model_name = 'unet'
 
-from src.model_utils import select_model
-from src.utils import ssim_loss
+from microscopy.model_utils import select_model
+from microscopy.utils import ssim_loss
 model = select_model(model_name=model_name, input_shape=model_trainer.input_data_shape, output_channels=model_trainer.output_data_shape[-1], 
                         scale_factor=scale, model_configuration=model_configuration)
 
@@ -168,7 +168,7 @@ epochs = 20
 
 scheduler = 'OneCycle'
 
-from src.optimizer_scheduler_utils import select_lr_schedule
+from microscopy.optimizer_scheduler_utils import select_lr_schedule
 lr_schedule = select_lr_schedule(library_name=library_name, lr_scheduler_name=scheduler, 
                                     data_len=model_trainer.input_data_shape[0]//batch_size, 
                                     number_of_epochs=epochs, learning_rate=0.001,
@@ -204,7 +204,7 @@ print("\nTime elapsed:",hour, "hour(s)",mins,"min(s)",round(sec),"sec(s)\n")
 
 #############################################
 
-from src.datasets import extract_random_patches_from_folder
+from microscopy.datasets import extract_random_patches_from_folder
 test_path = '../datasets/TFM - dataset Electron Microscopy/test'
 drawn_test_path = './data_example/drawn_test'
 
@@ -251,8 +251,8 @@ print('Drawn LR images')
 print_info(drawn_lr_images)
 print('\n')
 
-from src.optimizer_scheduler_utils import select_optimizer, select_optimizer
-from src.model_utils import select_model
+from microscopy.optimizer_scheduler_utils import select_optimizer, select_optimizer
+from microscopy.model_utils import select_model
 
 
 optim = select_optimizer(library_name=library_name, optimizer_name=optimizer, 
