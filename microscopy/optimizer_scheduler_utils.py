@@ -36,34 +36,34 @@ def select_optimizer(
 def select_tensorflow_optimizer(
     optimizer_name, learning_rate, additional_configuration
 ):
-    if optimizer_name == "RMSprop":
+    if optimizer_name == "rms_prop":
         return tf.keras.optimizers.RMSprop(learning_rate=learning_rate)
-    elif optimizer_name == "Adam":
+    elif optimizer_name == "adam":
         return tf.keras.optimizers.Adam(
             learning_rate=learning_rate,
-            beta_1=additional_configuration["optim"]["adam"]["beta1"],
-            beta_2=additional_configuration["optim"]["adam"]["beta2"],
-            epsilon=additional_configuration["optim"]["adam"]["epsilon"],
+            beta_1=additional_configuration.used_optim.beta1,
+            beta_2=additional_configuration.used_optim.beta2,
+            epsilon=additional_configuration.used_optim.epsilon,
         )
-    elif optimizer_name == "Adamax":
+    elif optimizer_name == "adamax":
         return tf.keras.optimizers.Adamax(
             learning_rate=learning_rate,
-            beta_1=additional_configuration["optim"]["adamax"]["beta1"],
-            beta_2=additional_configuration["optim"]["adamax"]["beta2"],
-            epsilon=additional_configuration["optim"]["adamax"]["epsilon"],
+            beta_1=additional_configuration.used_optim.beta1,
+            beta_2=additional_configuration.used_optim.beta2,
+            epsilon=additional_configuration.used_optim.epsilon,
         )
-    elif optimizer_name == "AdamW":
+    elif optimizer_name == "adamW":
         return tfa.optimizers.AdamW(
             learning_rate=learning_rate,
-            weight_decay=additional_configuration["optim"]["adamW"]["decay"],
-            beta_1=additional_configuration["optim"]["adamW"]["beta1"],
-            beta_2=additional_configuration["optim"]["adamW"]["beta2"],
-            epsilon=additional_configuration["optim"]["adamW"]["epsilon"],
+            weight_decay=additional_configuration.used_optim.decay,
+            beta_1=additional_configuration.used_optim.beta1,
+            beta_2=additional_configuration.used_optim.beta2,
+            epsilon=additional_configuration.used_optim.epsilon,
         )
-    elif optimizer_name == "SGD":
+    elif optimizer_name == "sgd":
         return tf.keras.optimizers.SGD(
             learning_rate=learning_rate,
-            momentum=additional_configuration["optim"]["sgd_momentum"],
+            momentum=additional_configuration.used_optim.momentum,
         )
     else:
         raise Exception("No available optimizer.")
@@ -73,23 +73,23 @@ def select_pytorch_optimizer(
     optimizer_name, learning_rate, check_point, parameters, additional_configuration
 ):
     if check_point is None:
-        if optimizer_name == "Adam":
+        if optimizer_name == "adam":
             return torch.optim.Adam(
                 parameters,
                 lr=learning_rate,
                 betas=(
-                    additional_configuration["optim"]["adam"]["beta1"],
-                    additional_configuration["optim"]["adam"]["beta2"],
+                    additional_configuration.used_optim.beta1,
+                    additional_configuration.used_optim.beta2,
                 ),
             )
-        elif optimizer_name == "RMSprop":
+        elif optimizer_name == "rms_prop":
             return torch.optim.RMSprop(parameters, lr=learning_rate)
         else:
             raise Exception("No available optimizer.")
     else:
-        if optimizer_name == "Adam":
+        if optimizer_name == "adam":
             return torch.optim.Adam(parameters)
-        elif optimizer_name == "RMSprop":
+        elif optimizer_name == "rms_prop":
             return torch.optim.RMSprop(parameters)
         else:
             raise Exception("No available optimizer.")
@@ -102,7 +102,7 @@ def select_lr_schedule(
     library_name,
     lr_scheduler_name,
     data_len,
-    number_of_epochs,
+    num_epochs,
     learning_rate,
     monitor_loss,
     name,
@@ -114,7 +114,7 @@ def select_lr_schedule(
         return select_tensorflow_lr_schedule(
             lr_scheduler_name,
             data_len,
-            number_of_epochs,
+            num_epochs,
             learning_rate,
             monitor_loss,
             additional_configuration,
@@ -123,7 +123,7 @@ def select_lr_schedule(
         return select_pytorch_lr_schedule(
             lr_scheduler_name,
             data_len,
-            number_of_epochs,
+            num_epochs,
             learning_rate,
             monitor_loss,
             name,
@@ -138,33 +138,33 @@ def select_lr_schedule(
 def select_tensorflow_lr_schedule(
     lr_scheduler_name,
     data_len,
-    number_of_epochs,
+    num_epochs,
     learning_rate,
     monitor_loss,
     additional_configuration,
 ):
     if lr_scheduler_name == "OneCycle":
-        steps = data_len * number_of_epochs
+        steps = data_len * num_epochs
         return tensorflow_callbacks.OneCycleScheduler(learning_rate, steps)
     elif lr_scheduler_name == "ReduceOnPlateau":
         return ReduceLROnPlateau(
             monitor=monitor_loss,
-            factor=additional_configuration["optim"]["ReduceOnPlateau"]["factor"],
-            patience=additional_configuration["optim"]["ReduceOnPlateau"]["patience"],
+            factor=additional_configuration.used_optim.factor,
+            patience=additional_configuration.used_optim.patience,
             min_lr=(learning_rate / 10),
         )
     elif lr_scheduler_name == "CosineDecay":
-        decay_steps = data_len * number_of_epochs
+        decay_steps = data_len * num_epochs
         return tf.keras.optimizers.schedules.CosineDecay(
             learning_rate, decay_steps, alpha=0.0, name=None
         )
     elif lr_scheduler_name == "MultiStepScheduler":
         return tensorflow_callbacks.MultiStepScheduler(
             learning_rate,
-            lr_steps=additional_configuration["optim"]["MultiStepScheduler"][
+            lr_steps=additional_configuration.used_optim.MultiStepScheduler[
                 "lr_steps"
             ],
-            lr_rate_decay=additional_configuration["optim"]["MultiStepScheduler"][
+            lr_rate_decay=additional_configuration.used_optim.MultiStepScheduler[
                 "lr_rate_decay"
             ],
         )
@@ -177,7 +177,7 @@ def select_tensorflow_lr_schedule(
 def select_pytorch_lr_schedule(
     lr_scheduler_name,
     data_len,
-    number_of_epochs,
+    num_epochs,
     learning_rate,
     monitor_loss,
     name,
@@ -190,7 +190,7 @@ def select_pytorch_lr_schedule(
             "scheduler": torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
                 learning_rate,
-                epochs=number_of_epochs,
+                epochs=num_epochs,
                 steps_per_epoch=data_len // frequency,
             ),
             "interval": "step",
@@ -202,8 +202,8 @@ def select_pytorch_lr_schedule(
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 mode="min",
-                factor=additional_configuration["optim"]["ReduceOnPlateau"]["factor"],
-                patience=additional_configuration["optim"]["ReduceOnPlateau"][
+                factor=additional_configuration.used_optim.factor,
+                patience=additional_configuration.used_optim.ReduceOnPlateau[
                     "patience"
                 ],
                 min_lr=(learning_rate / 10),

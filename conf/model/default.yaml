@@ -32,7 +32,10 @@ optim:
     loss: val_ssim_loss
     mode: max
     patience: 10
-  sgd_momentum: 0.9
+  sgd:
+    momentum: 0.9
+  rms_drop:
+    aux: null
 others:
   positional_encoding: false
   positional_encoding_channels: 64

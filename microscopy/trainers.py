@@ -8,7 +8,6 @@ from skimage import io
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
-from matplotlib import pyplot as plt
 
 from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
 from pytorch_lightning.trainer import Trainer
@@ -28,37 +27,17 @@ from . import tensorflow_callbacks
 class ModelsTrainer:
     def __init__(
         self,
-        data_name,
+        config,
         train_lr_path,
         train_hr_path,
         val_lr_path,
         val_hr_path,
         test_lr_path,
         test_hr_path,
-        crappifier_method,
-        model_name,
-        scale_factor,
-        number_of_epochs,
-        batch_size,
-        learning_rate,
-        discriminator_learning_rate,
-        optimizer_name,
-        lr_scheduler_name,
-        test_metric_indexes,
-        additional_folder,
-        model_configuration,
-        seed,
-        patch_size_x,
-        patch_size_y,
-        validation_split,
-        data_augmentation,
-        datagen_sampling_pdf,
-        train_config,
-        discriminator_optimizer=None,
-        discriminator_lr_scheduler=None,
+        saving_path,
         verbose=0,
     ):
-        self.data_name = data_name
+        self.data_name = config.dataset_name
 
         self.train_lr_path = train_lr_path
         self.train_hr_path = train_hr_path
@@ -70,15 +49,16 @@ class ModelsTrainer:
             [x for x in os.listdir(self.train_hr_path) if x.endswith(train_extension)]
         )
 
+        self.validation_split = config.hyperparam.validation_split
         if val_hr_path is None or val_lr_path is None:
             self.val_lr_path = train_lr_path
             self.val_hr_path = train_hr_path
 
             self.val_filenames = self.train_filenames[
-                int(len(self.train_filenames) * (1 - validation_split)) :
+                int(len(self.train_filenames) * (1 - self.validation_split )) :
             ]
             self.train_filenames = self.train_filenames[
-                : int(len(self.train_filenames) * (1 - validation_split))
+                : int(len(self.train_filenames) * (1 - self.validation_split))
             ]
         else:
             self.val_lr_path = val_lr_path
@@ -102,41 +82,37 @@ class ModelsTrainer:
             [x for x in os.listdir(self.test_hr_path) if x.endswith(test_extension)]
         )
 
-        self.crappifier_method = crappifier_method
-        self.scale_factor = scale_factor
-        self.lr_patch_size_x = patch_size_x
-        self.lr_patch_size_y = patch_size_y
-        self.datagen_sampling_pdf = datagen_sampling_pdf
+        self.crappifier_method = config.used_dataset.crappifier
+        self.scale_factor = config.used_dataset.scale
+        self.lr_patch_size_x = config.used_dataset.patch_size_x
+        self.lr_patch_size_y = config.used_dataset.patch_size_y
+        self.datagen_sampling_pdf = config.hyperparam.datagen_sampling_pdf
 
-        self.validation_split = validation_split
-        if "rotation" in data_augmentation:
+        if "rotation" in config.hyperparam.data_augmentation:
             self.rotation = True
-        if "horizontal_flip" in data_augmentation:
+        if "horizontal_flip" in config.hyperparam.data_augmentation:
             self.horizontal_flip = True
-        if "vertical_flip" in data_augmentation:
+        if "vertical_flip" in config.hyperparam.data_augmentation:
             self.vertical_flip = True
-        if len(data_augmentation) != 0 and (
+        if len(config.hyperparam.data_augmentation) != 0 and (
             not self.rotation or not self.horizontal_flip or not self.vertical_flip
         ):
             raise ValueError("Data augmentation values are not well defined.")
 
-        self.model_name = model_name
-        self.number_of_epochs = number_of_epochs
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
-        self.discriminator_learning_rate = discriminator_learning_rate
-        self.optimizer_name = optimizer_name
-        self.discriminator_optimizer = discriminator_optimizer
-        self.lr_scheduler_name = lr_scheduler_name
-        self.discriminator_lr_scheduler = discriminator_lr_scheduler
+        self.model_name = config.model_name
+        self.num_epochs = config.hyperparam.num_epochs
+        self.batch_size = config.hyperparam.batch_size
+        self.learning_rate = config.hyperparam.lr
+        self.discriminator_learning_rate = config.hyperparam.discriminator_lr
+        self.optimizer_name = config.hyperparam.optimizer
+        self.discriminator_optimizer = config.hyperparam.discriminator_optimizer
+        self.lr_scheduler_name = config.hyperparam.scheduler
+        self.discriminator_lr_scheduler = config.hyperparam.discriminator_lr_scheduler
 
-        self.model_configuration = model_configuration
+        self.test_metric_indexes = config.hyperparam.test_metric_indexes
 
-        self.test_metric_indexes = test_metric_indexes
-        self.additional_folder = additional_folder
-        self.seed = seed
-
-        self.train_config = train_config
+        self.additional_folder = config.hyperparam.additional_folder
+        self.seed = config.hyperparam.seed
 
         self.verbose = verbose
 
@@ -147,22 +123,12 @@ class ModelsTrainer:
         if self.additional_folder:
             save_folder += "_" + self.additional_folder
 
-        self.saving_path = "./results/{}/{}/{}/scale{}_epc{}_btch{}_lr{}_optim-{}_lrsched-{}_seed{}".format(
-            self.data_name,
-            self.model_name,
-            save_folder,
-            self.scale_factor,
-            self.number_of_epochs,
-            self.batch_size,
-            self.learning_rate,
-            self.optimizer_name,
-            self.lr_scheduler_name,
-            self.seed,
-        )
+        self.saving_path = saving_path
+        self.config = config
 
         os.makedirs(self.saving_path, exist_ok=True)
         utils.save_yaml(
-            self.train_config,
+            self.config,
             os.path.join(self.saving_path, "train_configuration.yaml"),
         )
 
@@ -181,17 +147,17 @@ class ModelsTrainer:
         print("\tTest gt path: {}".format(test_hr_path))
         print("Preprocessing info:")
         print("\tScale factor: {}".format(self.scale_factor))
-        print("\tCrappifier method: {}".format(crappifier_method))
-        print("\tPatch size: {} x {}".format(patch_size_x, patch_size_y))
+        print("\tCrappifier method: {}".format(self.crappifier_method))
+        print("\tPatch size: {} x {}".format(self.lr_patch_size_x, self.lr_patch_size_y))
         print("Training info:")
-        print("\tEpochs: {}".format(number_of_epochs))
-        print("\tBatchsize: {}".format(batch_size))
-        print("\tGen learning rate: {}".format(learning_rate))
-        print("\tDisc learning rate: {}".format(discriminator_learning_rate))
-        print("\tGen optimizer: {}".format(optimizer_name))
-        print("\tDisc optimizer: {}".format(discriminator_optimizer))
-        print("\tGen scheduler: {}".format(lr_scheduler_name))
-        print("\tDisc scheduler: {}".format(discriminator_lr_scheduler))
+        print("\tEpochs: {}".format(self.num_epochs))
+        print("\tBatchsize: {}".format(self.batch_size))
+        print("\tGen learning rate: {}".format(self.learning_rate))
+        print("\tDisc learning rate: {}".format(self.discriminator_learning_rate))
+        print("\tGen optimizer: {}".format(self.optimizer_name))
+        print("\tDisc optimizer: {}".format(self.discriminator_optimizer))
+        print("\tGen scheduler: {}".format(self.lr_scheduler_name))
+        print("\tDisc scheduler: {}".format(self.discriminator_lr_scheduler))
         print("-" * 10)
 
     def launch(self):
@@ -237,95 +203,32 @@ class ModelsTrainer:
 class TensorflowTrainer(ModelsTrainer):
     def __init__(
         self,
-        data_name,
+        config,
         train_lr_path,
         train_hr_path,
         val_lr_path,
         val_hr_path,
         test_lr_path,
         test_hr_path,
-        crappifier_method,
-        model_name,
-        scale_factor,
-        number_of_epochs,
-        batch_size,
-        learning_rate,
-        discriminator_learning_rate,
-        optimizer_name,
-        lr_scheduler_name,
-        test_metric_indexes,
-        additional_folder,
-        model_configuration,
-        seed,
-        patch_size_x,
-        patch_size_y,
-        validation_split,
-        data_augmentation,
-        datagen_sampling_pdf,
-        train_config,
-        discriminator_optimizer=None,
-        discriminator_lr_scheduler=None,
+        saving_path,
         verbose=0,
     ):
         super().__init__(
-            data_name,
+            config,
             train_lr_path,
             train_hr_path,
             val_lr_path,
             val_hr_path,
             test_lr_path,
             test_hr_path,
-            crappifier_method,
-            model_name,
-            scale_factor,
-            number_of_epochs,
-            batch_size,
-            learning_rate,
-            discriminator_learning_rate,
-            optimizer_name,
-            lr_scheduler_name,
-            test_metric_indexes,
-            additional_folder,
-            model_configuration,
-            seed,
-            patch_size_x,
-            patch_size_y,
-            validation_split,
-            data_augmentation,
-            datagen_sampling_pdf,
-            train_config,
-            discriminator_optimizer=discriminator_optimizer,
-            discriminator_lr_scheduler=discriminator_lr_scheduler,
+            saving_path,
             verbose=verbose,
         )
 
         self.library_name = "tensorflow"
 
     def prepare_data(self):
-        """
-        train_generator = datasets.DataGenerator(filenames=self.train_filenames, hr_data_path=self.train_hr_path,
-                                                 lr_data_path=self.train_lr_path, scale_factor=self.scale_factor,
-                                                 crappifier_name=self.crappifier_method,
-                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-                                                 datagen_sampling_pdf=self.datagen_sampling_pdf,
-                                                 validation_split=0.1, batch_size=self.batch_size,
-                                                 rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip,
-                                                 shuffle=True)
-        val_generator = datasets.DataGenerator(filenames=self.val_filenames, hr_data_path=self.val_hr_path,
-                                                 lr_data_path=self.val_lr_path, scale_factor=self.scale_factor,
-                                                 crappifier_name=self.crappifier_method,
-                                                 lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-                                                 datagen_sampling_pdf=self.datagen_sampling_pdf,
-                                                 validation_split=0.1, batch_size=self.batch_size,
-                                                 rotation=self.rotation, horizontal_flip=self.horizontal_flip, vertical_flip=self.vertical_flip,
-                                                 shuffle=True)
-        """
-        (
-            train_generator,
-            train_input_shape,
-            train_output_shape,
-            actual_scale_factor,
-        ) = datasets.TFDataset(
+        train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
             filenames=self.train_filenames,
             hr_data_path=self.train_hr_path,
             lr_data_path=self.train_lr_path,
@@ -397,7 +300,7 @@ class TensorflowTrainer(ModelsTrainer):
             learning_rate=self.learning_rate,
             check_point=None,
             parameters=None,
-            additional_configuration=self.model_configuration,
+            additional_configuration=self.config
         )
 
         model = model_utils.select_model(
@@ -406,7 +309,7 @@ class TensorflowTrainer(ModelsTrainer):
             output_channels=self.output_data_shape[-1],
             scale_factor=self.scale_factor,
             datagen_sampling_pdf=self.datagen_sampling_pdf,
-            model_configuration=self.model_configuration,
+            model_configuration=self.config.used_model,
             batch_size=self.batch_size,
         )
 
@@ -431,13 +334,13 @@ class TensorflowTrainer(ModelsTrainer):
             library_name=self.library_name,
             lr_scheduler_name=self.lr_scheduler_name,
             data_len=self.input_data_shape[0] // self.batch_size,
-            number_of_epochs=self.number_of_epochs,
+            num_epochs=self.num_epochs,
             learning_rate=self.learning_rate,
             monitor_loss=None,
             name=None,
             optimizer=None,
             frequency=None,
-            additional_configuration=self.model_configuration,
+            additional_configuration=self.config,
         )
 
         model_checkpoint = tf_ModelCheckpoint(
@@ -450,10 +353,10 @@ class TensorflowTrainer(ModelsTrainer):
 
         # callback for early stopping
         earlystopper = EarlyStopping(
-            monitor=self.model_configuration["optim"]["early_stop"]["loss"],
-            patience=self.model_configuration["optim"]["early_stop"]["patience"],
+            monitor=self.config.model.optim.early_stop.loss,
+            patience=self.config.model.optim.early_stop.patience,
             min_delta=0.005,
-            mode=self.model_configuration["optim"]["early_stop"]["mode"],
+            mode=self.config.model.optim.early_stop.mode,
             verbose=1,
             restore_best_weights=True,
         )
@@ -492,16 +395,9 @@ class TensorflowTrainer(ModelsTrainer):
         history = model.fit(
             self.train_generator,
             validation_data=self.val_generator,
-            epochs=self.number_of_epochs,
+            epochs=self.num_epochs,
             callbacks=[lr_schedule, model_checkpoint, earlystopper, plot_callback],
         )
-        """
-        history = model.fit(self.train_generator, validation_data=self.val_generator,
-                          validation_steps=np.ceil(self.input_data_shape[0]*0.1/self.batch_size),
-                          steps_per_epoch=np.ceil(self.input_data_shape[0]/self.batch_size),
-                          epochs=self.number_of_epochs, 
-                          callbacks=[lr_schedule, model_checkpoint, earlystopper])
-        """
 
         dt = time.time() - start
         mins, sec = divmod(dt, 60)
@@ -552,7 +448,7 @@ class TensorflowTrainer(ModelsTrainer):
 
                 height_padding, width_padding = utils.calculate_pad_for_Unet(
                     lr_img_shape=lr_images[0].shape,
-                    depth_Unet=self.model_configuration["unet"]["depth"],
+                    depth_Unet=self.config.used_model.depth,
                     is_pre=True,
                     scale=self.scale_factor,
                 )
@@ -580,10 +476,10 @@ class TensorflowTrainer(ModelsTrainer):
                     )
                 )
 
-            if self.model_configuration["others"]["positional_encoding"]:
+            if self.config.model.others.positional_encoding:
                 lr_images = utils.concatenate_encoding(
                     lr_images,
-                    self.model_configuration["others"]["positional_encoding_channels"],
+                    self.config.model.others.positional_encoding_channels,
                 )
 
             optim = optimizer_scheduler_utils.select_optimizer(
@@ -592,7 +488,7 @@ class TensorflowTrainer(ModelsTrainer):
                 learning_rate=self.learning_rate,
                 check_point=None,
                 parameters=None,
-                additional_configuration=self.model_configuration,
+                additional_configuration=self.config,
             )
 
             model = model_utils.select_model(
@@ -601,7 +497,7 @@ class TensorflowTrainer(ModelsTrainer):
                 output_channels=hr_images.shape[-1],
                 scale_factor=self.scale_factor,
                 datagen_sampling_pdf=self.datagen_sampling_pdf,
-                model_configuration=self.model_configuration,
+                model_configuration=self.config.used_model,
             )
 
             loss_funct = "mean_absolute_error"
@@ -666,27 +562,7 @@ class PytorchTrainer(ModelsTrainer):
         val_hr_path,
         test_lr_path,
         test_hr_path,
-        crappifier_method,
-        model_name,
-        scale_factor,
-        number_of_epochs,
-        batch_size,
-        learning_rate,
-        discriminator_learning_rate,
-        optimizer_name,
-        lr_scheduler_name,
-        test_metric_indexes,
-        additional_folder,
-        model_configuration,
-        seed,
-        patch_size_x,
-        patch_size_y,
-        validation_split,
-        data_augmentation,
-        datagen_sampling_pdf,
-        train_config,
-        discriminator_optimizer=None,
-        discriminator_lr_scheduler=None,
+        saving_path,
         verbose=0,
         gpu_id=0,
     ):
@@ -698,27 +574,7 @@ class PytorchTrainer(ModelsTrainer):
             val_hr_path,
             test_lr_path,
             test_hr_path,
-            crappifier_method,
-            model_name,
-            scale_factor,
-            number_of_epochs,
-            batch_size,
-            learning_rate,
-            discriminator_learning_rate,
-            optimizer_name,
-            lr_scheduler_name,
-            test_metric_indexes,
-            additional_folder,
-            model_configuration,
-            seed,
-            patch_size_x,
-            patch_size_y,
-            validation_split,
-            data_augmentation,
-            datagen_sampling_pdf,
-            train_config,
-            discriminator_optimizer=discriminator_optimizer,
-            discriminator_lr_scheduler=discriminator_lr_scheduler,
+            saving_path,
             verbose=verbose,
         )
 
@@ -791,7 +647,7 @@ class PytorchTrainer(ModelsTrainer):
             d_optimizer=self.discriminator_optimizer,
             g_scheduler=self.lr_scheduler_name,
             d_scheduler=self.discriminator_lr_scheduler,
-            epochs=self.number_of_epochs,
+            epochs=self.num_epochs,
             save_basedir=self.saving_path,
             train_hr_path=self.train_hr_path,
             train_lr_path=self.train_lr_path,
@@ -800,7 +656,7 @@ class PytorchTrainer(ModelsTrainer):
             val_lr_path=self.val_lr_path,
             val_filenames=self.val_filenames,
             crappifier_method=self.crappifier_method,
-            model_configuration=self.model_configuration,
+            model_configuration=self.config,
         )
 
         if self.verbose:
@@ -828,7 +684,7 @@ class PytorchTrainer(ModelsTrainer):
         trainer = Trainer(
             accelerator="gpu",
             devices=1,
-            max_epochs=self.number_of_epochs,
+            max_epochs=self.num_epochs,
             logger=logger,
             callbacks=[checkpoints, lr_monitor],
         )
@@ -954,7 +810,7 @@ class PytorchTrainer(ModelsTrainer):
             scale_factor=self.scale_factor,
             batch_size=self.batch_size,
             save_basedir=self.saving_path,
-            model_configuration=self.model_configuration,
+            model_configuration=self.config,
             datagen_sampling_pdf=self.datagen_sampling_pdf,
             checkpoint=os.path.join(self.saving_path, "best_checkpoint.pth"),
         )
@@ -1016,102 +872,40 @@ class PytorchTrainer(ModelsTrainer):
 
 
 def train_configuration(
-    data_name,
+    config,
     train_lr_path,
     train_hr_path,
     val_lr_path,
     val_hr_path,
     test_lr_path,
     test_hr_path,
-    additional_folder,
-    train_config,
-    model_name,
-    model_configuration,
+    saving_path,
     verbose=0,
     gpu_id=0,
 ):
-    crappifier_method = train_config["dataset_config"]["crappifier"]
-    scale_factor = train_config["dataset_config"]["scale"]
-    patch_size_x = train_config["dataset_config"]["patch_size_x"]
-    patch_size_y = train_config["dataset_config"]["patch_size_y"]
-
-    number_of_epochs = train_config["number_of_epochs"]
-    batch_size = train_config["batch_size"]
-    learning_rate = train_config["learning_rate"]
-    discriminator_learning_rate = train_config["discriminator_learning_rate"]
-    optimizer = train_config["optimizer"]
-    discriminator_optimizer = train_config["discriminator_optimizer"]
-    scheduler = train_config["scheduler"]
-    discriminator_lr_scheduler = train_config["discriminator_lr_scheduler"]
-    test_metric_indexes = train_config["test_metric_indexes"]
-    seed = train_config["seed"]
-    validation_split = train_config["validation_split"]
-    data_augmentation = train_config["data_augmentation"]
-    datagen_sampling_pdf = train_config["datagen_sampling_pdf"]
-
-    if model_name in ["wgan", "esrganplus"]:
+    if config.model_name in ["wgan", "esrganplus"]:
         model_trainer = PytorchTrainer(
-            data_name,
+            config,
             train_lr_path,
             train_hr_path,
             val_lr_path,
             val_hr_path,
             test_lr_path,
             test_hr_path,
-            crappifier_method,
-            model_name,
-            scale_factor,
-            number_of_epochs,
-            batch_size,
-            learning_rate,
-            discriminator_learning_rate,
-            optimizer,
-            scheduler,
-            test_metric_indexes,
-            additional_folder,
-            model_configuration,
-            seed,
-            patch_size_x,
-            patch_size_y,
-            validation_split,
-            data_augmentation,
-            datagen_sampling_pdf,
-            train_config=train_config,
-            discriminator_optimizer=discriminator_optimizer,
-            discriminator_lr_scheduler=discriminator_lr_scheduler,
+            saving_path,
             verbose=verbose,
             gpu_id=gpu_id,
         )
-    elif model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
         model_trainer = TensorflowTrainer(
-            data_name,
+            config,
             train_lr_path,
             train_hr_path,
             val_lr_path,
             val_hr_path,
             test_lr_path,
             test_hr_path,
-            crappifier_method,
-            model_name,
-            scale_factor,
-            number_of_epochs,
-            batch_size,
-            learning_rate,
-            discriminator_learning_rate,
-            optimizer,
-            scheduler,
-            test_metric_indexes,
-            additional_folder,
-            model_configuration,
-            seed,
-            patch_size_x,
-            patch_size_y,
-            validation_split,
-            data_augmentation,
-            datagen_sampling_pdf,
-            train_config=train_config,
-            discriminator_optimizer=discriminator_optimizer,
-            discriminator_lr_scheduler=discriminator_lr_scheduler,
+            saving_path,
             verbose=verbose,
         )
     else:

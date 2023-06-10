@@ -35,18 +35,18 @@ def select_model(
     if model_name == "unet":
         return model.unet.preResUNet(
             output_channels=output_channels,
-            numInitChannels=model_configuration["unet"]["init_channels"],
+            numInitChannels=model_configuration.init_channels,
             image_shape=input_shape[1:],
-            depth=model_configuration["unet"]["depth"],
+            depth=model_configuration.depth,
             upsampling_factor=scale_factor,
-            maxpooling=model_configuration["unet"]["maxpooling"],
-            upsample_method=model_configuration["unet"]["upsample_method"],
+            maxpooling=model_configuration.maxpooling,
+            upsample_method=model_configuration.upsample_method,
             final_activation="linear",
         )
     elif model_name == "rcan":
         return model.rcan.rcan(
             n_sub_block=int(np.log2(scale_factor)),
-            filters=model_configuration["rcan"]["num_filters"],
+            filters=model_configuration.num_filters,
             out_channels=1,
         )
 
@@ -54,22 +54,22 @@ def select_model(
         return model.dfcan.DFCAN(
             (input_shape[1:]),
             scale=scale_factor,
-            n_ResGroup=model_configuration["dfcan"]["n_ResGroup"],
-            n_RCAB=model_configuration["dfcan"]["n_RCAB"],
+            n_ResGroup=model_configuration.n_ResGroup,
+            n_RCAB=model_configuration.n_RCAB,
         )
 
     elif model_name == "wdsr":
         # Custom WDSR B model (0.62M parameters)
         return model.wdsr.wdsr_b(
             scale=scale_factor,
-            num_res_blocks=model_configuration["wdsr"]["num_res_blocks"],
+            num_res_blocks=model_configuration.num_res_blocks,
         )
 
     elif model_name == "cddpm":
         return model.cddpm.DiffusionModel(
             image_shape=input_shape[1:],
-            widths=model_configuration["cddpm"]["widths"],
-            block_depth=model_configuration["cddpm"]["block_depth"],
+            widths=model_configuration.widths,
+            block_depth=model_configuration.block_depth,
             scale_factor=scale_factor,
             min_signal_rate=0.02,
             max_signal_rate=0.95,
@@ -81,14 +81,14 @@ def select_model(
 
     elif model_name == "wgan":
         return model.wgan.WGANGP(
-            g_layers=model_configuration["wgan"]["g_layers"],
+            g_layers=model_configuration.g_layers,
             batchsize=batch_size,
             lr_patch_size_x=lr_patch_size_x,
             lr_patch_size_y=lr_patch_size_y,
             scale_factor=scale_factor,
             datagen_sampling_pdf=datagen_sampling_pdf,
-            recloss=model_configuration["wgan"]["recloss"],
-            lambda_gp=model_configuration["wgan"]["lambda_gp"],
+            recloss=model_configuration.recloss,
+            lambda_gp=model_configuration.lambda_gp,
             learning_rate_g=learning_rate_g,
             learning_rate_d=learning_rate_d,
             epochs=epochs,
@@ -120,7 +120,7 @@ def select_model(
             datagen_sampling_pdf=datagen_sampling_pdf,
             learning_rate_d=learning_rate_d,
             learning_rate_g=learning_rate_g,
-            n_critic_steps=model_configuration["esrganplus"]["n_critic_steps"],
+            n_critic_steps=model_configuration.n_critic_steps,
             epochs=epochs,
             rotation=True,
             horizontal_flip=True,

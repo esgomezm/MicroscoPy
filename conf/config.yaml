@@ -1,4 +1,14 @@
-db:
-  driver: mysql
-  user: omry
-  password: secret
+defaults:
+- dataset: default.yaml
+- model: default.yaml
+- hyperparam: default.yaml
+- _self_
+
+model.optim.early_stop.patience: ${hyperparam.num_epochs}
+
+dataset_name: EM
+model_name: unet
+
+used_dataset: ${dataset.${dataset_name}}
+used_model: ${model.${model_name}}
+used_optim: ${model.optim.${hyperparam.optimizer}}

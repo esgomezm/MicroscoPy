@@ -9,6 +9,7 @@ import yaml
 from tensorflow.keras.applications.vgg19 import VGG19
 import tensorflow.keras.backend as K
 from tensorflow.keras.models import Model
+from omegaconf import OmegaConf
 
 
 #####
@@ -107,9 +108,8 @@ def save_yaml(dict_to_save, saving_path):
     Returns:
         None
     """
-
     with open(saving_path, "w") as file:
-        yaml.dump(dict_to_save, file)
+        OmegaConf.save(dict_to_save, file)
 
 
 #####
