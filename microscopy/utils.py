@@ -190,11 +190,9 @@ def concatenate_encoding(images, channels):
     cached_penc = np.repeat(emb[None, :, :, :org_channels], np.shape(images)[0], axis=0)
     return np.concatenate((images, cached_penc), -1)
 
-
 #####
 # Functions for U-Net's padding
 #####
-
 
 def calculate_pad_for_Unet(lr_img_shape, depth_Unet, is_pre, scale):
     assert (

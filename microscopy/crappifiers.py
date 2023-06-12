@@ -13,7 +13,7 @@ def norm(data):
 def add_poisson_noise(img, lam=1.0):
     poisson_noise = np.random.poisson(lam=lam, size=img.shape)
     noisy_img = img + norm(poisson_noise)
-    return (noisy_img - noisy_img.min()) / (noisy_img.max() - noisy_img.min())
+    return norm(noisy_img)
 
 
 # Create corresponding training patches synthetically by adding noise
@@ -64,7 +64,7 @@ def fluo_SP_AG_D_sameas_preprint(x, scale=4):
 
 
 def fluo_SP_AG_D_sameas_preprint_rescale(x, scale=4):
-    x = rescale(x, scale=1 / scale, order=1, multichannel=len(x.shape) > 2)
+    x = rescale(x, scale=1 / scale, order=1)
 
     x = random_noise(x, mode="salt", amount=0.005)
     x = random_noise(x, mode="pepper", amount=0.005)
@@ -112,10 +112,10 @@ def em_P_D_001(x, scale=4):
 
 
 def new_crap_AG_SP(x, scale=4):
-    x = rescale(x, scale=1 / scale, order=1, multichannel=len(x.shape) > 2)
+    x = rescale(x, scale=1 / scale, order=1)
 
     lvar = filters.gaussian(x, sigma=5) + 1e-10
-    img = norm(img)
+    x = norm(x)
     x = random_noise(x, mode="localvar", local_vars=lvar * 0.5)
 
     x = random_noise(x, mode="salt", amount=0.005)
@@ -125,7 +125,7 @@ def new_crap_AG_SP(x, scale=4):
 
 
 def new_crap(x, scale=4):
-    x = rescale(x, scale=1 / scale, order=1, multichannel=len(x.shape) > 2)
+    x = rescale(x, scale=1 / scale, order=1)
 
     x = random_noise(x, mode="salt", amount=0.005)
     x = random_noise(x, mode="pepper", amount=0.005)
@@ -178,30 +178,30 @@ def fluo_poisson_crappify(img, scale, lam=1.0):
 
 
 def apply_crappifier(x, scale, crappifier_name):
-    crappifier_dict = {
-        "downsampleonly": downsampleonly,
-        "fluo_G_D": fluo_G_D,
-        "fluo_AG_D": fluo_AG_D,
-        "fluo_SP_D": fluo_SP_D,
-        "fluo_SP_AG_D_sameas_preprint": fluo_SP_AG_D_sameas_preprint,
-        "fluo_SP_AG_D_sameas_preprint_rescale": fluo_SP_AG_D_sameas_preprint_rescale,
-        "em_AG_D_sameas_preprint": em_AG_D_sameas_preprint,
-        "em_G_D_001": em_G_D_001,
-        "em_G_D_002": em_G_D_002,
-        "em_P_D_001": em_P_D_001,
-        "new_crap_AG_SP": new_crap_AG_SP,
-        "new_crap": new_crap,
-        "em_crappify": em_crappify,
-        "fluo_crappify": fluo_crappify,
-        "em_poisson_crappify": em_poisson_crappify,
-        "fluo_poisson_crappify": fluo_poisson_crappify,
-    }
-
-    if crappifier_name in crappifier_dict:
-        return crappifier_dict[crappifier_name](x, scale).astype(np.float32)
+    if crappifier_name in CRAPPIFIER_DICT:
+        return norm(CRAPPIFIER_DICT[crappifier_name](norm(x), scale).astype(np.float32))
     else:
         raise ValueError(
             "The selected `{}` crappifier_name is not in: {}".format(
-                crappifier_name, crappifier_dict.keys
+                crappifier_name, CRAPPIFIER_DICT.keys
             )
         )
+
+CRAPPIFIER_DICT = {
+    "downsampleonly": downsampleonly,
+    "fluo_G_D": fluo_G_D,
+    "fluo_AG_D": fluo_AG_D,
+    "fluo_SP_D": fluo_SP_D,
+    "fluo_SP_AG_D_sameas_preprint": fluo_SP_AG_D_sameas_preprint,
+    "fluo_SP_AG_D_sameas_preprint_rescale": fluo_SP_AG_D_sameas_preprint_rescale,
+    "em_AG_D_sameas_preprint": em_AG_D_sameas_preprint,
+    "em_G_D_001": em_G_D_001,
+    "em_G_D_002": em_G_D_002,
+    "em_P_D_001": em_P_D_001,
+    "new_crap_AG_SP": new_crap_AG_SP,
+    "new_crap": new_crap,
+    "em_crappify": em_crappify,
+    "fluo_crappify": fluo_crappify,
+    "em_poisson_crappify": em_poisson_crappify,
+    "fluo_poisson_crappify": fluo_poisson_crappify,
+}
