@@ -17,6 +17,7 @@ def load_path(dataset_root, dataset_name, folder):
 def my_app(cfg: DictConfig) -> None:
     #'LiveFActinDataset', 'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'MT-SMLM_all'
     for dataset_name in ['F-actin', 'ER', 'MT']:  
+        cfg.dataset_name = dataset_name
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = cfg.used_dataset.data_paths
 
         dataset_root = "datasets" if os.path.exists("datasets") else "../datasets"
