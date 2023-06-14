@@ -5,7 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -16,7 +16,7 @@ def load_path(dataset_root, dataset_name, folder):
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     #'LiveFActinDataset', 'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'MT-SMLM_all'
-    for dataset_name in ['F-actin', 'ER', 'MT']:  
+    for dataset_name in ['F-actin','LiveFActinDataset', 'ER', 'MT']:  
         cfg.dataset_name = dataset_name
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = cfg.used_dataset.data_paths
 
@@ -38,7 +38,7 @@ def my_app(cfg: DictConfig) -> None:
                         cfg.hyperparam.num_epochs = num_epochs
                         cfg.hyperparam.lr = lr
                         cfg.hyperparam.discriminator_lr = discriminator_lr
-
+                        cfg.model.optim.early_stop.patience = num_epochs
                         save_folder = "scale" + str(cfg.used_dataset.scale)
                         if cfg.hyperparam.additional_folder is not None:
                             save_folder += "_" + cfg.hyperparam.additional_folder
