@@ -6,3 +6,4 @@ results/*
 .DS_Store
 dist/*
 outputs/*
+old_results/*

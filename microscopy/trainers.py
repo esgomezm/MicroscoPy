@@ -376,9 +376,9 @@ class TensorflowTrainer(ModelsTrainer):
             print("Model configuration:")
             print(f"\tModel_name: {self.model_name}")
             print(f"\tOptimizer: {self.optim}")
-            print(f"\tLR scheduler: {self.lr_schedule}")
-            print(f"\tLoss: {self.loss_funct}")
-            print(f"\tEval: {self.eval_metric}")
+            print(f"\tLR scheduler: {lr_schedule}")
+            print(f"\tLoss: {loss_funct}")
+            print(f"\tEval: {eval_metric}")
             print(
                 "Trainable parameteres: {} \nNon trainable parameters: {} \nTotal parameters: {}".format(
                     trainableParams, nonTrainableParams, totalParams
