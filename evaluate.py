@@ -61,24 +61,18 @@ def my_app(cfg: DictConfig) -> None:
                         ):
                             print(f"{saving_path} - model combination already trained.")
                         else:
-                            try:
-                                model = train_configuration(
-                                    config=cfg,
-                                    train_lr_path=train_lr_path,
-                                    train_hr_path=train_hr_path,
-                                    val_lr_path=val_lr_path,
-                                    val_hr_path=val_hr_path,
-                                    test_lr_path=test_lr_path,
-                                    test_hr_path=test_hr_path,
-                                    saving_path=saving_path,
-                                    verbose=1
-                                )
-                                del model
+                            model = train_configuration(
+                                config=cfg,
+                                train_lr_path=train_lr_path,
+                                train_hr_path=train_hr_path,
+                                val_lr_path=val_lr_path,
+                                val_hr_path=val_hr_path,
+                                test_lr_path=test_lr_path,
+                                test_hr_path=test_hr_path,
+                                saving_path=saving_path,
+                                verbose=1
+                            )
+                            del model
 
-                            except Exception as e:
-                                print(
-                                    f"\033[91mERROR\033[0m - In config {cfg.dataset_name} {cfg.model_name} {cfg.hyperparam.num_epochs} {cfg.hyperparam.lr}"
-                                )
-                                print(e)
                             gc.collect()
 my_app()
