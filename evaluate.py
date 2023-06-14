@@ -16,7 +16,7 @@ def load_path(dataset_root, dataset_name, folder):
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     #'LiveFActinDataset', 'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'MT-SMLM_all'
-    for dataset_name in ["EM"]:  
+    for dataset_name in ['F-actin', 'ER', 'MT']:  
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = cfg.used_dataset.data_paths
 
         dataset_root = "datasets" if os.path.exists("datasets") else "../datasets"
@@ -29,8 +29,8 @@ def my_app(cfg: DictConfig) -> None:
 
         # 'unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm'
         for model_name in ["unet"]: 
-            for batch_size in [4]:  
-                for num_epochs in [1]:                  
+            for batch_size in [16]:  
+                for num_epochs in [100]:                  
                     for lr, discriminator_lr in [(0.001, 0.001)]:
                         cfg.model_name = model_name
                         cfg.hyperparam.batch_size = batch_size
@@ -71,7 +71,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=0
+                                    verbose=1
                                 )
                                 del model
 
