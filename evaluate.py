@@ -5,7 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -15,8 +15,8 @@ def load_path(dataset_root, dataset_name, folder):
 
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
-    #'LiveFActinDataset', 'EM', 'MitoTracker_small', 'F-actin', 'ER', 'MT', 'MT-SMLM_all'
-    for dataset_name in ['F-actin','LiveFActinDataset', 'ER', 'MT']:  
+    #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
+    for dataset_name in ["F-actin", "ER", "MT", "LiveFActinDataset"]:  
         cfg.dataset_name = dataset_name
         train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = cfg.used_dataset.data_paths
 
@@ -28,10 +28,10 @@ def my_app(cfg: DictConfig) -> None:
         test_lr_path = load_path(dataset_root, dataset_name, test_lr)
         test_hr_path = load_path(dataset_root, dataset_name, test_hr)
 
-        # 'unet', 'rcan', 'dfcan', 'wdsr', 'wgan', 'esrganplus', 'cddpm'
+        # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
         for model_name in ["unet"]: 
-            for batch_size in [16]:  
-                for num_epochs in [100]:                  
+            for batch_size in [4]:  
+                for num_epochs in [100,200]:                  
                     for lr, discriminator_lr in [(0.001, 0.001)]:
                         cfg.model_name = model_name
                         cfg.hyperparam.batch_size = batch_size
