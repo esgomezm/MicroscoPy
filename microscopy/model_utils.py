@@ -80,15 +80,16 @@ def select_model(
         )
 
     elif model_name == "wgan":
+        print(model_configuration)
         return model.wgan.WGANGP(
-            g_layers=model_configuration.g_layers,
+            g_layers=model_configuration.used_model.g_layers,
             batchsize=batch_size,
             lr_patch_size_x=lr_patch_size_x,
             lr_patch_size_y=lr_patch_size_y,
             scale_factor=scale_factor,
             datagen_sampling_pdf=datagen_sampling_pdf,
-            recloss=model_configuration.recloss,
-            lambda_gp=model_configuration.lambda_gp,
+            recloss=model_configuration.used_model.recloss,
+            lambda_gp=model_configuration.used_model.lambda_gp,
             learning_rate_g=learning_rate_g,
             learning_rate_d=learning_rate_d,
             epochs=epochs,
@@ -120,7 +121,7 @@ def select_model(
             datagen_sampling_pdf=datagen_sampling_pdf,
             learning_rate_d=learning_rate_d,
             learning_rate_g=learning_rate_g,
-            n_critic_steps=model_configuration.n_critic_steps,
+            n_critic_steps=model_configuration.used_model.n_critic_steps,
             epochs=epochs,
             rotation=True,
             horizontal_flip=True,

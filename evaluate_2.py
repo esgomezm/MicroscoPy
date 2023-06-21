@@ -29,10 +29,10 @@ def my_app(cfg: DictConfig) -> None:
         test_hr_path = load_path(dataset_root, dataset_name, test_hr)
 
         # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
-        for model_name in ["unet"]: 
+        for model_name in ["wgan"]: 
             for batch_size in [4]:  
                 for num_epochs in [100,200]:                  
-                    for lr, discriminator_lr in [(0.001, 0.001)]:
+                    for lr, discriminator_lr in [(0.0005, 0.0005), (0.0001, 0.0001)]:
                         cfg.model_name = model_name
                         cfg.hyperparam.batch_size = batch_size
                         cfg.hyperparam.num_epochs = num_epochs

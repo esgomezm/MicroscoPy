@@ -1,11 +1,11 @@
-from microscopy.trainers import train_configuration
+from microscopy.trainers import predict_configuration
 from omegaconf import DictConfig
 import hydra
 import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -29,10 +29,10 @@ def my_app(cfg: DictConfig) -> None:
         test_hr_path = load_path(dataset_root, dataset_name, test_hr)
 
         # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
-        for model_name in ["wdsr"]: 
-            for batch_size in [1,2,4,8]:  
-                for num_epochs in [10]:                  
-                    for lr, discriminator_lr in [(0.005, 0.005), (0.001,0.001), (0.0005,0.0005), (0.0001,0.0001)]:
+        for model_name in ["wgan"]: 
+            for batch_size in [4]:  
+                for num_epochs in [100,200]:                  
+                    for lr, discriminator_lr in [(0.0005, 0.0005), (0.0001, 0.0001)]:
                         cfg.model_name = model_name
                         cfg.hyperparam.batch_size = batch_size
                         cfg.hyperparam.num_epochs = num_epochs
@@ -60,9 +60,7 @@ def my_app(cfg: DictConfig) -> None:
                             os.path.exists(test_metric_path)
                             and len(os.listdir(test_metric_path)) > 0
                         ):
-                            print(f"{saving_path} - model combination already trained.")
-                        else:
-                            model = train_configuration(
+                            model = predict_configuration(
                                 config=cfg,
                                 train_lr_path=train_lr_path,
                                 train_hr_path=train_hr_path,
@@ -74,6 +72,7 @@ def my_app(cfg: DictConfig) -> None:
                                 verbose=1
                             )
                             del model
-
                             gc.collect()
+                        else:
+                            print(f"{saving_path} - model combination is not trained, therefore the prediction cannot be done.")
 my_app()

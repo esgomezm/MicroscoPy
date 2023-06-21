@@ -132,6 +132,47 @@ class ModelsTrainer:
             os.path.join(self.saving_path, "train_configuration.yaml"),
         )
 
+
+        # To calculate the input and output shape and the actual scale factor 
+
+        (
+            _,
+            train_input_shape,
+            train_output_shape,
+            actual_scale_factor,
+        ) = datasets.TFDataset(
+            filenames=self.train_filenames,
+            hr_data_path=self.train_hr_path,
+            lr_data_path=self.train_lr_path,
+            scale_factor=self.scale_factor,
+            crappifier_name=self.crappifier_method,
+            lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+            datagen_sampling_pdf=self.datagen_sampling_pdf,
+            validation_split=0.1,
+            batch_size=self.batch_size,
+            rotation=self.rotation,
+            horizontal_flip=self.horizontal_flip,
+            vertical_flip=self.vertical_flip,
+        )
+
+        self.input_data_shape = train_input_shape
+        self.output_data_shape = train_output_shape
+
+        if self.scale_factor is None or self.scale_factor != actual_scale_factor:
+            self.scale_factor = actual_scale_factor
+            utils.update_yaml(
+                os.path.join(self.saving_path, "train_configuration.yaml"),
+                "actual_scale_factor",
+                actual_scale_factor,
+            )
+            if self.verbose:
+                print(
+                    "Actual scale factor that will be used is: {}".format(
+                        self.scale_factor
+                    )
+                )
+
+
         print("\n" + "-" * 10)
         print(
             "{} model will be trained with the next configuration".format(
@@ -583,42 +624,6 @@ class PytorchTrainer(ModelsTrainer):
         self.library_name = "pytorch"
 
     def prepare_data(self):
-        (
-            train_generator,
-            train_input_shape,
-            train_output_shape,
-            actual_scale_factor,
-        ) = datasets.TFDataset(
-            filenames=self.train_filenames,
-            hr_data_path=self.train_hr_path,
-            lr_data_path=self.train_lr_path,
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_method,
-            lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
-            validation_split=0.1,
-            batch_size=self.batch_size,
-            rotation=self.rotation,
-            horizontal_flip=self.horizontal_flip,
-            vertical_flip=self.vertical_flip,
-        )
-
-        self.input_data_shape = train_input_shape
-        self.output_data_shape = train_output_shape
-
-        if self.scale_factor is None or self.scale_factor != actual_scale_factor:
-            self.scale_factor = actual_scale_factor
-            utils.update_yaml(
-                os.path.join(self.saving_path, "train_configuration.yaml"),
-                "actual_scale_factor",
-                actual_scale_factor,
-            )
-            if self.verbose:
-                print(
-                    "Actual scale factor that will be used is: {}".format(
-                        self.scale_factor
-                    )
-                )
 
         utils.update_yaml(
             os.path.join(self.saving_path, "train_configuration.yaml"),
@@ -800,7 +805,7 @@ class PytorchTrainer(ModelsTrainer):
     def predict_images(self):
         hr_images = np.array(
             [
-                io.imread(os.path.join(self.test_hr_path, fil))
+                datasets.read_image(os.path.join(self.test_hr_path, fil))
                 for fil in self.test_filenames
             ]
         )
@@ -912,3 +917,47 @@ def train_configuration(
         raise Exception("Not available model.")
 
     return model_trainer.launch()
+
+
+def predict_configuration(
+    config,
+    train_lr_path,
+    train_hr_path,
+    val_lr_path,
+    val_hr_path,
+    test_lr_path,
+    test_hr_path,
+    saving_path,
+    verbose=0,
+    gpu_id=0,
+):
+    if config.model_name in ["wgan", "esrganplus"]:
+        model_trainer = PytorchTrainer(
+            config,
+            train_lr_path,
+            train_hr_path,
+            val_lr_path,
+            val_hr_path,
+            test_lr_path,
+            test_hr_path,
+            saving_path,
+            verbose=verbose,
+            gpu_id=gpu_id,
+        )
+    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+        model_trainer = TensorflowTrainer(
+            config,
+            train_lr_path,
+            train_hr_path,
+            val_lr_path,
+            val_hr_path,
+            test_lr_path,
+            test_hr_path,
+            saving_path,
+            verbose=verbose,
+        )
+    else:
+        raise Exception("Not available model.")
+
+    model_trainer.predict_images()
+    model_trainer.eval_model()
