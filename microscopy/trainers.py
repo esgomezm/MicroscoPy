@@ -222,11 +222,13 @@ class ModelsTrainer:
         if self.verbose:
             utils.print_info("eval_model() - self.Y_test", self.Y_test)
             utils.print_info("eval_model() - self.predictions", self.predictions)
+            utils.print_info("eval_model() - self.X_test", self.X_test)
 
         print("The predictions will be evaluated:")
         metrics_dict = metrics.obtain_metrics(
             gt_image_list=self.Y_test,
             predicted_image_list=self.predictions,
+            wf_image_list=self.X_test,
             test_metric_indexes=self.test_metric_indexes,
         )
 
@@ -461,6 +463,7 @@ class TensorflowTrainer(ModelsTrainer):
 
     def predict_images(self):
         ground_truths = []
+        widefields = []
         predictions = []
         print("Prediction is going to start:")
         for test_filename in self.test_filenames:
@@ -477,6 +480,9 @@ class TensorflowTrainer(ModelsTrainer):
             hr_images = np.expand_dims(hr_images, axis=-1)
             lr_images = np.expand_dims(lr_images, axis=-1)
 
+            ground_truths.append(hr_images[0, ...])
+            widefields.append(lr_images[0, ...])
+            
             if self.model_name == "unet":
                 if self.verbose:
                     print("Padding will be added to the images.")
@@ -563,18 +569,19 @@ class TensorflowTrainer(ModelsTrainer):
 
             aux_prediction = datasets.normalization(aux_prediction)
 
-            ground_truths.append(hr_images[0, ...])
             predictions.append(aux_prediction[0, ...])
 
         self.Y_test = ground_truths
         self.predictions = predictions
+        self.X_test = widefields
 
-        assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
-        assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
+        assert np.max(self.Y_test) <= 1.0 and np.max(self.predictions) <= 1.0 and np.max(self.X_test) <= 1.0
+        assert np.min(self.Y_test) >= 0.0 and np.min(self.predictions) >= 0.0 and np.min(self.X_test) >= 0.0 
 
         if self.verbose:
             utils.print_info("predict_images() - Y_test", self.Y_test)
             utils.print_info("predict_images() - predictions", self.predictions)
+            utils.print_info("predict_images() - X_test", self.X_test)
 
         # Save the predictions
         os.makedirs(self.saving_path + "/predicted_images", exist_ok=True)
@@ -803,12 +810,6 @@ class PytorchTrainer(ModelsTrainer):
         print("Train information saved.")
 
     def predict_images(self):
-        hr_images = np.array(
-            [
-                datasets.read_image(os.path.join(self.test_hr_path, fil))
-                for fil in self.test_filenames
-            ]
-        )
 
         model = model_utils.select_model(
             model_name=self.model_name,
@@ -865,12 +866,25 @@ class PytorchTrainer(ModelsTrainer):
             + "/predicted_images"
         )
 
-        self.Y_test = np.expand_dims(hr_images, axis=-1)
         self.predictions = predictions
+
+        lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
+                hr_data_path=self.test_hr_path,
+                lr_data_path=self.test_lr_path,
+                filenames=self.test_filenames,
+                scale_factor=self.scale_factor,
+                crappifier_name=self.crappifier_method,
+                lr_patch_shape=None,
+                datagen_sampling_pdf=1,
+            )
+
+        self.Y_test = np.expand_dims(hr_images, axis=-1)
+        self.X_test = np.expand_dims(lr_images, axis=-1)
 
         if self.verbose:
             utils.print_info("predict_images() - self.Y_test", self.Y_test)
             utils.print_info("predict_images() - self.predictions", self.predictions)
+            utils.print_info("predict_images() - self.X_test", self.X_test)
 
         # assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
         # assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
