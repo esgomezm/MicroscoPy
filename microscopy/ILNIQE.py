@@ -751,8 +751,7 @@ def calculate_ilniqe(
     Returns:
         float: IL-NIQE result.
     """
-
-    ROOT_DIR = "./IL-NIQE"
+    ROOT_DIR = "IL-NIQE" if "IL-NIQE" in os.listdir() else "microscopy/IL-NIQE"
     # we use the official params estimated from the pristine dataset.
     gaussian_window = matlab_fspecial((5, 5), 5 / 6)
     gaussian_window = gaussian_window / np.sum(gaussian_window)

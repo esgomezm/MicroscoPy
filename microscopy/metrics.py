@@ -14,11 +14,11 @@ lpips_vgg = lpips.LPIPS(net="vgg", version="0.1")
 from nanopyx.core.transform.new_error_map import ErrorMap
 from nanopyx.core.analysis.decorr import DecorrAnalysis
 
+from .ILNIQE import calculate_ilniqe
+
 # from torchmetrics.image.fid import FrechetInceptionDistance
-# from .ILNIQE import calculate_ilniqe
 
 # import piq
-
 # dists_loss = piq.DISTS()
 # pieapp_loss = piq.PieAPP()
 
@@ -157,6 +157,9 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
                 .numpy()
             )
         )
+        
+        metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0,
+                                          input_order='HW', resize=True, version='python'))
 
         # metrics_dict['fsim'].append(piq.fsim(predicted_image_piq, gt_image_piq, chromatic=False).item())
         # metrics_dict['gmsd'].append(piq.gmsd(predicted_image_piq, gt_image_piq).item())
