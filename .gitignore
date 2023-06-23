@@ -7,3 +7,4 @@ results/*
 dist/*
 outputs/*
 old_results/*
+lightning_logs/*
