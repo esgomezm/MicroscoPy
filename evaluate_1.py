@@ -31,7 +31,7 @@ def my_app(cfg: DictConfig) -> None:
         # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
         for model_name in ["wdsr"]: 
             for batch_size in [1,2,4,8]:  
-                for num_epochs in [10]:                  
+                for num_epochs in [ 10]:                  
                     for lr, discriminator_lr in [(0.005, 0.005), (0.001,0.001), (0.0005,0.0005), (0.0001,0.0001)]:
                         cfg.model_name = model_name
                         cfg.hyperparam.batch_size = batch_size

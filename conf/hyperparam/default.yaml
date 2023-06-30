@@ -1,14 +1,9 @@
 test_metric_indexes:
-- 69 
-- 7
-- 36
-- 75
-- 74 
-- 30
-- 12
-- 42
-- 87
-- 0
+- 1
+- 2
+- 3
+- 4
+- 5
 
 optimizer: adam  #'adam', 'adamW' 'adamax', 'rms_prop', 'sgd'
 discriminator_optimizer: adam  #'adam', 'adamW', 'adamax', 'RMSprop', 'sgd'
