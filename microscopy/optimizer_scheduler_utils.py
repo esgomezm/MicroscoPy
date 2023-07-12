@@ -37,7 +37,10 @@ def select_tensorflow_optimizer(
     optimizer_name, learning_rate, additional_configuration
 ):
     if optimizer_name == "rms_prop":
-        return tf.keras.optimizers.RMSprop(learning_rate=learning_rate)
+        return tf.keras.optimizers.RMSprop(learning_rate=learning_rate,
+                                           rho=additional_configuration.used_optim.rho,
+                                           momentum=additional_configuration.used_optim.momentum,
+                                          )
     elif optimizer_name == "adam":
         return tf.keras.optimizers.Adam(
             learning_rate=learning_rate,
@@ -149,8 +152,8 @@ def select_tensorflow_lr_schedule(
     elif lr_scheduler_name == "ReduceOnPlateau":
         return ReduceLROnPlateau(
             monitor=monitor_loss,
-            factor=additional_configuration.used_optim.factor,
-            patience=additional_configuration.used_optim.patience,
+            factor=additional_configuration.used_sched.factor,
+            patience=additional_configuration.used_sched.patience,
             min_lr=(learning_rate / 10),
         )
     elif lr_scheduler_name == "CosineDecay":
@@ -161,12 +164,8 @@ def select_tensorflow_lr_schedule(
     elif lr_scheduler_name == "MultiStepScheduler":
         return tensorflow_callbacks.MultiStepScheduler(
             learning_rate,
-            lr_steps=additional_configuration.used_optim.MultiStepScheduler[
-                "lr_steps"
-            ],
-            lr_rate_decay=additional_configuration.used_optim.MultiStepScheduler[
-                "lr_rate_decay"
-            ],
+            lr_steps=additional_configuration.used_sched.lr_steps,
+            lr_rate_decay=additional_configuration.used_sched.lr_rate_decay
         )
     elif lr_scheduler_name is None:
         return None
@@ -202,8 +201,8 @@ def select_pytorch_lr_schedule(
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 mode="min",
-                factor=additional_configuration.used_optim.factor,
-                patience=additional_configuration.used_optim.ReduceOnPlateau[
+                factor=additional_configuration.used_sched.factor,
+                patience=additional_configuration.used_sched.ReduceOnPlateau[
                     "patience"
                 ],
                 min_lr=(learning_rate / 10),

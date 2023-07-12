@@ -124,24 +124,30 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
             error_map.getRSP()
         )
 
-        print(error_map.getRSE())
+        # In case all the predicted values are equal (all zeros for example)
+        all_equals = np.all(predicted_image==np.ravel(predicted_image)[0])
 
-        error_map = ErrorMap()
-        error_map.optimise(wf_image, predicted_image)
-        metrics_dict["pred_rse"].append(
-            error_map.getRSE()
-        )
-        metrics_dict["pred_rsp"].append(
-            error_map.getRSP()
-        )
+        if not all_equals:
+            error_map = ErrorMap()
+            error_map.optimise(wf_image, predicted_image)
+            metrics_dict["pred_rse"].append(
+                error_map.getRSE()
+            )
+            metrics_dict["pred_rsp"].append(
+                error_map.getRSP()
+            )
+        else: 
+            metrics_dict["pred_rse"].append(np.nan)
+            metrics_dict["pred_rsp"].append(np.nan)
 
-        print(error_map.getRSE())
-
-        decorr_calculator_raw = DecorrAnalysis()
-        decorr_calculator_raw.run_analysis(predicted_image)
-        metrics_dict["decor"].append(
-            decorr_calculator_raw.resolution
-        )
+        if not all_equals:
+            decorr_calculator_raw = DecorrAnalysis()
+            decorr_calculator_raw.run_analysis(predicted_image)
+            metrics_dict["decor"].append(
+                decorr_calculator_raw.resolution
+            )
+        else: 
+            metrics_dict["decor"].append(np.nan)
 
         metrics_dict["alex"].append(
                 np.squeeze(
@@ -158,8 +164,11 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
             )
         )
         
-        metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0,
-                                          input_order='HW', resize=True, version='python'))
+        if not all_equals:
+            metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0,
+                                            input_order='HW', resize=True, version='python'))
+        else: 
+            metrics_dict['ilniqe'].append(np.nan)
 
         # metrics_dict['fsim'].append(piq.fsim(predicted_image_piq, gt_image_piq, chromatic=False).item())
         # metrics_dict['gmsd'].append(piq.gmsd(predicted_image_piq, gt_image_piq).item())

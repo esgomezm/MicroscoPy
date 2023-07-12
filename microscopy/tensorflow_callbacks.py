@@ -13,15 +13,19 @@ def tf_normalization(img):
 
 
 class PerformancePlotCallback(Callback):
-    def __init__(self, x_test, y_test, img_saving_path, frequency=1):
+    def __init__(self, x_test, y_test, img_saving_path, frequency=1, is_cddpm=False):
         self.x_test = x_test
         self.y_test = y_test
         self.img_saving_path = img_saving_path
         self.frequency = frequency
+        self.is_cddpm = is_cddpm
 
     def on_epoch_end(self, epoch, logs={}):
         if epoch % self.frequency == 0:
-            y_pred = self.model.predict(self.x_test)
+            if self.is_cddpm:
+                y_pred = self.model.predict(self.x_test, self.x_test.shape[0], 500)
+            else:
+                y_pred = self.model.predict(self.x_test)
 
             ssim = utils.ssim_loss(self.y_test[0], y_pred[0])
 

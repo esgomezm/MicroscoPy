@@ -20,7 +20,6 @@ def sinusoidal_embedding(embedding_max_frequency, embedding_dims):
 
     return sinusoidal_embedding_function
 
-
 def ResidualBlock(width):
     def apply(x):
         input_width = x.shape[3]
@@ -38,7 +37,6 @@ def ResidualBlock(width):
 
     return apply
 
-
 def DownBlock(width, block_depth):
     def apply(x):
         x, skips = x
@@ -50,7 +48,6 @@ def DownBlock(width, block_depth):
 
     return apply
 
-
 def UpBlock(width, block_depth):
     def apply(x):
         x, skips = x
@@ -61,7 +58,6 @@ def UpBlock(width, block_depth):
         return x
 
     return apply
-
 
 def get_network(
     image_shape, widths, block_depth, embedding_max_frequency, embedding_dims
@@ -167,12 +163,15 @@ class DiffusionModel(tf.keras.Model):
     def denoise_conditioned(
         self, noisy_images, lr_images, noise_rates, signal_rates, training
     ):
+        
         # the exponential moving average weights are used at evaluation
         if training:
             network = self.network
         else:
             network = self.ema_network
 
+        print(f'noisy_images: {noisy_images.shape}')
+        print(f'lr_images: {lr_images.shape}')
         input_data = tf.concat((tf.cast(noisy_images, lr_images.dtype), lr_images), -1)
 
         # predict noise component and calculate the image component using it
@@ -185,9 +184,7 @@ class DiffusionModel(tf.keras.Model):
         self,
         lr_images,
         initial_noise,
-        diffusion_steps,
-        min_signal_rate,
-        max_signal_rate,
+        diffusion_steps
     ):
         # reverse diffusion = sampling
         num_images = initial_noise.shape[0]
@@ -223,6 +220,7 @@ class DiffusionModel(tf.keras.Model):
     def predict(self, lr_images, num_images, diffusion_steps):
         # noise -> images -> denormalized images
         initial_noise = tf.random.normal(shape=(num_images,) + self.image_shape)
+        lr_images = tf.image.resize(lr_images, size=[self.image_shape[0], self.image_shape[1]])
         generated_images = self.reverse_diffusion_conditioned(
             lr_images, initial_noise, diffusion_steps
         )
@@ -272,6 +270,7 @@ class DiffusionModel(tf.keras.Model):
 
     def test_step(self, data):
         lr_images, hr_images = data
+        lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
 
         # normalize images to have standard deviation of 1, like the noises
         hr_images = self.normalizer(hr_images, training=False)
@@ -297,3 +296,4 @@ class DiffusionModel(tf.keras.Model):
         self.noise_loss_tracker.update_state(noise_loss)
 
         return {m.name: m.result() for m in self.metrics}
+

@@ -337,14 +337,41 @@ class TensorflowTrainer(ModelsTrainer):
         self.val_generator = val_generator
 
     def train_model(self):
-        self.optim = optimizer_scheduler_utils.select_optimizer(
-            library_name=self.library_name,
-            optimizer_name=self.optimizer_name,
-            learning_rate=self.learning_rate,
-            check_point=None,
-            parameters=None,
-            additional_configuration=self.config
+
+        callbacks = []
+
+        lr_schedule = optimizer_scheduler_utils.select_lr_schedule(
+                    library_name=self.library_name,
+                    lr_scheduler_name=self.lr_scheduler_name,
+                    data_len=self.input_data_shape[0] // self.batch_size,
+                    num_epochs=self.num_epochs,
+                    learning_rate=self.learning_rate,
+                    monitor_loss='val_ssim_loss',
+                    name=None,
+                    optimizer=None,
+                    frequency=None,
+                    additional_configuration=self.config,
         )
+
+        if self.lr_scheduler_name == "CosineDecay":
+            self.optim = optimizer_scheduler_utils.select_optimizer(
+                library_name=self.library_name,
+                optimizer_name=self.optimizer_name,
+                learning_rate=lr_schedule,
+                check_point=None,
+                parameters=None,
+                additional_configuration=self.config
+            )
+        else:
+            self.optim = optimizer_scheduler_utils.select_optimizer(
+                library_name=self.library_name,
+                optimizer_name=self.optimizer_name,
+                learning_rate=self.learning_rate,
+                check_point=None,
+                parameters=None,
+                additional_configuration=self.config
+            )
+            callbacks.append(lr_schedule)
 
         model = model_utils.select_model(
             model_name=self.model_name,
@@ -373,19 +400,6 @@ class TensorflowTrainer(ModelsTrainer):
         )
         totalParams = trainableParams + nonTrainableParams
 
-        lr_schedule = optimizer_scheduler_utils.select_lr_schedule(
-            library_name=self.library_name,
-            lr_scheduler_name=self.lr_scheduler_name,
-            data_len=self.input_data_shape[0] // self.batch_size,
-            num_epochs=self.num_epochs,
-            learning_rate=self.learning_rate,
-            monitor_loss=None,
-            name=None,
-            optimizer=None,
-            frequency=None,
-            additional_configuration=self.config,
-        )
-
         model_checkpoint = tf_ModelCheckpoint(
             os.path.join(self.saving_path, "weights_best.h5"),
             monitor="val_loss",
@@ -393,6 +407,7 @@ class TensorflowTrainer(ModelsTrainer):
             save_best_only=True,
             save_weights_only=True,
         )
+        callbacks.append(model_checkpoint)
 
         # callback for early stopping
         earlystopper = EarlyStopping(
@@ -403,6 +418,7 @@ class TensorflowTrainer(ModelsTrainer):
             verbose=1,
             restore_best_weights=True,
         )
+        callbacks.append(earlystopper)
 
         for x, y in self.val_generator:
             x_val = x
@@ -412,8 +428,9 @@ class TensorflowTrainer(ModelsTrainer):
         plt_saving_path = os.path.join(self.saving_path, "training_images")
         os.makedirs(plt_saving_path, exist_ok=True)
         plot_callback = tensorflow_callbacks.PerformancePlotCallback(
-            x_val, y_val, plt_saving_path, 5
+            x_val, y_val, plt_saving_path, frequency=5, is_cddpm=self.model_name=="cddpm"
         )
+        callbacks.append(plot_callback)
 
         if self.verbose:
             print("Model configuration:")
@@ -439,7 +456,7 @@ class TensorflowTrainer(ModelsTrainer):
             self.train_generator,
             validation_data=self.val_generator,
             epochs=self.num_epochs,
-            callbacks=[lr_schedule, model_checkpoint, earlystopper, plot_callback],
+            callbacks=callbacks,
         )
 
         dt = time.time() - start
