@@ -1,0 +1,93 @@
+nohup: ignoring input
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/torchvision/models/_utils.py:208: UserWarning: The parameter 'pretrained' is deprecated since 0.13 and may be removed in the future, please use 'weights' instead.
+  warnings.warn(
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=AlexNet_Weights.IMAGENET1K_V1`. You can also use `weights=AlexNet_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/torchvision/models/_utils.py:223: UserWarning: Arguments other than a weight enum or `None` for 'weights' are deprecated since 0.13 and may be removed in the future. The current behavior is equivalent to passing `weights=VGG16_Weights.IMAGENET1K_V1`. You can also use `weights=VGG16_Weights.DEFAULT` to get the most up-to-date weights.
+  warnings.warn(msg)
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/nanopyx/liquid/__njit__.py:15: UserWarning: Numba is not installed. Using pure python for _njit_interpolate
+  warnings.warn(
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/nanopyx/liquid/__njit__.py:15: UserWarning: Numba is not installed. Using pure python for njit_shift_magnify
+  warnings.warn(
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/nanopyx/liquid/__njit__.py:15: UserWarning: Numba is not installed. Using pure python for njit_shift_scale_rotate
+  warnings.warn(
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/nanopyx/liquid/_le_mandelbrot_benchmark_.py:17: UserWarning: Numba is not installed. Using pure python for _njit_mandelbrot
+  warnings.warn(
+/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/nanopyx/liquid/_le_mandelbrot_benchmark_.py:17: UserWarning: Numba is not installed. Using pure python for njit_mandelbrot
+  warnings.warn(
+Setting up [LPIPS] perceptual loss: trunk [alex], v[0.1], spatial [off]
+Loading model from: /home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/lpips/weights/v0.1/alex.pth
+Setting up [LPIPS] perceptual loss: trunk [vgg], v[0.1], spatial [off]
+Loading model from: /home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/lpips/weights/v0.1/vgg.pth
+Selecting OpenCL device: NVIDIA GeForce RTX 2080 Ti
+2.8.4
+ReduceOnPlateau
+adam
+{'factor': 0.5, 'monitor': 'val_loss', 'patience': 3}
+{'beta1': 0.5, 'beta2': 0.9, 'epsilon': 1e-07}
+Actual scale factor that will be used is: 2
+
+----------
+cddpm model will be trained with the next configuration
+Dataset: F-actin
+	Train wf path: ../datasets/F-actin/train/training_wf
+	Train gt path: ../datasets/F-actin/train/training_gt
+	Val wf path: ../datasets/F-actin/val/validate_wf
+	Val gt path: ../datasets/F-actin/val/validate_gt
+	Test wf path: ../datasets/F-actin/test/test_wf/level_01
+	Test gt path: ../datasets/F-actin/test/test_gt
+Preprocessing info:
+	Scale factor: 2
+	Crappifier method: downsampleonly
+	Patch size: 64 x 64
+Training info:
+	Epochs: 100
+	Batchsize: 4
+	Gen learning rate: 0.001
+	Disc learning rate: 0.001
+	Gen optimizer: adam
+	Disc optimizer: adam
+	Gen scheduler: ReduceOnPlateau
+	Disc scheduler: ReduceOnPlateau
+----------
+input_data_shape: (372, 64, 64, 1)
+output_data_shape: (372, 128, 128, 1)
+Model configuration:
+	Model_name: cddpm
+	Optimizer: <keras.optimizer_v2.adam.Adam object at 0x7f8c4d226f40>
+	LR scheduler: <keras.callbacks.ReduceLROnPlateau object at 0x7f8c4d26e490>
+	Loss: <function mean_absolute_error at 0x7f8b647ff280>
+	Eval: <function mean_squared_error at 0x7f8b647f7f70>
+Trainable parameteres: 7780738 
+Non trainable parameters: 11396.0 
+Total parameters: 7792134.0
+Training is going to start:
+Epoch 1/100
+2023-07-10 23:06:48.201689: W tensorflow/stream_executor/gpu/asm_compiler.cc:80] Couldn't get ptxas version string: INTERNAL: Couldn't invoke ptxas --version
+2023-07-10 23:06:48.202770: W tensorflow/stream_executor/gpu/redzone_allocator.cc:314] INTERNAL: Failed to launch ptxas
+Relying on driver to perform ptx compilation. 
+Modify $PATH to customize ptxas location.
+This message will be only logged once.
+noisy_images: (4, 128, 128, 1)
+lr_images: (None, 128, 128, 1)
+noisy_images: (4, 128, 128, 1)
+lr_images: (None, 128, 128, 1)
+      1/Unknown - 17s 17s/step - n_loss: 0.7995      2/Unknown - 17s 108ms/step - n_loss: 0.7974      3/Unknown - 19s 681ms/step - n_loss: 0.7901      4/Unknown - 20s 839ms/step - n_loss: 0.7785      5/Unknown - 21s 926ms/step - n_loss: 0.7578      6/Unknown - 22s 973ms/step - n_loss: 0.7263      7/Unknown - 24s 1s/step - n_loss: 0.7020         8/Unknown - 25s 1s/step - n_loss: 0.6658      9/Unknown - 26s 1s/step - n_loss: 0.6377     10/Unknown - 29s 1s/step - n_loss: 0.6180     11/Unknown - 31s 1s/step - n_loss: 0.6046     12/Unknown - 34s 1s/step - n_loss: 0.5803     13/Unknown - 35s 1s/step - n_loss: 0.5613     14/Unknown - 36s 1s/step - n_loss: 0.5424     15/Unknown - 37s 1s/step - n_loss: 0.5295     16/Unknown - 38s 1s/step - n_loss: 0.5117     17/Unknown - 40s 1s/step - n_loss: 0.5001     18/Unknown - 41s 1s/step - n_loss: 0.4869     19/Unknown - 42s 1s/step - n_loss: 0.4744     20/Unknown - 43s 1s/step - n_loss: 0.4609     21/Unknown - 44s 1s/step - n_loss: 0.4513     22/Unknown - 45s 1s/step - n_loss: 0.4397     23/Unknown - 47s 1s/step - n_loss: 0.4343     24/Unknown - 48s 1s/step - n_loss: 0.4285     25/Unknown - 49s 1s/step - n_loss: 0.4211     26/Unknown - 50s 1s/step - n_loss: 0.4157     27/Unknown - 51s 1s/step - n_loss: 0.4079     28/Unknown - 52s 1s/step - n_loss: 0.4039     29/Unknown - 54s 1s/step - n_loss: 0.3972     30/Unknown - 55s 1s/step - n_loss: 0.3927     31/Unknown - 56s 1s/step - n_loss: 0.3872     32/Unknown - 57s 1s/step - n_loss: 0.3812     33/Unknown - 58s 1s/step - n_loss: 0.3783     34/Unknown - 59s 1s/step - n_loss: 0.3754     35/Unknown - 61s 1s/step - n_loss: 0.3721     36/Unknown - 62s 1s/step - n_loss: 0.3666     37/Unknown - 63s 1s/step - n_loss: 0.3624     38/Unknown - 64s 1s/step - n_loss: 0.3577     39/Unknown - 65s 1s/step - n_loss: 0.3524     40/Unknown - 66s 1s/step - n_loss: 0.3492     41/Unknown - 68s 1s/step - n_loss: 0.3468     42/Unknown - 69s 1s/step - n_loss: 0.3435     43/Unknown - 70s 1s/step - n_loss: 0.3405     44/Unknown - 71s 1s/step - n_loss: 0.3386     45/Unknown - 72s 1s/step - n_loss: 0.3362     46/Unknown - 73s 1s/step - n_loss: 0.3327     47/Unknown - 75s 1s/step - n_loss: 0.3302     48/Unknown - 76s 1s/step - n_loss: 0.3279     49/Unknown - 77s 1s/step - n_loss: 0.3290     50/Unknown - 78s 1s/step - n_loss: 0.3265     51/Unknown - 79s 1s/step - n_loss: 0.3257     52/Unknown - 81s 1s/step - n_loss: 0.3236     53/Unknown - 82s 1s/step - n_loss: 0.3227     54/Unknown - 83s 1s/step - n_loss: 0.3208     55/Unknown - 84s 1s/step - n_loss: 0.3187     56/Unknown - 85s 1s/step - n_loss: 0.3155     57/Unknown - 87s 1s/step - n_loss: 0.3140     58/Unknown - 88s 1s/step - n_loss: 0.3120     59/Unknown - 89s 1s/step - n_loss: 0.3100     60/Unknown - 90s 1s/step - n_loss: 0.3079     61/Unknown - 91s 1s/step - n_loss: 0.3070     62/Unknown - 92s 1s/step - n_loss: 0.3068     63/Unknown - 94s 1s/step - n_loss: 0.3056     64/Unknown - 95s 1s/step - n_loss: 0.3044     65/Unknown - 96s 1s/step - n_loss: 0.3018     66/Unknown - 97s 1s/step - n_loss: 0.3008     67/Unknown - 98s 1s/step - n_loss: 0.3009     68/Unknown - 99s 1s/step - n_loss: 0.2992     69/Unknown - 101s 1s/step - n_loss: 0.2992     70/Unknown - 102s 1s/step - n_loss: 0.2983     71/Unknown - 103s 1s/step - n_loss: 0.2978     72/Unknown - 104s 1s/step - n_loss: 0.2971     73/Unknown - 105s 1s/step - n_loss: 0.2955     74/Unknown - 106s 1s/step - n_loss: 0.2946     75/Unknown - 108s 1s/step - n_loss: 0.2933     76/Unknown - 109s 1s/step - n_loss: 0.2927     77/Unknown - 110s 1s/step - n_loss: 0.2916     78/Unknown - 111s 1s/step - n_loss: 0.2902     79/Unknown - 112s 1s/step - n_loss: 0.2885     80/Unknown - 113s 1s/step - n_loss: 0.2868     81/Unknown - 115s 1s/step - n_loss: 0.2853     82/Unknown - 116s 1s/step - n_loss: 0.2848     83/Unknown - 117s 1s/step - n_loss: 0.2836     84/Unknown - 118s 1s/step - n_loss: 0.2822     85/Unknown - 119s 1s/step - n_loss: 0.2824     86/Unknown - 120s 1s/step - n_loss: 0.2823     87/Unknown - 121s 1s/step - n_loss: 0.2814     88/Unknown - 123s 1s/step - n_loss: 0.2808     89/Unknown - 124s 1s/step - n_loss: 0.2798     90/Unknown - 125s 1s/step - n_loss: 0.2794     91/Unknown - 126s 1s/step - n_loss: 0.2787     92/Unknown - 127s 1s/step - n_loss: 0.2770     93/Unknown - 128s 1s/step - n_loss: 0.2765noisy_images: (4, 128, 128, 1)
+lr_images: (None, 128, 128, 1)
+Error executing job with overrides: []
+Traceback (most recent call last):
+  File "/data/ihidalgo/MicroscoPy/evaluate_0.py", line 78, in my_app
+    model = train_configuration(
+  File "/data/ihidalgo/MicroscoPy/microscopy/trainers.py", line 950, in train_configuration
+    return model_trainer.launch()
+  File "/data/ihidalgo/MicroscoPy/microscopy/trainers.py", line 206, in launch
+    self.train_model()
+  File "/data/ihidalgo/MicroscoPy/microscopy/trainers.py", line 455, in train_model
+    history = model.fit(
+  File "/home/ihidalgo/miniconda3/envs/microscopy/lib/python3.9/site-packages/keras/utils/traceback_utils.py", line 67, in error_handler
+    raise e.with_traceback(filtered_tb) from None
+  File "/data/ihidalgo/MicroscoPy/microscopy/tensorflow_callbacks.py", line 24, in on_epoch_end
+    y_pred = self.model.predict(self.x_test)
+TypeError: predict() missing 2 required positional arguments: 'num_images' and 'diffusion_steps'
+
+Set the environment variable HYDRA_FULL_ERROR=1 for a complete stack trace.

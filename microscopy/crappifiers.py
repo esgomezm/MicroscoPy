@@ -177,6 +177,12 @@ def fluo_poisson_crappify(img, scale, lam=1.0):
     return img
 
 
+def em_gaussian_crappify(img, scale, mu=-0.3, sigma=0.3):
+    img = transform.resize(img, (img.shape[0] // scale, img.shape[1] // scale), order=1)
+    noise = np.random.normal(mu, sigma, x.shape)
+    x = np.clip(x + noise, 0, 1)
+    return img
+
 def apply_crappifier(x, scale, crappifier_name):
     if crappifier_name in CRAPPIFIER_DICT:
         return norm(CRAPPIFIER_DICT[crappifier_name](norm(x), scale).astype(np.float32))
@@ -204,4 +210,5 @@ CRAPPIFIER_DICT = {
     "fluo_crappify": fluo_crappify,
     "em_poisson_crappify": em_poisson_crappify,
     "fluo_poisson_crappify": fluo_poisson_crappify,
+    "em_gaussian_crappify": em_gaussian_crappify,
 }

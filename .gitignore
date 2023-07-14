@@ -8,3 +8,5 @@ dist/*
 outputs/*
 old_results/*
 lightning_logs/*
+experiment_results/*
+notebooks/secondary/*

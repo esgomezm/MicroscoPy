@@ -54,10 +54,6 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
         predicted_image = predicted_image_list[i][:, :, 0]
         wf_image = wf_image_list[i][:, :, 0]
 
-        print("gt_image.shape: {}".format(gt_image.shape))
-        print("predicted_image.shape: {}".format(predicted_image.shape))
-        print("wf_image.shape: {}".format(wf_image.shape))
-
         gt_image_piq = np.expand_dims(gt_image, axis=0)
         gt_image_piq = np.expand_dims(gt_image_piq, axis=0)
         if gt_image_piq.dtype == np.uint16:
@@ -102,6 +98,8 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
         print(
             f"predicted_image: {wf_image.shape} - {wf_image.min()} {wf_image.max()} - {wf_image.dtype}"
         )
+
+        assert wf_image.min() <= 0. and wf_image.max() >= 0.
 
         metrics_dict["mse"].append(
             skimage_metrics.mean_squared_error(gt_image, predicted_image)

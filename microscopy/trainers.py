@@ -271,6 +271,8 @@ class TensorflowTrainer(ModelsTrainer):
         self.library_name = "tensorflow"
 
     def prepare_data(self):
+        
+        utils.set_seed(self.seed)
         train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
             filenames=self.train_filenames,
             hr_data_path=self.train_hr_path,
@@ -286,6 +288,20 @@ class TensorflowTrainer(ModelsTrainer):
             vertical_flip=self.vertical_flip,
         )
 
+        training_images_path = os.path.join(self.saving_path, "special_folder")
+        os.makedirs(training_images_path, exist_ok=True)
+        cont = 0
+        for hr_img, lr_img in train_generator:
+            for i in range(hr_img.shape[0]):
+                io.imsave(os.path.join(training_images_path, "hr" + str(cont) + ".tif"), np.array(hr_img[i,...]))
+                io.imsave(os.path.join(training_images_path, "lr" + str(cont) + ".tif"), np.array(lr_img[i,...]))
+                if cont > 100:
+                    break
+                cont += 1
+            if cont > 100:
+                break
+
+        utils.set_seed(self.seed)
         val_generator, _, _, _ = datasets.TFDataset(
             filenames=self.val_filenames,
             hr_data_path=self.val_hr_path,
@@ -338,6 +354,8 @@ class TensorflowTrainer(ModelsTrainer):
 
     def train_model(self):
 
+        utils.set_seed(self.seed)
+
         callbacks = []
 
         lr_schedule = optimizer_scheduler_utils.select_lr_schedule(
@@ -353,7 +371,7 @@ class TensorflowTrainer(ModelsTrainer):
                     additional_configuration=self.config,
         )
 
-        if self.lr_scheduler_name == "CosineDecay":
+        if self.lr_scheduler_name in ["CosineDecay", "MultiStepScheduler"]:
             self.optim = optimizer_scheduler_utils.select_optimizer(
                 library_name=self.library_name,
                 optimizer_name=self.optimizer_name,
@@ -385,6 +403,8 @@ class TensorflowTrainer(ModelsTrainer):
 
         loss_funct = tf.keras.losses.mean_absolute_error
         eval_metric = tf.keras.losses.mean_squared_error
+
+        utils.set_seed(self.seed)
 
         model.compile(
             optimizer=self.optim,
@@ -424,7 +444,7 @@ class TensorflowTrainer(ModelsTrainer):
             x_val = x
             y_val = y
             break
-
+        
         plt_saving_path = os.path.join(self.saving_path, "training_images")
         os.makedirs(plt_saving_path, exist_ok=True)
         plot_callback = tensorflow_callbacks.PerformancePlotCallback(
@@ -445,11 +465,15 @@ class TensorflowTrainer(ModelsTrainer):
                 )
             )
 
+        utils.set_seed(self.seed)
+
         if self.model_name == "cddpm":
             # calculate mean and variance of training dataset for normalization
             model.normalizer.adapt(self.train_generator.map(lambda x, y: x))
 
         start = time.time()
+
+        utils.set_seed(self.seed)
 
         print("Training is going to start:")
         history = model.fit(
@@ -479,11 +503,16 @@ class TensorflowTrainer(ModelsTrainer):
         np.save(self.saving_path + "/train_metrics/time.npy", np.array([dt]))
 
     def predict_images(self):
+        
+        utils.set_seed(self.seed)
+
         ground_truths = []
         widefields = []
         predictions = []
         print("Prediction is going to start:")
         for test_filename in self.test_filenames:
+            
+            utils.set_seed(self.seed)
             lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
                 hr_data_path=self.test_hr_path,
                 lr_data_path=self.test_lr_path,
@@ -546,6 +575,7 @@ class TensorflowTrainer(ModelsTrainer):
                     self.config.model.others.positional_encoding_channels,
                 )
 
+            utils.set_seed(self.seed)
             optim = optimizer_scheduler_utils.select_optimizer(
                 library_name=self.library_name,
                 optimizer_name=self.optimizer_name,
@@ -567,6 +597,7 @@ class TensorflowTrainer(ModelsTrainer):
             loss_funct = "mean_absolute_error"
             eval_metric = "mean_squared_error"
 
+            utils.set_seed(self.seed)
             model.compile(
                 optimizer=optim, loss=loss_funct, metrics=[eval_metric, utils.ssim_loss]
             )
@@ -661,6 +692,8 @@ class PytorchTrainer(ModelsTrainer):
         )
 
     def train_model(self):
+        
+        utils.set_seed(self.seed)
         model = model_utils.select_model(
             model_name=self.model_name,
             input_shape=None,
@@ -697,7 +730,7 @@ class PytorchTrainer(ModelsTrainer):
             utils.print_info("train_model() - lr", data["lr"])
             utils.print_info("train_model() - hr", data["hr"])
 
-        os.makedirs(self.saving_path + "/Quality Control", exist_ok=True)
+        os.mkdir(self.saving_path + "/Quality Control", exist_ok=True)
         logger = CSVLogger(self.saving_path + "/Quality Control", name="Logger")
 
         lr_monitor = LearningRateMonitor(logging_interval="epoch")
@@ -710,6 +743,7 @@ class PytorchTrainer(ModelsTrainer):
             filename="{epoch:02d}-{val_ssim:.3f}",
         )
 
+        utils.set_seed(self.seed)
         trainer = Trainer(
             accelerator="gpu",
             devices=1,
@@ -720,6 +754,7 @@ class PytorchTrainer(ModelsTrainer):
 
         print("Training is going to start:")
 
+        utils.set_seed(self.seed)
         start = time.time()
 
         trainer.fit(model)
@@ -828,6 +863,7 @@ class PytorchTrainer(ModelsTrainer):
 
     def predict_images(self):
 
+        utils.set_seed(self.seed)
         model = model_utils.select_model(
             model_name=self.model_name,
             scale_factor=self.scale_factor,
@@ -840,6 +876,7 @@ class PytorchTrainer(ModelsTrainer):
 
         trainer = Trainer(accelerator="gpu", devices=1)
 
+        utils.set_seed(self.seed)
         dataset = datasets.PytorchDataset(
             hr_data_path=self.test_hr_path,
             lr_data_path=self.test_lr_path,
@@ -851,6 +888,7 @@ class PytorchTrainer(ModelsTrainer):
             datagen_sampling_pdf=self.datagen_sampling_pdf,
         )
 
+        utils.set_seed(self.seed)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
         print("Prediction is going to start:")

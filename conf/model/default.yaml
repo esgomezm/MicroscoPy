@@ -15,6 +15,8 @@ optim:
     factor: 0.5
     monitor: val_loss
     patience: 3
+  OneCycle: 0
+  CosineDecay: 0
   adam:
     beta1: 0.5
     beta2: 0.9
@@ -28,6 +30,9 @@ optim:
     beta1: 0.5
     beta2: 0.9
     epsilon: 1.0e-07
+  rms_prop:
+    rho: 0.9
+    momentum: 0.0
   early_stop:
     loss: val_ssim_loss
     mode: max

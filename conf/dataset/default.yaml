@@ -1,5 +1,5 @@
 EM:
-  crappifier: em_poisson_crappify
+  crappifier: em_gaussian_crappify
   data_paths:
   - null
   - train

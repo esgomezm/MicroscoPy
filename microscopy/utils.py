@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import os
-
+import random
 import torch
 
 import yaml
@@ -24,18 +24,31 @@ class bcolors:
     WARNING = "\033[31m"
 
 
-def set_seed(seedValue=42):
+def set_seed(seed_value=42):
     """Sets the seed on multiple python modules to obtain results as
     reproducible as possible.
     Args:
     seedValue (int, optional): seed value.
     """
-    np.random.seed(seed=seedValue)
-    tf.random.set_seed(seedValue)
-    os.environ["PYTHONHASHSEED"] = str(seedValue)
-    torch.manual_seed(seedValue)
-    torch.cuda.manual_seed_all(seedValue)
 
+    # Set the seed for the random module
+    random.seed(seed_value)
+
+    # Set the seed for NumPy
+    np.random.seed(seed_value)
+
+    # Set the seed for PyTorch (if installed)
+    if torch.__version__ >= "1.0":
+        torch.manual_seed(seed_value)
+        torch.cuda.manual_seed(seed_value)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
+    # Set the seed for TensorFlow (if installed)
+    if tf.__version__ >= "2.0":
+        tf.random.set_seed(seed_value)
+    elif tf.__version__ >= "1.0":
+        tf.set_random_seed(seed_value)
 
 def print_info(image_name, data):
     """
