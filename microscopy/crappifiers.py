@@ -177,10 +177,10 @@ def fluo_poisson_crappify(img, scale, lam=1.0):
     return img
 
 
-def em_gaussian_crappify(img, scale, mu=-0.3, sigma=0.3):
-    img = transform.resize(img, (img.shape[0] // scale, img.shape[1] // scale), order=1)
-    noise = np.random.normal(mu, sigma, x.shape)
-    x = np.clip(x + noise, 0, 1)
+def em_gaussian_crappify(img, scale, mu=-0.1, sigma=0.15, scalar=0.9):
+    img = norm(npzoom(img, 1/scale, order=1))
+    noise = np.random.normal(mu, sigma, img.shape)
+    img = norm(img + scalar*noise)
     return img
 
 def apply_crappifier(x, scale, crappifier_name):

@@ -17,13 +17,13 @@ def load_path(dataset_root, dataset_name, folder):
 def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["F-actin"] #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
-    model_combination = ["unet"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
-    batch_size_combination = [4] 
-    num_epochs_combination = [5]
+    model_combination = ["rcan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
+    batch_size_combination = [8] 
+    num_epochs_combination = [10]
     lr_combination = [(0.001,0.001)]
     scheduler_combination = ['OneCycle'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW' 'adamax', 'rms_prop', 'sgd'
-    base_folder = 'experiment_results'
+    base_folder = 'test_ainhoa_2'
     
     for dataset_name in dataset_combination:  
         cfg.dataset_name = dataset_name
@@ -85,7 +85,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=0
+                                    verbose=1
                                 )
                                 del model
 

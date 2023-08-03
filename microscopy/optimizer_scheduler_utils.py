@@ -155,6 +155,8 @@ def select_tensorflow_lr_schedule(
             factor=additional_configuration.used_sched.factor,
             patience=additional_configuration.used_sched.patience,
             min_lr=(learning_rate / 10),
+            mode=additional_configuration.used_sched.mode,
+            verbose=1
         )
     elif lr_scheduler_name == "CosineDecay":
         decay_steps = data_len * num_epochs
@@ -162,12 +164,14 @@ def select_tensorflow_lr_schedule(
             learning_rate, decay_steps, alpha=0.0, name=None
         )
     elif lr_scheduler_name == "MultiStepScheduler":
+        total_steps = data_len * num_epochs
+        lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
         return tensorflow_callbacks.MultiStepScheduler(
             learning_rate,
-            lr_steps=additional_configuration.used_sched.lr_steps,
-            lr_rate_decay=additional_configuration.used_sched.lr_rate_decay
+            lr_steps=lr_steps,
+            lr_rate_decay=additional_configuration.used_sched.lr_rate_decay # 0.5
         )
-    elif lr_scheduler_name is None:
+    elif lr_scheduler_name is None or lr_scheduler_name == "Fixed":
         return None
     else:
         raise Exception("Not available Learning rate Scheduler.")

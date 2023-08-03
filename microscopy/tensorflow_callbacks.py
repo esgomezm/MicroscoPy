@@ -60,7 +60,10 @@ class LearningRateObserver(Callback):
         self.epoch_lrs.append(lr)
 
     def obtain_lrs(self):
-        return self.epoch_lrs
+        if isinstance(self.epoch_lrs[0], np.float32):
+            return self.epoch_lrs
+        else:
+            return self.epoch_lrs[0]
 
 
 def MultiStepScheduler(
@@ -73,7 +76,6 @@ def MultiStepScheduler(
     return tf.keras.optimizers.schedules.PiecewiseConstantDecay(
         boundaries=lr_steps, values=lr_steps_value
     )
-
 
 class CosineAnnealer:
     def __init__(self, start, end, steps):

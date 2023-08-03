@@ -6,15 +6,11 @@ esrganplus:
 optim:
   MultiStepScheduler:
     lr_rate_decay: 0.5
-    lr_steps:
-    - 50000
-    - 100000
-    - 200000
-    - 300000
   ReduceOnPlateau:
     factor: 0.5
-    monitor: val_loss
-    patience: 3
+    monitor: val_ssim_loss
+    patience: 10
+    mode: max
   OneCycle: 0
   CosineDecay: 0
   adam:

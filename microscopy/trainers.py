@@ -116,8 +116,6 @@ class ModelsTrainer:
 
         self.verbose = verbose
 
-        utils.set_seed(self.seed)
-
         save_folder = "scale" + str(self.scale_factor)
 
         if self.additional_folder:
@@ -132,9 +130,8 @@ class ModelsTrainer:
             os.path.join(self.saving_path, "train_configuration.yaml"),
         )
 
-
+        utils.set_seed(self.seed)
         # To calculate the input and output shape and the actual scale factor 
-
         (
             _,
             train_input_shape,
@@ -204,6 +201,22 @@ class ModelsTrainer:
     def launch(self):
         self.prepare_data()
         self.train_model()
+
+        # if self.data_name in ['ER', 'MT', 'F-actin']:
+        #     dataset_levels = {'ER':6, 'MT':9, 'F-actin':12}
+        #     levels = dataset_levels[self.data_name]
+        #     for i in range(1, levels):
+        #         level_folder = f"level_{i:02d}"
+        #         if "level" in self.test_lr_path:
+        #             self.test_lr_path = os.path.join(self.test_lr_path[:-9], level_folder)
+        #         else:
+        #             self.test_lr_path = os.path.join(self.test_lr_path, level_folder)
+        #         self.predict_images(result_folder_name=level_folder)
+        #         self.eval_model(result_folder_name=level_folder)
+        # else:
+        #     self.predict_images()
+        #     self.eval_model()
+
         self.predict_images()
         self.eval_model()
 
@@ -215,10 +228,12 @@ class ModelsTrainer:
     def train_model(self):
         raise NotImplementedError("train_model() not implemented.")
 
-    def predict_images(self):
+    def predict_images(self, result_folder_name=""):
         raise NotImplementedError("predict_images() not implemented")
 
-    def eval_model(self):
+    def eval_model(self, result_folder_name=""):
+        utils.set_seed(self.seed)
+
         if self.verbose:
             utils.print_info("eval_model() - self.Y_test", self.Y_test)
             utils.print_info("eval_model() - self.predictions", self.predictions)
@@ -232,13 +247,13 @@ class ModelsTrainer:
             test_metric_indexes=self.test_metric_indexes,
         )
 
-        os.makedirs(self.saving_path + "/test_metrics", exist_ok=True)
+        os.makedirs(os.path.join(self.saving_path, "test_metrics", result_folder_name), exist_ok=True)
 
         for key in metrics_dict.keys():
             if len(metrics_dict[key]) > 0:
                 print("{}: {}".format(key, np.mean(metrics_dict[key])))
                 np.save(
-                    self.saving_path + "/test_metrics/" + key + ".npy",
+                    os.path.join(self.saving_path, "test_metrics", result_folder_name, f"{key}.npy"),
                     metrics_dict[key],
                 )
 
@@ -271,8 +286,8 @@ class TensorflowTrainer(ModelsTrainer):
         self.library_name = "tensorflow"
 
     def prepare_data(self):
-        
         utils.set_seed(self.seed)
+        
         train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
             filenames=self.train_filenames,
             hr_data_path=self.train_hr_path,
@@ -288,20 +303,19 @@ class TensorflowTrainer(ModelsTrainer):
             vertical_flip=self.vertical_flip,
         )
 
-        training_images_path = os.path.join(self.saving_path, "special_folder")
-        os.makedirs(training_images_path, exist_ok=True)
-        cont = 0
-        for hr_img, lr_img in train_generator:
-            for i in range(hr_img.shape[0]):
-                io.imsave(os.path.join(training_images_path, "hr" + str(cont) + ".tif"), np.array(hr_img[i,...]))
-                io.imsave(os.path.join(training_images_path, "lr" + str(cont) + ".tif"), np.array(lr_img[i,...]))
-                if cont > 100:
-                    break
-                cont += 1
-            if cont > 100:
-                break
+        # training_images_path = os.path.join(self.saving_path, "special_folder")
+        # os.makedirs(training_images_path, exist_ok=True)
+        # cont = 0
+        # for hr_img, lr_img in train_generator:
+        #     for i in range(hr_img.shape[0]):
+        #         io.imsave(os.path.join(training_images_path, "hr" + str(cont) + ".tif"), np.array(hr_img[i,...]))
+        #         io.imsave(os.path.join(training_images_path, "lr" + str(cont) + ".tif"), np.array(lr_img[i,...]))
+        #         if cont > 100:
+        #             break
+        #         cont += 1
+        #     if cont > 100:
+        #         break
 
-        utils.set_seed(self.seed)
         val_generator, _, _, _ = datasets.TFDataset(
             filenames=self.val_filenames,
             hr_data_path=self.val_hr_path,
@@ -317,9 +331,34 @@ class TensorflowTrainer(ModelsTrainer):
             vertical_flip=self.vertical_flip,
         )
 
-        self.input_data_shape = train_input_shape
-        self.output_data_shape = train_output_shape
+        '''
+        X_train, Y_train = datasets.create_random_patches( self.train_lr_path,
+                                                            self.train_hr_path,
+                                                            self.train_filenames,
+                                                            2, 1,
+                                                            [self.lr_patch_size_x, self.lr_patch_size_y])
+        actual_scale_factor = 2
 
+        train_generator = datasets.get_train_val_generators(X_data=X_train,
+                                                                Y_data=Y_train,
+                                                                batch_size=self.batch_size)
+
+        self.input_data_shape = X_train.shape
+        self.output_data_shape = Y_train.shape
+
+
+        X_val, Y_val = datasets.create_random_patches( self.val_lr_path,
+                                                            self.val_hr_path,
+                                                            self.val_filenames,
+                                                            2, 1,
+                                                            [self.lr_patch_size_x, self.lr_patch_size_y])
+        actual_scale_factor = 2
+
+        val_generator = datasets.get_train_val_generators(X_data=X_val,
+                                                                Y_data=Y_val,
+                                                                batch_size=self.batch_size)
+        '''
+        
         if self.verbose:
             print("input_data_shape: {}".format(self.input_data_shape))
             print("output_data_shape: {}".format(self.output_data_shape))
@@ -357,7 +396,6 @@ class TensorflowTrainer(ModelsTrainer):
         utils.set_seed(self.seed)
 
         callbacks = []
-
         lr_schedule = optimizer_scheduler_utils.select_lr_schedule(
                     library_name=self.library_name,
                     lr_scheduler_name=self.lr_scheduler_name,
@@ -389,7 +427,8 @@ class TensorflowTrainer(ModelsTrainer):
                 parameters=None,
                 additional_configuration=self.config
             )
-            callbacks.append(lr_schedule)
+            if not lr_schedule is None:
+                callbacks.append(lr_schedule)
 
         model = model_utils.select_model(
             model_name=self.model_name,
@@ -403,8 +442,6 @@ class TensorflowTrainer(ModelsTrainer):
 
         loss_funct = tf.keras.losses.mean_absolute_error
         eval_metric = tf.keras.losses.mean_squared_error
-
-        utils.set_seed(self.seed)
 
         model.compile(
             optimizer=self.optim,
@@ -440,6 +477,10 @@ class TensorflowTrainer(ModelsTrainer):
         )
         callbacks.append(earlystopper)
 
+        # callback for saving the learning rate
+        lr_observer = tensorflow_callbacks.LearningRateObserver()
+        callbacks.append(lr_observer)
+
         for x, y in self.val_generator:
             x_val = x
             y_val = y
@@ -448,7 +489,7 @@ class TensorflowTrainer(ModelsTrainer):
         plt_saving_path = os.path.join(self.saving_path, "training_images")
         os.makedirs(plt_saving_path, exist_ok=True)
         plot_callback = tensorflow_callbacks.PerformancePlotCallback(
-            x_val, y_val, plt_saving_path, frequency=5, is_cddpm=self.model_name=="cddpm"
+            x_val, y_val, plt_saving_path, frequency=10, is_cddpm=self.model_name=="cddpm"
         )
         callbacks.append(plot_callback)
 
@@ -465,21 +506,19 @@ class TensorflowTrainer(ModelsTrainer):
                 )
             )
 
-        utils.set_seed(self.seed)
-
         if self.model_name == "cddpm":
             # calculate mean and variance of training dataset for normalization
             model.normalizer.adapt(self.train_generator.map(lambda x, y: x))
 
         start = time.time()
 
-        utils.set_seed(self.seed)
-
         print("Training is going to start:")
         history = model.fit(
             self.train_generator,
             validation_data=self.val_generator,
             epochs=self.num_epochs,
+            validation_steps=np.ceil(len(self.val_filenames)/self.batch_size),
+            steps_per_epoch=np.ceil(len(self.train_filenames)/self.batch_size),
             callbacks=callbacks,
         )
 
@@ -501,18 +540,17 @@ class TensorflowTrainer(ModelsTrainer):
                 history.history[key],
             )
         np.save(self.saving_path + "/train_metrics/time.npy", np.array([dt]))
+        np.save(self.saving_path + "/train_metrics/lr.npy", np.array(lr_observer.epoch_lrs))
 
-    def predict_images(self):
-        
+    def predict_images(self, result_folder_name=""):
+
         utils.set_seed(self.seed)
-
         ground_truths = []
         widefields = []
         predictions = []
         print("Prediction is going to start:")
         for test_filename in self.test_filenames:
             
-            utils.set_seed(self.seed)
             lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
                 hr_data_path=self.test_hr_path,
                 lr_data_path=self.test_lr_path,
@@ -575,7 +613,6 @@ class TensorflowTrainer(ModelsTrainer):
                     self.config.model.others.positional_encoding_channels,
                 )
 
-            utils.set_seed(self.seed)
             optim = optimizer_scheduler_utils.select_optimizer(
                 library_name=self.library_name,
                 optimizer_name=self.optimizer_name,
@@ -597,7 +634,6 @@ class TensorflowTrainer(ModelsTrainer):
             loss_funct = "mean_absolute_error"
             eval_metric = "mean_squared_error"
 
-            utils.set_seed(self.seed)
             model.compile(
                 optimizer=optim, loss=loss_funct, metrics=[eval_metric, utils.ssim_loss]
             )
@@ -615,7 +651,8 @@ class TensorflowTrainer(ModelsTrainer):
                     scale=self.scale_factor,
                 )
 
-            aux_prediction = datasets.normalization(aux_prediction)
+            # aux_prediction = datasets.normalization(aux_prediction)
+            aux_prediction = np.clip(aux_prediction, a_min=0.0, a_max=1.0)
 
             predictions.append(aux_prediction[0, ...])
 
@@ -632,11 +669,11 @@ class TensorflowTrainer(ModelsTrainer):
             utils.print_info("predict_images() - X_test", self.X_test)
 
         # Save the predictions
-        os.makedirs(self.saving_path + "/predicted_images", exist_ok=True)
+        os.makedirs(os.path.join(self.saving_path, "predicted_images", result_folder_name), exist_ok=True)
 
         for i, image in enumerate(predictions):
             tf.keras.preprocessing.image.save_img(
-                self.saving_path + "/predicted_images/" + self.test_filenames[i],
+                os.path.join(self.saving_path, "predicted_images", result_folder_name, self.test_filenames[i]),
                 image,
                 data_format=None,
                 file_format=None,
@@ -692,8 +729,8 @@ class PytorchTrainer(ModelsTrainer):
         )
 
     def train_model(self):
-        
         utils.set_seed(self.seed)
+
         model = model_utils.select_model(
             model_name=self.model_name,
             input_shape=None,
@@ -742,8 +779,7 @@ class PytorchTrainer(ModelsTrainer):
             save_last=True,
             filename="{epoch:02d}-{val_ssim:.3f}",
         )
-
-        utils.set_seed(self.seed)
+        
         trainer = Trainer(
             accelerator="gpu",
             devices=1,
@@ -753,8 +789,6 @@ class PytorchTrainer(ModelsTrainer):
         )
 
         print("Training is going to start:")
-
-        utils.set_seed(self.seed)
         start = time.time()
 
         trainer.fit(model)
@@ -861,8 +895,7 @@ class PytorchTrainer(ModelsTrainer):
         self.history = []
         print("Train information saved.")
 
-    def predict_images(self):
-
+    def predict_images(self, result_folder_name=""):
         utils.set_seed(self.seed)
         model = model_utils.select_model(
             model_name=self.model_name,
@@ -876,7 +909,6 @@ class PytorchTrainer(ModelsTrainer):
 
         trainer = Trainer(accelerator="gpu", devices=1)
 
-        utils.set_seed(self.seed)
         dataset = datasets.PytorchDataset(
             hr_data_path=self.test_hr_path,
             lr_data_path=self.test_lr_path,
@@ -888,7 +920,6 @@ class PytorchTrainer(ModelsTrainer):
             datagen_sampling_pdf=self.datagen_sampling_pdf,
         )
 
-        utils.set_seed(self.seed)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
         print("Prediction is going to start:")
@@ -944,15 +975,11 @@ class PytorchTrainer(ModelsTrainer):
         # assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
         # assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
 
-
-def train_configuration(
+def get_model_trainer(
     config,
-    train_lr_path,
-    train_hr_path,
-    val_lr_path,
-    val_hr_path,
-    test_lr_path,
-    test_hr_path,
+    train_lr_path, train_hr_path,
+    val_lr_path, val_hr_path,
+    test_lr_path, test_hr_path,
     saving_path,
     verbose=0,
     gpu_id=0,
@@ -960,12 +987,9 @@ def train_configuration(
     if config.model_name in ["wgan", "esrganplus"]:
         model_trainer = PytorchTrainer(
             config,
-            train_lr_path,
-            train_hr_path,
-            val_lr_path,
-            val_hr_path,
-            test_lr_path,
-            test_hr_path,
+            train_lr_path, train_hr_path,
+            val_lr_path,  val_hr_path,
+            test_lr_path, test_hr_path,
             saving_path,
             verbose=verbose,
             gpu_id=gpu_id,
@@ -973,12 +997,42 @@ def train_configuration(
     elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
         model_trainer = TensorflowTrainer(
             config,
-            train_lr_path,
-            train_hr_path,
-            val_lr_path,
-            val_hr_path,
-            test_lr_path,
-            test_hr_path,
+            train_lr_path, train_hr_path,
+            val_lr_path, val_hr_path,
+            test_lr_path, test_hr_path,
+            saving_path,
+            verbose=verbose,
+        )
+    else:
+        raise Exception("Not available model.")
+
+    return model_trainer
+
+def train_configuration(
+    config,
+    train_lr_path, train_hr_path,
+    val_lr_path, val_hr_path,
+    test_lr_path, test_hr_path,
+    saving_path,
+    verbose=0,
+    gpu_id=0,
+):
+    if config.model_name in ["wgan", "esrganplus"]:
+        model_trainer = PytorchTrainer(
+            config,
+            train_lr_path, train_hr_path,
+            val_lr_path,  val_hr_path,
+            test_lr_path, test_hr_path,
+            saving_path,
+            verbose=verbose,
+            gpu_id=gpu_id,
+        )
+    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+        model_trainer = TensorflowTrainer(
+            config,
+            train_lr_path, train_hr_path,
+            val_lr_path, val_hr_path,
+            test_lr_path, test_hr_path,
             saving_path,
             verbose=verbose,
         )
@@ -990,43 +1044,73 @@ def train_configuration(
 
 def predict_configuration(
     config,
-    train_lr_path,
-    train_hr_path,
-    val_lr_path,
-    val_hr_path,
-    test_lr_path,
-    test_hr_path,
+    train_lr_path, train_hr_path,
+    val_lr_path, val_hr_path,
+    test_lr_path, test_hr_path,
     saving_path,
     verbose=0,
     gpu_id=0,
 ):
-    if config.model_name in ["wgan", "esrganplus"]:
-        model_trainer = PytorchTrainer(
-            config,
-            train_lr_path,
-            train_hr_path,
-            val_lr_path,
-            val_hr_path,
-            test_lr_path,
-            test_hr_path,
-            saving_path,
-            verbose=verbose,
-            gpu_id=gpu_id,
-        )
-    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
-        model_trainer = TensorflowTrainer(
-            config,
-            train_lr_path,
-            train_hr_path,
-            val_lr_path,
-            val_hr_path,
-            test_lr_path,
-            test_hr_path,
-            saving_path,
-            verbose=verbose,
-        )
-    else:
-        raise Exception("Not available model.")
 
-    model_trainer.predict_images()
-    model_trainer.eval_model()
+    if config.dataset_name in ['ER', 'MT', 'F-actin']:
+        dataset_levels = {'ER':6, 'MT':9, 'F-actin':12}
+        levels = dataset_levels[config.dataset_name]
+        for i in range(1, levels):
+            level_folder = f"level_{i:02d}"
+            if "level" in test_lr_path:
+                test_lr_path = os.path.join(test_lr_path[:-9], level_folder)
+            else:
+                test_lr_path = os.path.join(test_lr_path, level_folder)
+
+            if config.model_name in ["wgan", "esrganplus"]:
+                model_trainer = PytorchTrainer(
+                    config,
+                    train_lr_path, train_hr_path,
+                    val_lr_path, val_hr_path,
+                    test_lr_path, test_hr_path,
+                    saving_path,
+                    verbose=verbose,
+                    gpu_id=gpu_id,
+                )
+            elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+                model_trainer = TensorflowTrainer(
+                    config,
+                    train_lr_path, train_hr_path,
+                    val_lr_path, val_hr_path,
+                    test_lr_path, test_hr_path,
+                    saving_path,
+                    verbose=verbose,
+                )
+            else:
+                raise Exception("Not available model.")
+
+            model_trainer.predict_images(result_folder_name=level_folder)
+            model_trainer.eval_model(result_folder_name=level_folder)
+    else:
+        if config.model_name in ["wgan", "esrganplus"]:
+            model_trainer = PytorchTrainer(
+                config,
+                train_lr_path, train_hr_path,
+                val_lr_path, val_hr_path,
+                test_lr_path, test_hr_path,
+                saving_path,
+                verbose=verbose,
+                gpu_id=gpu_id,
+            )
+        elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+            model_trainer = TensorflowTrainer(
+                config,
+                train_lr_path, train_hr_path,
+                val_lr_path, val_hr_path,
+                test_lr_path, test_hr_path,
+                saving_path,
+                verbose=verbose,
+            )
+        else:
+            raise Exception("Not available model.")
+
+        model_trainer.predict_images()
+        model_trainer.eval_model()
+
+
+    

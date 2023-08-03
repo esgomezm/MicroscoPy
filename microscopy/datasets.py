@@ -474,6 +474,97 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         return lr_patches, hr_patches
 
+#####
+# TensorFlow old dataset
+#####
+
+import numpy as np
+from skimage.util import img_as_ubyte
+from skimage import io
+from matplotlib import pyplot as plt
+
+# We define a method to create an arbitrary number of random crops of
+# a given size
+def create_random_patches( lr_path, hr_path, file_names, scale, num_patches,
+                          lr_shape ):
+    ''' Create a list of images patches out of a list of images
+    Args:
+        lr_path (string): low resolution (LR) image path (input images).
+        hr_path (string): high resolution (HR) image path (ground truth images).
+        file_names (list): image file names (same for LR and HR images).
+        scale (int): scale factor between LR and HR images. Example: 2.
+        num_patches (int): number of patches for each image.
+        lr_shape (2D array): size of the LR patches. Example: [128, 128].
+
+    Returns:
+        list of image patches (LR) and patches of corresponding labels (HR)
+    '''
+
+    # read training images
+    lr_img = img_as_ubyte( io.imread( lr_path + '/' + file_names[0] ) )
+
+    original_size = lr_img.shape
+
+    input_patches = []
+    output_patches = []
+    for n in range( 0, len( file_names ) ):
+        lr_img = img_as_ubyte( io.imread( lr_path + '/' + file_names[n] ) )
+        hr_img = img_as_ubyte( io.imread( hr_path + '/' + file_names[n] ) )
+        for i in range( num_patches ):
+          r = np.random.randint(0,original_size[0]-lr_shape[0])
+          c = np.random.randint(0,original_size[1]-lr_shape[1])
+          input_patches.append(  lr_img[ r : r + lr_shape[0],
+                                  c : c + lr_shape[1] ] )
+          output_patches.append( hr_img[ r*scale : (r + lr_shape[0])*scale,
+                                  c*scale : (c + lr_shape[1])*scale ])
+    
+    input_patches = normalization(np.array(input_patches)) # normalize between 0 and 1
+    input_patches = np.expand_dims(input_patches, axis=-1)
+
+    output_patches = normalization(np.array(output_patches)) # normalize between 0 and 1
+    output_patches = np.expand_dims(output_patches, axis=-1)
+
+    return input_patches, output_patches
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from skimage import transform
+
+# Random rotation of an image by a multiple of 90 degrees
+def random_90rotation( img ):
+    return transform.rotate(img, 90*np.random.randint( 0, 5 ), preserve_range=True)
+
+# Runtime data augmentation
+def get_train_val_generators(X_data, Y_data,
+                             batch_size=32, seed=42, show_examples=False):
+
+    # Image data generator distortion options
+    data_gen_args = dict( #rotation_range = 45,
+                          #width_shift_range=0.2,
+                          #height_shift_range=0.2,
+                          #shear_range=0.2,
+                          #brightness_range=[1., 1.],
+                          #rescale=1./255,
+                          preprocessing_function=random_90rotation,
+                          horizontal_flip=True,
+                          vertical_flip=True,
+                          fill_mode='reflect')
+
+
+    # Train data, provide the same seed and keyword arguments to the fit and flow methods
+    X_datagen = ImageDataGenerator(**data_gen_args)
+    Y_datagen = ImageDataGenerator(**data_gen_args)
+    X_datagen.fit(X_data, augment=True, seed=seed)
+    Y_datagen.fit(Y_data, augment=True, seed=seed)
+    X_data_augmented = X_datagen.flow(X_data, batch_size=batch_size, shuffle=True, seed=seed)
+    Y_data_augmented = Y_datagen.flow(Y_data, batch_size=batch_size, shuffle=True, seed=seed)
+
+
+    # combine generators into one which yields image and masks
+    train_generator = zip(X_data_augmented, Y_data_augmented)
+
+    return train_generator
+
+print("Created functions for data augmentation")
 
 #####
 # Pytorch dataset

@@ -10,3 +10,6 @@ old_results/*
 lightning_logs/*
 experiment_results/*
 notebooks/secondary/*
+levels/*
+lr_observer/*
+lr_observer_v1/*
