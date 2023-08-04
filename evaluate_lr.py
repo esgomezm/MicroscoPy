@@ -5,7 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -16,13 +16,13 @@ def load_path(dataset_root, dataset_name, folder):
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     
-    dataset_combination = ["MT"] #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
+    dataset_combination = ["LiveFActinDataset"] #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
     model_combination = ["unet"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [8] 
     num_epochs_combination = [50, 200]
-    lr_combination = [(0.001,0.001), (0.005,0.005), (0.0005,0.0005)]
+    lr_combination = [(0.001,0.001), (0.005,0.005)]
     scheduler_combination = ['ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler', 'Fixed'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler', 'Fixed'
-    optimizer_combination = ['adam', 'adamW', 'adamax', 'rms_prop', 'sgd']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
+    optimizer_combination = ['adam', 'adamax', 'rms_prop']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
     base_folder = 'lr_observer'
     
     for dataset_name in dataset_combination:  
@@ -85,7 +85,8 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=1
+                                    verbose=1,
+                                    data_on_memory=1,
                                 )
                                 model_trainer.prepare_data()
                                 model_trainer.train_model()

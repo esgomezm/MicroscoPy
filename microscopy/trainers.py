@@ -36,6 +36,7 @@ class ModelsTrainer:
         test_hr_path,
         saving_path,
         verbose=0,
+        data_on_memory=0,
     ):
         self.data_name = config.dataset_name
 
@@ -115,6 +116,7 @@ class ModelsTrainer:
         self.seed = config.hyperparam.seed
 
         self.verbose = verbose
+        self.data_on_memory = data_on_memory
 
         save_folder = "scale" + str(self.scale_factor)
 
@@ -288,76 +290,79 @@ class TensorflowTrainer(ModelsTrainer):
     def prepare_data(self):
         utils.set_seed(self.seed)
         
-        train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
-            filenames=self.train_filenames,
-            hr_data_path=self.train_hr_path,
-            lr_data_path=self.train_lr_path,
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_method,
-            lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
-            validation_split=0.1,
-            batch_size=self.batch_size,
-            rotation=self.rotation,
-            horizontal_flip=self.horizontal_flip,
-            vertical_flip=self.vertical_flip,
-        )
+        if self.data_on_memory:
+            X_train, Y_train, actual_scale_factor = datasets.extract_random_patches_from_folder( 
+                                                        lr_data_path = self.train_lr_path,
+                                                        hr_data_path = self.train_hr_path,
+                                                        filenames = self.train_filenames,
+                                                        scale_factor = self.scale_factor,
+                                                        lr_patch_shape = (self.lr_patch_size_x, self.lr_patch_size_y),
+                                                        datagen_sampling_pdf = self.datagen_sampling_pdf)
 
-        # training_images_path = os.path.join(self.saving_path, "special_folder")
-        # os.makedirs(training_images_path, exist_ok=True)
-        # cont = 0
-        # for hr_img, lr_img in train_generator:
-        #     for i in range(hr_img.shape[0]):
-        #         io.imsave(os.path.join(training_images_path, "hr" + str(cont) + ".tif"), np.array(hr_img[i,...]))
-        #         io.imsave(os.path.join(training_images_path, "lr" + str(cont) + ".tif"), np.array(lr_img[i,...]))
-        #         if cont > 100:
-        #             break
-        #         cont += 1
-        #     if cont > 100:
-        #         break
-
-        val_generator, _, _, _ = datasets.TFDataset(
-            filenames=self.val_filenames,
-            hr_data_path=self.val_hr_path,
-            lr_data_path=self.val_lr_path,
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_method,
-            lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
-            validation_split=0.1,
-            batch_size=self.batch_size,
-            rotation=self.rotation,
-            horizontal_flip=self.horizontal_flip,
-            vertical_flip=self.vertical_flip,
-        )
-
-        '''
-        X_train, Y_train = datasets.create_random_patches( self.train_lr_path,
-                                                            self.train_hr_path,
-                                                            self.train_filenames,
-                                                            2, 1,
-                                                            [self.lr_patch_size_x, self.lr_patch_size_y])
-        actual_scale_factor = 2
-
-        train_generator = datasets.get_train_val_generators(X_data=X_train,
+            train_generator = datasets.get_train_val_generators(X_data=X_train,
                                                                 Y_data=Y_train,
                                                                 batch_size=self.batch_size)
 
-        self.input_data_shape = X_train.shape
-        self.output_data_shape = Y_train.shape
+            self.input_data_shape = X_train.shape
+            self.output_data_shape = Y_train.shape
 
+            X_val, Y_val, _ = datasets.extract_random_patches_from_folder( 
+                                                        lr_data_path = self.val_lr_path,
+                                                        hr_data_path = self.val_hr_path,
+                                                        filenames = self.val_filenames,
+                                                        scale_factor = self.scale_factor,
+                                                        lr_patch_shape = (self.lr_patch_size_x, self.lr_patch_size_y),
+                                                        datagen_sampling_pdf = self.datagen_sampling_pdf)
 
-        X_val, Y_val = datasets.create_random_patches( self.val_lr_path,
-                                                            self.val_hr_path,
-                                                            self.val_filenames,
-                                                            2, 1,
-                                                            [self.lr_patch_size_x, self.lr_patch_size_y])
-        actual_scale_factor = 2
+            val_generator = datasets.get_train_val_generators(X_data=X_val,
+                                                                    Y_data=Y_val,
+                                                                    batch_size=self.batch_size)
+        else:
+            train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
+                filenames=self.train_filenames,
+                hr_data_path=self.train_hr_path,
+                lr_data_path=self.train_lr_path,
+                scale_factor=self.scale_factor,
+                crappifier_name=self.crappifier_method,
+                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                datagen_sampling_pdf=self.datagen_sampling_pdf,
+                validation_split=0.1,
+                batch_size=self.batch_size,
+                rotation=self.rotation,
+                horizontal_flip=self.horizontal_flip,
+                vertical_flip=self.vertical_flip,
+            )
+            
+            self.input_data_shape = train_input_shape
+            self.output_data_shape = train_output_shape
 
-        val_generator = datasets.get_train_val_generators(X_data=X_val,
-                                                                Y_data=Y_val,
-                                                                batch_size=self.batch_size)
-        '''
+            # training_images_path = os.path.join(self.saving_path, "special_folder")
+            # os.makedirs(training_images_path, exist_ok=True)
+            # cont = 0
+            # for hr_img, lr_img in train_generator:
+            #     for i in range(hr_img.shape[0]):
+            #         io.imsave(os.path.join(training_images_path, "hr" + str(cont) + ".tif"), np.array(hr_img[i,...]))
+            #         io.imsave(os.path.join(training_images_path, "lr" + str(cont) + ".tif"), np.array(lr_img[i,...]))
+            #         if cont > 100:
+            #             break
+            #         cont += 1
+            #     if cont > 100:
+            #         break
+
+            val_generator, _, _, _ = datasets.TFDataset(
+                filenames=self.val_filenames,
+                hr_data_path=self.val_hr_path,
+                lr_data_path=self.val_lr_path,
+                scale_factor=self.scale_factor,
+                crappifier_name=self.crappifier_method,
+                lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
+                datagen_sampling_pdf=self.datagen_sampling_pdf,
+                validation_split=0.1,
+                batch_size=self.batch_size,
+                rotation=self.rotation,
+                horizontal_flip=self.horizontal_flip,
+                vertical_flip=self.vertical_flip,
+            )
         
         if self.verbose:
             print("input_data_shape: {}".format(self.input_data_shape))
@@ -517,8 +522,8 @@ class TensorflowTrainer(ModelsTrainer):
             self.train_generator,
             validation_data=self.val_generator,
             epochs=self.num_epochs,
-            validation_steps=np.ceil(len(self.val_filenames)/self.batch_size),
-            steps_per_epoch=np.ceil(len(self.train_filenames)/self.batch_size),
+            #validation_steps=np.ceil(len(self.val_filenames)/self.batch_size),
+            #steps_per_epoch=np.ceil(len(self.train_filenames)/self.batch_size),
             callbacks=callbacks,
         )
 
@@ -698,6 +703,7 @@ class PytorchTrainer(ModelsTrainer):
         saving_path,
         verbose=0,
         gpu_id=0,
+        data_on_memory=0,
     ):
         super().__init__(
             data_name,
@@ -983,6 +989,7 @@ def get_model_trainer(
     saving_path,
     verbose=0,
     gpu_id=0,
+    data_on_memory=0,
 ):
     if config.model_name in ["wgan", "esrganplus"]:
         model_trainer = PytorchTrainer(
@@ -993,6 +1000,7 @@ def get_model_trainer(
             saving_path,
             verbose=verbose,
             gpu_id=gpu_id,
+            data_on_memory=data_on_memory,
         )
     elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
         model_trainer = TensorflowTrainer(
@@ -1002,6 +1010,7 @@ def get_model_trainer(
             test_lr_path, test_hr_path,
             saving_path,
             verbose=verbose,
+            data_on_memory=data_on_memory,
         )
     else:
         raise Exception("Not available model.")
@@ -1016,6 +1025,7 @@ def train_configuration(
     saving_path,
     verbose=0,
     gpu_id=0,
+    data_on_memory=0,
 ):
     if config.model_name in ["wgan", "esrganplus"]:
         model_trainer = PytorchTrainer(
@@ -1026,6 +1036,7 @@ def train_configuration(
             saving_path,
             verbose=verbose,
             gpu_id=gpu_id,
+            data_on_memory=data_on_memory,
         )
     elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
         model_trainer = TensorflowTrainer(
@@ -1035,6 +1046,7 @@ def train_configuration(
             test_lr_path, test_hr_path,
             saving_path,
             verbose=verbose,
+            data_on_memory=data_on_memory,
         )
     else:
         raise Exception("Not available model.")
@@ -1050,6 +1062,7 @@ def predict_configuration(
     saving_path,
     verbose=0,
     gpu_id=0,
+    data_on_memory=0,
 ):
 
     if config.dataset_name in ['ER', 'MT', 'F-actin']:
@@ -1071,6 +1084,7 @@ def predict_configuration(
                     saving_path,
                     verbose=verbose,
                     gpu_id=gpu_id,
+                    data_on_memory=data_on_memory,
                 )
             elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
                 model_trainer = TensorflowTrainer(
@@ -1080,6 +1094,7 @@ def predict_configuration(
                     test_lr_path, test_hr_path,
                     saving_path,
                     verbose=verbose,
+                    data_on_memory=data_on_memory,
                 )
             else:
                 raise Exception("Not available model.")
@@ -1096,6 +1111,7 @@ def predict_configuration(
                 saving_path,
                 verbose=verbose,
                 gpu_id=gpu_id,
+                data_on_memory=data_on_memory,
             )
         elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
             model_trainer = TensorflowTrainer(
@@ -1105,6 +1121,7 @@ def predict_configuration(
                 test_lr_path, test_hr_path,
                 saving_path,
                 verbose=verbose,
+                data_on_memory=data_on_memory,
             )
         else:
             raise Exception("Not available model.")

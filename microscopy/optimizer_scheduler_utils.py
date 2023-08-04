@@ -84,9 +84,38 @@ def select_pytorch_optimizer(
                     additional_configuration.used_optim.beta1,
                     additional_configuration.used_optim.beta2,
                 ),
+                eps=additional_configuration.used_optim.epsilon
             )
         elif optimizer_name == "rms_prop":
-            return torch.optim.RMSprop(parameters, lr=learning_rate)
+            return torch.optim.RMSprop(parameters, 
+                                       lr=learning_rate,
+                                       betas=(
+                                            additional_configuration.used_optim.beta1,
+                                            additional_configuration.used_optim.beta2,
+                                       ),
+                                       eps=additional_configuration.used_optim.epsilon)
+        elif optimizer_name == "adamax":
+            return torch.optim.Adamax(parameters, 
+                                      lr=learning_rate,
+                                      betas=(
+                                        additional_configuration.used_optim.beta1,
+                                        additional_configuration.used_optim.beta2,
+                                      ),
+                                      eps=additional_configuration.used_optim.epsilon)
+        elif optimizer_name == "adamW":
+            return torch.optim.AdamW(parameters, 
+                                     lr=learning_rate,
+                                     betas=(
+                                        additional_configuration.used_optim.beta1,
+                                        additional_configuration.used_optim.beta2,
+                                     ),
+                                     eps=additional_configuration.used_optim.epsilon)
+        elif optimizer_name == "sgd":
+            return tf.keras.optimizers.SGD(
+                parameters,
+                learning_rate=learning_rate,
+                momentum=additional_configuration.used_optim.momentum,
+            )
         else:
             raise Exception("No available optimizer.")
     else:
@@ -94,6 +123,12 @@ def select_pytorch_optimizer(
             return torch.optim.Adam(parameters)
         elif optimizer_name == "rms_prop":
             return torch.optim.RMSprop(parameters)
+        elif optimizer_name == "adamax":
+            return torch.optim.Adamax(parameters)
+        elif optimizer_name == "adamW":
+            return torch.optim.AdamW(parameters)
+        elif optimizer_name == "sgd":
+            return tf.keras.optimizers.SGD(parameters)
         else:
             raise Exception("No available optimizer.")
 
@@ -216,5 +251,44 @@ def select_pytorch_lr_schedule(
             "monitor": monitor_loss,
             "frequency": frequency,
         }
+    
+    elif lr_scheduler_name == "CosineDecay":
+        return {
+            "scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer,
+                T_max=data_len * num_epochs,
+                eta_min=(learning_rate / 10),
+            ),
+            "interval": "epoch",
+            "name": name,
+            "monitor": monitor_loss,
+            "frequency": frequency,
+        } 
+    elif lr_scheduler_name == "MultiStepScheduler":
+        total_steps = num_epochs
+        lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
+        return {
+            "scheduler": torch.optim.lr_scheduler.MultiStepLR(
+                optimizer,
+                milestones=lr_steps,
+                gamma=additional_configuration.used_sched.lr_rate_decay
+            ),
+            "interval": "epoch",
+            "name": name,
+            "monitor": monitor_loss,
+            "frequency": frequency,
+        }
+    elif lr_scheduler_name is None or lr_scheduler_name == "Fixed":
+        return {
+            "scheduler": torch.optim.lr_scheduler.ConstantLR(
+                optimizer,
+                factor=1,
+                total_iters=num_epochs,
+            ),
+            "interval": "epoch",
+            "name": name,
+            "monitor": monitor_loss,
+            "frequency": frequency,
+        } 
     else:
         raise Exception("Not available Learning rate Scheduler.")
