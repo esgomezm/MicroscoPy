@@ -1,11 +1,11 @@
-from microscopy.trainers import train_configuration
+from microscopy.trainers import get_model_trainer
 from omegaconf import DictConfig
 import hydra
 import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -13,17 +13,18 @@ def load_path(dataset_root, dataset_name, folder):
     else:
         return None
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+
+@hydra.main(version_base=None, config_path="conf", config_name="big_models")
 def my_app(cfg: DictConfig) -> None:
     
-    dataset_combination = ["LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT"] #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
+    dataset_combination = ["LiveFActinDataset"] #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
     model_combination = ["rcan", "unet", "dfcan", "wdsr"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [8] 
-    num_epochs_combination = [50, 100, 200]
+    num_epochs_combination = [10]
     lr_combination = [(0.001,0.001)]
     scheduler_combination = ['OneCycle'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
-    base_folder = 'tests_italy'
+    base_folder = 'big_models_ACTUALBIG'
     
     for dataset_name in dataset_combination:  
         cfg.dataset_name = dataset_name
@@ -76,7 +77,7 @@ def my_app(cfg: DictConfig) -> None:
                                 if (os.path.exists(test_metric_path) and len(os.listdir(test_metric_path)) > 0):
                                     saving_path = saving_path[:-1] + str(int(saving_path[-1]) + 1) 
                                 
-                                model = train_configuration(
+                                model_trainer = get_model_trainer(
                                     config=cfg,
                                     train_lr_path=train_lr_path,
                                     train_hr_path=train_hr_path,
@@ -86,9 +87,12 @@ def my_app(cfg: DictConfig) -> None:
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
                                     verbose=1,
-                                    data_on_memory=1,
+                                    data_on_memory=0,
                                 )
-                                del model
+                                model_trainer.prepare_data()
+                                model_trainer.train_model()
+
+                                del model_trainer
 
                                 gc.collect()
 my_app()

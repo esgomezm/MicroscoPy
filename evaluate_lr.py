@@ -5,7 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -13,17 +13,18 @@ def load_path(dataset_root, dataset_name, folder):
     else:
         return None
 
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["LiveFActinDataset"] #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
-    model_combination = ["unet"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
+    model_combination = ["rcan", "unet", "dfcan", "wdsr"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [8] 
-    num_epochs_combination = [50, 200]
-    lr_combination = [(0.001,0.001), (0.005,0.005)]
-    scheduler_combination = ['ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler', 'Fixed'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler', 'Fixed'
-    optimizer_combination = ['adam', 'adamax', 'rms_prop']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
-    base_folder = 'lr_observer'
+    num_epochs_combination = [10]
+    lr_combination = [(0.001,0.001)]
+    scheduler_combination = ['OneCycle'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
+    base_folder = 'big_models_NOTLBIG'
     
     for dataset_name in dataset_combination:  
         cfg.dataset_name = dataset_name
@@ -86,7 +87,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
                                     verbose=1,
-                                    data_on_memory=1,
+                                    data_on_memory=0,
                                 )
                                 model_trainer.prepare_data()
                                 model_trainer.train_model()

@@ -272,6 +272,7 @@ class TensorflowTrainer(ModelsTrainer):
         test_hr_path,
         saving_path,
         verbose=0,
+        data_on_memory=0
     ):
         super().__init__(
             config,
@@ -283,40 +284,50 @@ class TensorflowTrainer(ModelsTrainer):
             test_hr_path,
             saving_path,
             verbose=verbose,
+            data_on_memory=data_on_memory
         )
 
         self.library_name = "tensorflow"
 
     def prepare_data(self):
         utils.set_seed(self.seed)
-        
         if self.data_on_memory:
             X_train, Y_train, actual_scale_factor = datasets.extract_random_patches_from_folder( 
                                                         lr_data_path = self.train_lr_path,
                                                         hr_data_path = self.train_hr_path,
                                                         filenames = self.train_filenames,
                                                         scale_factor = self.scale_factor,
+                                                        crappifier_name = self.crappifier_method,
                                                         lr_patch_shape = (self.lr_patch_size_x, self.lr_patch_size_y),
                                                         datagen_sampling_pdf = self.datagen_sampling_pdf)
+            X_train = np.expand_dims(X_train, axis=-1)
+            Y_train = np.expand_dims(Y_train, axis=-1)
+
+            self.input_data_shape = X_train.shape
+            self.output_data_shape = Y_train.shape
 
             train_generator = datasets.get_train_val_generators(X_data=X_train,
                                                                 Y_data=Y_train,
                                                                 batch_size=self.batch_size)
 
-            self.input_data_shape = X_train.shape
-            self.output_data_shape = Y_train.shape
 
             X_val, Y_val, _ = datasets.extract_random_patches_from_folder( 
                                                         lr_data_path = self.val_lr_path,
                                                         hr_data_path = self.val_hr_path,
                                                         filenames = self.val_filenames,
                                                         scale_factor = self.scale_factor,
+                                                        crappifier_name = self.crappifier_method,
                                                         lr_patch_shape = (self.lr_patch_size_x, self.lr_patch_size_y),
                                                         datagen_sampling_pdf = self.datagen_sampling_pdf)
+            X_val = np.expand_dims(X_val, axis=-1)
+            Y_val = np.expand_dims(Y_val, axis=-1)
+
+            self.val_input_data_shape = X_val.shape
+            self.val_output_data_shape = Y_val.shape
 
             val_generator = datasets.get_train_val_generators(X_data=X_val,
-                                                                    Y_data=Y_val,
-                                                                    batch_size=self.batch_size)
+                                                             Y_data=Y_val,
+                                                             batch_size=self.batch_size)
         else:
             train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
                 filenames=self.train_filenames,
@@ -363,7 +374,7 @@ class TensorflowTrainer(ModelsTrainer):
                 horizontal_flip=self.horizontal_flip,
                 vertical_flip=self.vertical_flip,
             )
-        
+
         if self.verbose:
             print("input_data_shape: {}".format(self.input_data_shape))
             print("output_data_shape: {}".format(self.output_data_shape))
@@ -518,14 +529,23 @@ class TensorflowTrainer(ModelsTrainer):
         start = time.time()
 
         print("Training is going to start:")
-        history = model.fit(
-            self.train_generator,
-            validation_data=self.val_generator,
-            epochs=self.num_epochs,
-            #validation_steps=np.ceil(len(self.val_filenames)/self.batch_size),
-            #steps_per_epoch=np.ceil(len(self.train_filenames)/self.batch_size),
-            callbacks=callbacks,
-        )
+        
+        if self.data_on_memory:
+            history = model.fit(
+                self.train_generator,
+                validation_data=self.val_generator,
+                epochs=self.num_epochs,
+                steps_per_epoch=self.input_data_shape[0]//self.batch_size,
+                validation_steps=self.val_input_data_shape[0]//self.batch_size,
+                callbacks=callbacks,
+            )
+        else:
+            history = model.fit(
+                self.train_generator,
+                validation_data=self.val_generator,
+                epochs=self.num_epochs,
+                callbacks=callbacks,
+            )
 
         dt = time.time() - start
         mins, sec = divmod(dt, 60)
@@ -715,6 +735,7 @@ class PytorchTrainer(ModelsTrainer):
             test_hr_path,
             saving_path,
             verbose=verbose,
+            data_on_memory=data_on_memory
         )
 
         self.gpu_id = gpu_id

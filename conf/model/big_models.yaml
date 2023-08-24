@@ -1,0 +1,62 @@
+dfcan:
+  n_RCAB: 8
+  n_ResGroup: 8
+esrganplus:
+  n_critic_steps: 5
+optim:
+  MultiStepScheduler:
+    lr_rate_decay: 0.5
+  ReduceOnPlateau:
+    factor: 0.5
+    monitor: val_ssim_loss
+    patience: 10
+    mode: max
+  OneCycle: 0
+  CosineDecay: 0
+  adam:
+    beta1: 0.5
+    beta2: 0.9
+    epsilon: 1.0e-07
+  adamW:
+    beta1: 0.5
+    beta2: 0.9
+    decay: 0.004
+    epsilon: 1.0e-07
+  adamax:
+    beta1: 0.5
+    beta2: 0.9
+    epsilon: 1.0e-07
+  rms_prop:
+    rho: 0.9
+    momentum: 0.0
+  early_stop:
+    loss: val_ssim_loss
+    mode: max
+    patience: 10
+  sgd:
+    momentum: 0.9
+  rms_drop:
+    aux: null
+others:
+  positional_encoding: false
+  positional_encoding_channels: 64
+rcan:
+  num_filters: 32
+unet:
+  depth: 6
+  init_channels: 16
+  maxpooling: false
+  upsample_method: SubpixelConv2D
+wdsr:
+  num_res_blocks: 64
+cddpm:
+  widths:
+  - 32
+  - 64
+  - 96
+  - 128
+  block_depth: 4
+wgan:
+  g_layers: 15
+  lambda_gp: 10
+  recloss: 100.0
