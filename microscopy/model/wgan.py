@@ -244,7 +244,11 @@ class WGANGP(LightningModule):
     ):
         super(WGANGP, self).__init__()
 
+        print('\nAAA Model initialized (begining)\n')
+
         self.save_hyperparameters()
+        # Important: This property activates manual optimization.
+        self.automatic_optimization = False
 
         if gen_checkpoint is not None:
             checkpoint = torch.load(gen_checkpoint)
@@ -281,7 +285,14 @@ class WGANGP(LightningModule):
         if train_hr_path or train_lr_path:
             self.len_data = self.train_dataloader().__len__()
 
+        self.validation_step_lr = []
+        self.validation_step_hr = []
+        self.validation_step_pred = []
+
+        print('\nAAA Model initialized (end)\n')
+
     def save_model(self, filename):
+        print(f'\nAAA Saving the model: {self.hparams.save_basedir + "/" + filename}\n')
         if self.hparams.save_basedir is not None:
             torch.save(
                 {
@@ -338,46 +349,80 @@ class WGANGP(LightningModule):
         gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
         return gradient_penalty
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx):
+
         lr, hr = batch["lr"], batch["hr"]
 
+        # Extract the optimizers
+        g_opt, d_opt = self.optimizers()
+
         # Optimize generator
-        if optimizer_idx == 0:
-            generated = self(lr)
+        # toggle_optimizer(): Makes sure only the gradients of the current optimizer's parameters are calculated
+        #                     in the training step to prevent dangling gradients in multiple-optimizer setup.
+        self.toggle_optimizer(g_opt)
 
-            adv_loss = -1 * self.discriminator(generated).mean()
-            error = self.mae(generated, hr)
+        # Predict the HR image
+        generated = self(lr)
 
-            g_loss = adv_loss + error * self.hparams.recloss
+        # Calculate the generator's loss
+        adv_loss = -1 * self.discriminator(generated).mean()
+        error = self.mae(generated, hr)
+        g_loss = adv_loss + error * self.hparams.recloss
 
-            self.log("g_loss", g_loss, prog_bar=True, on_epoch=True)
-            self.log("g_adv_loss", g_loss, prog_bar=True, on_epoch=True)
-            self.log("g_l1", error, prog_bar=True, on_epoch=True)
+        # Log the losses
+        self.log("g_loss", g_loss, prog_bar=True, on_epoch=True)
+        self.log("g_adv_loss", g_loss, prog_bar=True, on_epoch=True)
+        self.log("g_l1", error, prog_bar=True, on_epoch=True)
 
-            return g_loss
+        # Optimize generator
+        self.manual_backward(g_loss)
+        g_opt.step()
+        g_opt.zero_grad()
+        self.untoggle_optimizer(g_opt)
 
         # Optimize discriminator
-        elif optimizer_idx == 1:
-            generated = self(lr)
+        self.toggle_optimizer(d_opt)
 
-            real_logits = self.discriminator(hr).mean()
-            fake_logits = self.discriminator(generated).mean()
+        # Predict the HR image
+        generated = self(lr)
 
-            gradient_penalty = self.compute_gradient_penalty(hr.data, generated.data)
+        # Calculate the discriminator's loss
+        real_logits = self.discriminator(hr).mean()
+        fake_logits = self.discriminator(generated).mean()
 
-            wasserstein = real_logits - fake_logits
+        gradient_penalty = self.compute_gradient_penalty(hr.data, generated.data)
 
-            d_loss = -wasserstein + self.hparams.lambda_gp * gradient_penalty
+        wasserstein = real_logits - fake_logits
 
-            self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)
-            self.log("d_wasserstein", wasserstein, prog_bar=False, on_epoch=True)
-            self.log("d_real", real_logits, prog_bar=False, on_epoch=True)
-            self.log("d_fake", fake_logits, prog_bar=False, on_epoch=True)
-            self.log("d_gp", gradient_penalty, prog_bar=False, on_epoch=True)
+        d_loss = -wasserstein + self.hparams.lambda_gp * gradient_penalty
 
-            return d_loss
+        # Log the losses
+        self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)
+        self.log("d_wasserstein", wasserstein, prog_bar=False, on_epoch=True)
+        self.log("d_real", real_logits, prog_bar=False, on_epoch=True)
+        self.log("d_fake", fake_logits, prog_bar=False, on_epoch=True)
+        self.log("d_gp", gradient_penalty, prog_bar=False, on_epoch=True)
+
+        self.manual_backward(d_loss)
+        d_opt.step()
+        d_opt.zero_grad()
+        self.untoggle_optimizer(d_opt)
+
+        # Calculate the schedulers
+        sched_g, sched_d = self.lr_schedulers()
+
+        # The critic/discriminator is updated every step
+        if (batch_idx + 1) % 1 == 0:
+            sched_g.step()
+        # The critic/discriminator is updated every self.hparams.n_critic_steps
+        if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
+            sched_d.step()
+
+
+
 
     def configure_optimizers(self):
+        print('\nAAA configure_optimizers\n')
         self.opt_g = select_optimizer(
             library_name="pytorch",
             optimizer_name=self.hparams.g_optimizer,
@@ -425,8 +470,13 @@ class WGANGP(LightningModule):
         return [self.opt_g, self.opt_d], [sched_g, sched_d]
 
     def validation_step(self, batch, batch_idx):
+        print('\nAAA validation_step\n')
         # Right now used for just plotting, might want to change it later
         lr, hr = batch["lr"], batch["hr"]
+        print(f'lr.shape: {lr.shape}')
+        print(f'hr.shape: {hr.shape}')
+        print(f'lr: {lr[0,0,0,:10]}')
+        print(f'hr: {hr[0,0,0,:10]}')
 
         generated = self(lr)
 
@@ -444,12 +494,27 @@ class WGANGP(LightningModule):
                 true[i, 0, ...], fake[i, 0, ...], data_range=1.0
             )
             self.log("val_psnr", psnr)
+            
+        self.validation_step_lr.append(lr)
+        self.validation_step_hr.append(hr)
+        self.validation_step_pred.append(generated)
 
         return lr, hr, generated
 
-    def validation_step_end(self, val_step_outputs):
+    def on_validation_epoch_end(self):
+        print('\nAAA on_validation_epoch_end\n')
         # Right now used for just plotting, might want to change it later
-        lr, hr, generated = val_step_outputs
+        # lr, hr, generated = torch.stack(self.validation_step_outputs)
+        lr = torch.cat(self.validation_step_lr, 0)
+        hr = torch.cat(self.validation_step_hr, 0)
+        generated = torch.cat(self.validation_step_pred, 0)
+        
+        print(f'lr.shape: {lr.shape}')
+        print(f'hr.shape: {hr.shape}')
+        print(f'generated.shape: {generated.shape}')
+        print(f'lr: {lr[0,0,0,:10]}')
+        print(f'hr: {hr[0,0,0,:10]}')
+        print(f'generated: {generated[0,0,0,:10]}')
 
         adv_loss = -1 * self.discriminator(generated).mean()
         error = self.mae(generated, hr)
@@ -466,9 +531,15 @@ class WGANGP(LightningModule):
 
         self.log("val_d_wasserstein", wasserstein)
 
+        print(f'g_loss: {g_loss}')
+        print(f'self.best_valid_loss: {self.best_valid_loss}')
         if g_loss < self.best_valid_loss:
             self.best_valid_loss = g_loss
             self.save_model("best_checkpoint.pth")
+
+        self.validation_step_lr.clear()  # free memory
+        self.validation_step_hr.clear()  # free memory
+        self.validation_step_pred.clear()  # free memory
 
     def on_train_end(self):
         self.save_model("last_checkpoint.pth")
@@ -559,92 +630,4 @@ class WGANGP(LightningModule):
 
         return DataLoader(
             dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0
-        )
-
-    def train_dataloader(self):
-        transformations = []
-
-        if self.hparams.horizontal_flip:
-            transformations.append(RandomHorizontalFlip())
-        if self.hparams.vertical_flip:
-            transformations.append(RandomVerticalFlip())
-        if self.hparams.rotation:
-            transformations.append(RandomRotate())
-
-        transformations.append(ToTensor())
-
-        transf = torchvision.transforms.Compose(transformations)
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=False,
-            )
-
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-            )
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=1
-        )
-
-    def val_dataloader(self):
-        transf = ToTensor()
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=True,
-            )
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.val_hr_path,
-                lr_data_path=self.hparams.val_lr_path,
-                filenames=self.hparams.val_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-            )
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=1
         )

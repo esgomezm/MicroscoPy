@@ -794,14 +794,14 @@ class PytorchTrainer(ModelsTrainer):
             utils.print_info("train_model() - lr", data["lr"])
             utils.print_info("train_model() - hr", data["hr"])
 
-        os.mkdir(self.saving_path + "/Quality Control", exist_ok=True)
+        os.makedirs(self.saving_path + "/Quality Control", exist_ok=True)
         logger = CSVLogger(self.saving_path + "/Quality Control", name="Logger")
 
         lr_monitor = LearningRateMonitor(logging_interval="epoch")
         checkpoints = ModelCheckpoint(
             monitor="val_ssim",
             mode="max",
-            save_top_k=3,
+            save_top_k=1,
             every_n_train_steps=5,
             save_last=True,
             filename="{epoch:02d}-{val_ssim:.3f}",
