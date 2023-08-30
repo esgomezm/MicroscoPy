@@ -18,6 +18,16 @@ from matplotlib import pyplot as plt
 
 
 def index_from_pdf(pdf_im):
+    """
+    Generate the index from a given probability density function (pdf) image.
+
+    Parameters:
+    - pdf_im: a numpy array representing the pdf image.
+
+    Returns:
+    - indexh: an integer representing the row index of the chosen coordinate.
+    - indexw: an integer representing the column index of the chosen coordinate.
+    """
     prob = np.copy(pdf_im)
     # Normalize values to create a pdf with sum = 1
     prob = prob.ravel() / np.sum(prob)
@@ -29,13 +39,29 @@ def index_from_pdf(pdf_im):
     # Extract index
     indexh = coordinates[0][0]
     indexw = coordinates[1][0]
+
+    print(f'datasets.py - index_from_pdf -> indexh: {indexh}, indexw: {indexw}')
+    
     return indexh, indexw
 
 
 def sampling_pdf(y, pdf, height, width):
+    """
+    Generate a random index for sampling based on a probability density function (PDF) if pdf=1.
+
+    Parameters:
+        y (np.ndarray): The input array.
+        pdf (int): The PDF type (1 for uniform, other values for custom).
+        height (int): The height of the sampling kernel.
+        width (int): The width of the sampling kernel.
+
+    Returns:
+        tuple: The generated index for sampling, as a tuple of (indexh, indexw).
+    """
     h, w = y.shape[0], y.shape[1]
 
     if pdf == 1:
+        print(f'datasets.py - sampling_pdf -> uniform sampling (random index)')
         indexw = np.random.randint(
             np.floor(width // 2),
             max(w - np.floor(width // 2), np.floor(width // 2) + 1),
@@ -45,6 +71,7 @@ def sampling_pdf(y, pdf, height, width):
             max(h - np.floor(height // 2), np.floor(height // 2) + 1),
         )
     else:
+        print(f'datasets.py - sampling_pdf -> custom sampling (based on a pdf)')
         # crop to fix patch size
         # croped_y = y[int(np.floor(height // 2)):-int(np.floor(height // 2)),
         #              int(np.floor(width // 2)) :-int(np.floor(width // 2))]
@@ -62,6 +89,8 @@ def sampling_pdf(y, pdf, height, width):
         indexh, indexw = index_from_pdf(pdf_cropped)
         indexw = indexw + int(np.floor(width // 2))
         indexh = indexh + int(np.floor(height // 2))
+    
+    print(f'datasets.py - sampling_pdf -> indexh: {indexh}, indexw: {indexw}')
 
     return indexh, indexw
 
@@ -72,14 +101,17 @@ def sampling_pdf(y, pdf, height, width):
 
 
 def normalization(data, desired_accuracy=np.float32):
-    return (data - data.min()) / (data.max() - data.min() + 1e-10).astype(
-        desired_accuracy
-    )
+    print(f'datasets.py - normalization -> data: {data.shape} datatype: {data.dtype} datamin: {data.min()} datamax: {data.max()}' )
+    norm_data =  (data - data.min()) / (data.max() - data.min() + 1e-10).astype(desired_accuracy)
+    print(f'datasets.py - normalization -> norm_data: {norm_data.shape} datatype: {norm_data.dtype} datamin: {norm_data.min()} datamax: {norm_data.max()}' )
+    return norm_data
 
 
 def read_image(filename, desired_accuracy=np.float32):
-    return normalization(io.imread(filename), desired_accuracy=desired_accuracy)
-
+    print(f'datasets.py - read_image -> filename: {filename}' )
+    read_img = normalization(io.imread(filename), desired_accuracy=desired_accuracy)
+    print(f'datasets.py - read_image -> read_img: {read_img.shape} datatype: {read_img.dtype} datamin: {read_img.min()} datamax: {read_img.max()}' )
+    return read_img
 
 def obtain_scale_factor(hr_filename, lr_filename, scale_factor, crappifier_name):
     if scale_factor is None and lr_filename is None:
@@ -97,6 +129,7 @@ def obtain_scale_factor(hr_filename, lr_filename, scale_factor, crappifier_name)
 
     images_scale_factor = hr_img.shape[0] // lr_img.shape[0]
 
+    print(f'datasets.py - obtain_scale_factor -> images_scale_factor: {images_scale_factor} scale_factor: {scale_factor}' )
     return images_scale_factor if scale_factor is None else scale_factor
 
 
@@ -104,21 +137,26 @@ def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
     hr_img = read_image(hr_filename)
 
     if lr_filename is None:
+        print(f'datasets.py - read_image_pairs -> No path to the LR images is given.')
         # If no path to the LR images is given, they will be artificially generated
         lr_img = normalization(
             crappifiers.apply_crappifier(hr_img, scale_factor, crappifier_name)
         )
     else:
+        print(f'datasets.py - read_image_pairs -> Path to the LR images is given.')
         lr_img = read_image(lr_filename)
 
         images_scale_factor = hr_img.shape[0] // lr_img.shape[0]
 
         if scale_factor > images_scale_factor:
+            print(f'datasets.py - read_image_pairs -> scale_factor: {scale_factor} > images_scale_factor: {images_scale_factor} then APPLY CRAPPIFIER' )
             lr_img = normalization(
                 crappifiers.apply_crappifier(
                     lr_img, scale_factor // images_scale_factor, crappifier_name
                 )
             )
+
+    print(f'datasets.py - read_image_pairs -> hr_img: {hr_img.shape} lr_img: {lr_img.shape}' )
 
     return hr_img, lr_img
 
@@ -173,6 +211,8 @@ def extract_random_patches_from_image(
             lc * scale_factor : uc * scale_factor, lr * scale_factor : ur * scale_factor
         ]
 
+    print(f'datasets.py - extract_random_patches_from_image -> lr_patch: {lr_patch.shape} hr_patch: {hr_patch.shape}' )
+
     return lr_patch, hr_patch
 
 
@@ -185,6 +225,9 @@ def extract_random_patches_from_folder(
     lr_patch_shape,
     datagen_sampling_pdf,
 ):
+
+    print(f'datasets.py - extract_random_patches_from_folder -> filenames: {filenames}' )
+
     # First lets check what is the scale factor, in case None is given
     actual_scale_factor = obtain_scale_factor(
         hr_filename=os.path.join(hr_data_path, filenames[0]),
@@ -218,6 +261,8 @@ def extract_random_patches_from_folder(
     final_lr_patches = np.array(final_lr_patches)
     final_hr_patches = np.array(final_hr_patches)
 
+    print(f'datasets.py - extract_random_patches_from_folder -> final_lr_patches: {final_lr_patches.shape} final_hr_patches: {final_hr_patches.shape}')
+
     return final_lr_patches, final_hr_patches, actual_scale_factor
 
 
@@ -249,37 +294,53 @@ class TFDataGenerator:
         self.datagen_sampling_pdf = datagen_sampling_pdf
 
         self.validation_split = validation_split
-        self.actual_scale_factor = None
+
+        _, _, actual_scale_factor = extract_random_patches_from_folder(
+                                        self.hr_data_path,
+                                        self.lr_data_path,
+                                        [self.filenames[0]],
+                                        scale_factor=self.scale_factor,
+                                        crappifier_name=self.crappifier_name,
+                                        lr_patch_shape=self.lr_patch_shape,
+                                        datagen_sampling_pdf=self.datagen_sampling_pdf,
+                                    )
+
+        self.actual_scale_factor = actual_scale_factor
 
     def __len__(self):
         return int(len(self.filenames))
 
     def __getitem__(self, idx):
-        # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
-        # Generate data
-        (
-            aux_lr_patches,
-            aux_hr_patches,
-            actual_scale_factor,
-        ) = extract_random_patches_from_folder(
-            self.hr_data_path,
-            self.lr_data_path,
-            [self.filenames[idx]],
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_name,
-            lr_patch_shape=self.lr_patch_shape,
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
+        
+        print(f'datasets.py - TFDataGenerator.__getitem__ -> START')
+
+        hr_image_path = os.path.join(self.hr_data_path, self.filenames[idx])
+        if self.lr_data_path is not None:
+            lr_image_path = os.path.join(self.lr_data_path, self.filenames[idx])
+        else:
+            lr_image_path = None
+
+        aux_lr_patches, aux_hr_patches = extract_random_patches_from_image(
+            hr_image_path,
+            lr_image_path,
+            self.actual_scale_factor,
+            self.crappifier_name,
+            self.lr_patch_shape,
+            self.datagen_sampling_pdf,
         )
 
         # As we are only taking one element and the batch is obtained outside, we take the [0] element
-        lr_patches = np.expand_dims(aux_lr_patches[0], axis=-1)
-        hr_patches = np.expand_dims(aux_hr_patches[0], axis=-1)
-
-        self.actual_scale_factor = actual_scale_factor
+        lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
+        hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
+        
+        print(f'datasets.py - TFDataGenerator.__getitem__ -> LR.shape {lr_patches.shape}, HR.shape {hr_patches.shape}')
+        print(f'datasets.py - TFDataGenerator.__getitem__ -> END')
 
         return lr_patches, hr_patches
 
     def __call__(self):
+        
+        print(f'datasets.py - TFDataGenerator.__call__ -> START ')
         for i in range(self.__len__()):
             yield self.__getitem__(i)
 
@@ -290,13 +351,16 @@ def prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip):
     apply_vertical_flip = (tf.random.uniform(shape=[]) < 0.5) and vertical_flip
 
     if apply_rotation:
+        print(f'datasets.py - prerpoc_func -> apply_rotation')
         rotation_times = np.random.randint(0, 5)
         x = tf.image.rot90(x, rotation_times)
         y = tf.image.rot90(y, rotation_times)
     if apply_horizontal_flip:
+        print(f'datasets.py - prerpoc_func -> apply_horizontal_flip')
         x = tf.image.flip_left_right(x)
         y = tf.image.flip_left_right(y)
     if apply_vertical_flip:
+        print(f'datasets.py - prerpoc_func -> apply_vertical_flip')
         x = tf.image.flip_up_down(x)
         y = tf.image.flip_up_down(y)
     return x, y
@@ -316,6 +380,8 @@ def TFDataset(
     horizontal_flip,
     vertical_flip,
 ):
+    print('datasets.py - TFDataset -> Is created. ON LIVE.')
+
     data_generator = TFDataGenerator(
         filenames=filenames,
         hr_data_path=hr_data_path,
@@ -500,6 +566,8 @@ def create_random_patches( lr_path, hr_path, file_names, scale, num_patches,
         list of image patches (LR) and patches of corresponding labels (HR)
     '''
 
+    print(f'datasets.py - create_random_patches -> Is created. ON MEMORY')
+    
     # read training images
     lr_img = img_as_ubyte( io.imread( lr_path + '/' + file_names[0] ) )
 
@@ -537,6 +605,8 @@ def random_90rotation( img ):
 def get_train_val_generators(X_data, Y_data,
                              batch_size=32, seed=42, show_examples=False):
 
+    print(f'datasets.py - get_train_val_generators -> Is created. ON MEMORY')
+
     # Image data generator distortion options
     data_gen_args = dict( #rotation_range = 45,
                           #width_shift_range=0.2,
@@ -563,8 +633,6 @@ def get_train_val_generators(X_data, Y_data,
     train_generator = zip(X_data_augmented, Y_data_augmented)
 
     return train_generator
-
-print("Created functions for data augmentation")
 
 #####
 # Pytorch dataset

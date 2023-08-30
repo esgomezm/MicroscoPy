@@ -185,6 +185,7 @@ def em_gaussian_crappify(img, scale, mu=-0.1, sigma=0.15, scalar=0.9):
 
 def apply_crappifier(x, scale, crappifier_name):
     if crappifier_name in CRAPPIFIER_DICT:
+        print('crappifiers.py - apply_crappifier -> crappifier_name: {}, CRAPPIFIER_DICT[crappifier_name]: {}'.format(crappifier_name, CRAPPIFIER_DICT[crappifier_name]))
         return norm(CRAPPIFIER_DICT[crappifier_name](norm(x), scale).astype(np.float32))
     else:
         raise ValueError(

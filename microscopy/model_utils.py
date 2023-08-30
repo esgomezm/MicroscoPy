@@ -32,7 +32,10 @@ def select_model(
     d_scheduler=None,
     checkpoint=None,
 ):
+    print(f'model_utils - select_model -> model_name: {model_name}')
+    print(f'model_utils - select_model -> model_configuration: {model_configuration}')
     if model_name == "unet":
+        print(f'model_utils - select_model -> Its U-Net!')
         return model.unet.preResUNet(
             output_channels=output_channels,
             numInitChannels=model_configuration.init_channels,
@@ -44,6 +47,7 @@ def select_model(
             final_activation="linear",
         )
     elif model_name == "rcan":
+        print(f'model_utils - select_model -> Its RCAN!')
         return model.rcan.rcan(
             n_sub_block=int(np.log2(scale_factor)),
             filters=model_configuration.num_filters,
@@ -51,6 +55,7 @@ def select_model(
         )
 
     elif model_name == "dfcan":
+        print(f'model_utils - select_model -> Its DFCAN!')
         return model.dfcan.DFCAN(
             (input_shape[1:]),
             scale=scale_factor,
@@ -59,6 +64,7 @@ def select_model(
         )
 
     elif model_name == "wdsr":
+        print(f'model_utils - select_model -> Its WDSR!')
         # Custom WDSR B model (0.62M parameters)
         return model.wdsr.wdsr_b(
             scale=scale_factor,
@@ -66,6 +72,7 @@ def select_model(
         )
 
     elif model_name == "cddpm":
+        print(f'model_utils - select_model -> Its CDDPM!')
         return model.cddpm.DiffusionModel(
             image_shape=input_shape[1:],
             widths=model_configuration.widths,
@@ -80,6 +87,7 @@ def select_model(
         )
 
     elif model_name == "wgan":
+        print(f'model_utils - select_model -> Its WGAN!')
         print(model_configuration)
         return model.wgan.WGANGP(
             g_layers=model_configuration.used_model.g_layers,
@@ -113,6 +121,7 @@ def select_model(
         )
 
     elif model_name == "esrganplus":
+        print(f'model_utils - select_model -> Its ESRGAN+!')
         return model.esrganplus.ESRGANplus(
             batchsize=batch_size,
             lr_patch_size_x=lr_patch_size_x,

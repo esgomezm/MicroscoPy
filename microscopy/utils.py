@@ -31,6 +31,8 @@ def set_seed(seed_value=42):
     seedValue (int, optional): seed value.
     """
 
+    print(f'utils.py - set_seed -> seed_value: {seed_value}')
+
     # Set the seed for the random module
     random.seed(seed_value)
 
@@ -92,6 +94,8 @@ def update_yaml(yaml_file_path, key_value, new_value):
     :return: None
     """
 
+    print('utils.py - update_yaml -> yaml_file_path: {}, key_value: {}, new_value: {}'.format(yaml_file_path, key_value, new_value))
+
     file_information = load_yaml(yaml_file_path)
     file_information[key_value] = new_value
     save_yaml(file_information, yaml_file_path)
@@ -104,7 +108,7 @@ def load_yaml(yaml_file_path):
     :param yaml_file_path: A string representing the path to the YAML file.
     :return: A dictionary representing the parsed YAML data.
     """
-
+    print('utils.py - load_yaml -> yaml_file_path: {}'.format(yaml_file_path))
     with open(yaml_file_path) as file:
         file_information = yaml.full_load(file)
     return file_information
@@ -121,6 +125,7 @@ def save_yaml(dict_to_save, saving_path):
     Returns:
         None
     """
+    print(f'utils.py - save_yaml -> dict_to_save: {dict_to_save} saving_path: {saving_path}')
     with open(saving_path, "w") as file:
         OmegaConf.save(dict_to_save, file)
 
@@ -131,10 +136,12 @@ def save_yaml(dict_to_save, saving_path):
 
 
 def ssim_loss(y_true, y_pred):
+    print('utils.py - ssim_loss -> y_true: {}, y_pred: {}'.format(y_true.shape, y_pred.shape))
     return tf.image.ssim(y_true, y_pred, max_val=1.0)
 
 
 def vgg_loss(image_shape):
+    print('utils.py - vgg_loss -> image_shape: {}'.format(image_shape))
     vgg19 = VGG19(
         include_top=False,
         weights="imagenet",
@@ -155,6 +162,7 @@ def vgg_loss(image_shape):
 
 
 def perceptual_loss(image_shape, percp_coef=0.1):
+    print('utils.py - perceptual_loss -> image_shape: {}'.format(image_shape))
     mean_absolute_error = tf.keras.losses.MeanAbsoluteError()
     percp_loss = vgg_loss(image_shape)
 
@@ -181,6 +189,7 @@ def get_emb(sin_inp):
 
 
 def concatenate_encoding(images, channels):
+    print(f'utils.py - concatenate_encoding -> images: {images.shape} channels: {channels}')
     self_channels = int(2 * np.ceil(channels / 4))
     inv_freq = np.float32(
         1 / np.power(10000, np.arange(0, self_channels, 2) / np.float32(self_channels))
@@ -208,6 +217,7 @@ def concatenate_encoding(images, channels):
 #####
 
 def calculate_pad_for_Unet(lr_img_shape, depth_Unet, is_pre, scale):
+    print(f'utils.py - calculate_pad_for_Unet -> lr_img_shape: {lr_img_shape}')
     assert (
         len(lr_img_shape) == 3
     ), "LR image shape should have a length of three: (cols x rows x channels)."
@@ -242,6 +252,7 @@ def calculate_pad_for_Unet(lr_img_shape, depth_Unet, is_pre, scale):
 
 
 def add_padding_for_Unet(lr_imgs, height_padding, width_padding):
+    print(f'utils.py - add_padding_for_Unet -> lr_imgs: {lr_imgs.shape}')
     if len(lr_imgs.shape) == 4:
         pad_lr_imgs = np.pad(
             lr_imgs,
@@ -261,6 +272,8 @@ def add_padding_for_Unet(lr_imgs, height_padding, width_padding):
 
 
 def remove_padding_for_Unet(pad_hr_imgs, height_padding, width_padding, scale):
+    
+    print(f'utils.py - remove_padding_for_Unet -> lr_imgs: {pad_hr_imgs.shape}')
     if len(pad_hr_imgs.shape) == 4:
         hr_height_padding_left = (
             -height_padding[1] * scale

@@ -133,6 +133,7 @@ class ModelsTrainer:
         )
 
         utils.set_seed(self.seed)
+
         # To calculate the input and output shape and the actual scale factor 
         (
             _,
@@ -446,6 +447,7 @@ class TensorflowTrainer(ModelsTrainer):
             if not lr_schedule is None:
                 callbacks.append(lr_schedule)
 
+        print(f'trainers - TensorflowTrainer - train_model -> START select_model')
         model = model_utils.select_model(
             model_name=self.model_name,
             input_shape=self.input_data_shape,
@@ -455,15 +457,18 @@ class TensorflowTrainer(ModelsTrainer):
             model_configuration=self.config.used_model,
             batch_size=self.batch_size,
         )
+        print(f'trainers - TensorflowTrainer - train_model -> END select_model')
 
         loss_funct = tf.keras.losses.mean_absolute_error
         eval_metric = tf.keras.losses.mean_squared_error
 
+        print(f'trainers - TensorflowTrainer - train_model -> START compile')
         model.compile(
             optimizer=self.optim,
             loss=loss_funct,
             metrics=[eval_metric, utils.ssim_loss],
         )
+        print(f'trainers - TensorflowTrainer - train_model -> END compile')
 
         trainableParams = np.sum(
             [np.prod(v.get_shape()) for v in model.trainable_weights]
