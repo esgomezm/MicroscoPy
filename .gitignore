@@ -17,3 +17,4 @@ tests_italy/*
 big_models*
 GANS_test/*
 printing_tests/*
+loggings/*
