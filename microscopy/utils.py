@@ -12,17 +12,37 @@ from tensorflow.keras.models import Model
 from omegaconf import OmegaConf
 
 
-#####
-# Standard functions for general purposses
-#####
+#####################################
+#
+# Functions that define normalization tecniques
 
+def min_max_normalization(data, desired_accuracy=np.float32):
+    """
+    Normalize the given data using min-max normalization.
+
+    Parameters:
+        data (ndarray): The data to be normalized.
+        desired_accuracy (type): The desired accuracy of the normalized data. Defaults to np.float32.
+
+    Returns:
+        ndarray: The normalized data.
+    """
+    return (data - data.min()) / (data.max() - data.min() + 1e-10).astype(
+        desired_accuracy
+    )
+
+#
+#####################################
+
+#####################################
+#
+# Functions for general purposses (e.g. working with yamls, seeds, etc.)
 
 class bcolors:
     # Colors for the warning messages
     W = "\033[0m"  # white (normal)
     R = "\033[31m"  # red
     WARNING = "\033[31m"
-
 
 def set_seed(seed_value=42):
     """Sets the seed on multiple python modules to obtain results as
@@ -124,17 +144,52 @@ def save_yaml(dict_to_save, saving_path):
     with open(saving_path, "w") as file:
         OmegaConf.save(dict_to_save, file)
 
+#
+#####################################
 
 #####
-# Function to define different losses
-#####
-
+#
+# Function that define different losses
 
 def ssim_loss(y_true, y_pred):
+    """
+    Calculates the Structural Similarity Index (SSIM) loss between two images.
+
+    Parameters:
+        y_true (tensor): The true image.
+        y_pred (tensor): The predicted image.
+
+    Returns:
+        tensor: The SSIM loss.
+
+    Example:
+        >>> y_true = tf.constant([0.5, 0.8, 0.2, 0.3])
+        >>> y_pred = tf.constant([0.6, 0.7, 0.3, 0.4])
+        >>> ssim_loss(y_true, y_pred)
+        <tf.Tensor: shape=(), dtype=float32, numpy=0.75>
+    """
     return tf.image.ssim(y_true, y_pred, max_val=1.0)
 
-
 def vgg_loss(image_shape):
+    """
+    Generates the VGG loss function for image style transfer.
+
+    Args:
+        image_shape (tuple): The shape of the input image. Should be a tuple of (height, width).
+
+    Returns:
+        function: The VGG loss function that takes in the ground truth image and the predicted image 
+        as inputs, and returns the mean squared difference between the VGG feature representations of the two images.
+
+    Note:
+        The VGG loss function is based on the VGG19 model pretrained on the ImageNet dataset. 
+        It computes the mean squared difference between the VGG feature maps of the ground truth image and the predicted image. 
+        The VGG19 model is frozen and not trainable during the execution of this loss function.
+
+    Example:
+        vgg_loss = vgg_loss(image_shape=(256, 256))
+        loss = vgg_loss(ground_truth_image, predicted_image)
+    """
     vgg19 = VGG19(
         include_top=False,
         weights="imagenet",
@@ -153,8 +208,20 @@ def vgg_loss(image_shape):
 
     return vgg_loss_fixed
 
-
 def perceptual_loss(image_shape, percp_coef=0.1):
+    """
+    Returns a loss function that combines the mean absolute error loss and the VGG loss.
+    
+    Parameters:
+        image_shape (tuple): The shape of the input images.
+        percp_coef (float, optional): The coefficient for the perceptual loss. Defaults to 0.1.
+        
+    Returns:
+        mixed_loss (function): A loss function that combines the mean absolute error loss and the perceptual loss.
+            The function takes in two tensors, y_true and y_pred, and returns the sum of the mean absolute error loss
+            and the product of the perceptual loss and the percp_coef.
+    """
+
     mean_absolute_error = tf.keras.losses.MeanAbsoluteError()
     percp_loss = vgg_loss(image_shape)
 
@@ -165,11 +232,12 @@ def perceptual_loss(image_shape, percp_coef=0.1):
 
     return mixed_loss
 
+#
+#####################################
 
-#####
+#####################################
+#
 # Function for adding embeddings to the images
-#####
-
 
 def get_emb(sin_inp):
     """
@@ -203,9 +271,12 @@ def concatenate_encoding(images, channels):
     cached_penc = np.repeat(emb[None, :, :, :org_channels], np.shape(images)[0], axis=0)
     return np.concatenate((images, cached_penc), -1)
 
-#####
+#
+#####################################
+
+#####################################
+#
 # Functions for U-Net's padding
-#####
 
 def calculate_pad_for_Unet(lr_img_shape, depth_Unet, is_pre, scale):
     assert (
@@ -259,7 +330,6 @@ def add_padding_for_Unet(lr_imgs, height_padding, width_padding):
 
     return pad_lr_imgs
 
-
 def remove_padding_for_Unet(pad_hr_imgs, height_padding, width_padding, scale):
     if len(pad_hr_imgs.shape) == 4:
         hr_height_padding_left = (
@@ -301,3 +371,6 @@ def remove_padding_for_Unet(pad_hr_imgs, height_padding, width_padding, scale):
         ]
 
     return hr_imgs
+
+#
+#####################################

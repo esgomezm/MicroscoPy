@@ -5,24 +5,31 @@ from skimage.util import random_noise
 from scipy.ndimage.interpolation import zoom as npzoom
 from skimage.transform import rescale
 
-
-def norm(data):
-    return (data - data.min()) / (data.max() - data.min() + 1e-10)
-
+from utils import min_max_normalization as norm
 
 def add_poisson_noise(img, lam=1.0):
+    """
+    Generates a noisy image by adding Poisson noise to the input image.
+
+    Parameters:
+        img (ndarray): The input image.
+        lam (float): The parameter lambda for the Poisson distribution. Default is 1.0.
+
+    Returns:
+        ndarray: The noisy image with Poisson noise added.
+    """
     poisson_noise = np.random.poisson(lam=lam, size=img.shape)
     noisy_img = img + norm(poisson_noise)
     return norm(noisy_img)
 
-
+#####################################
+#
 # Create corresponding training patches synthetically by adding noise
 # and downsampling the images (see https://www.biorxiv.org/content/10.1101/740548v3)
-
+# Based on the code on: https://github.com/BPHO-Salk/PSSR/blob/master/utils/crappifiers.py
 
 def downsampleonly(x, scale=4):
     return npzoom(x, 1 / scale, order=1)
-
 
 def fluo_G_D(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
@@ -33,7 +40,6 @@ def fluo_G_D(x, scale=4):
 
     return x
 
-
 def fluo_AG_D(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
 
@@ -42,7 +48,6 @@ def fluo_AG_D(x, scale=4):
 
     return x
 
-
 def fluo_SP_D(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
 
@@ -50,7 +55,6 @@ def fluo_SP_D(x, scale=4):
     x = random_noise(x, mode="pepper", amount=0.005)
 
     return x
-
 
 def fluo_SP_AG_D_sameas_preprint(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
@@ -62,7 +66,6 @@ def fluo_SP_AG_D_sameas_preprint(x, scale=4):
 
     return x
 
-
 def fluo_SP_AG_D_sameas_preprint_rescale(x, scale=4):
     x = rescale(x, scale=1 / scale, order=1)
 
@@ -73,7 +76,6 @@ def fluo_SP_AG_D_sameas_preprint_rescale(x, scale=4):
 
     return x
 
-
 def em_AG_D_sameas_preprint(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
 
@@ -81,7 +83,6 @@ def em_AG_D_sameas_preprint(x, scale=4):
     x = random_noise(x, mode="localvar", local_vars=lvar * 0.05)
 
     return x
-
 
 def em_G_D_001(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
@@ -93,7 +94,6 @@ def em_G_D_001(x, scale=4):
 
     return x
 
-
 def em_G_D_002(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
 
@@ -103,13 +103,11 @@ def em_G_D_002(x, scale=4):
 
     return x
 
-
 def em_P_D_001(x, scale=4):
     x = npzoom(x, 1 / scale, order=1)
     x = random_noise(x, mode="poisson", seed=1)
 
     return x
-
 
 def new_crap_AG_SP(x, scale=4):
     x = rescale(x, scale=1 / scale, order=1)
@@ -123,7 +121,6 @@ def new_crap_AG_SP(x, scale=4):
 
     return x
 
-
 def new_crap(x, scale=4):
     x = rescale(x, scale=1 / scale, order=1)
 
@@ -134,28 +131,12 @@ def new_crap(x, scale=4):
 
     return x
 
+#
+#####################################
 
-# Create corresponding training patches synthetically by adding noise
-# and downsampling the images (see https://www.biorxiv.org/content/10.1101/740548v3)
-def em_crappify(img, scale):
-    img = transform.resize(img, (img.shape[0] // scale, img.shape[1] // scale), order=1)
-
-    img = filters.gaussian(img, sigma=3) + 1e-10
-    img = norm(img)
-    # return npzoom(img, 1/scale, order=1)
-    return img
-
-
-def fluo_crappify(img, scale):
-    img = transform.resize(img, (img.shape[0] // scale, img.shape[1] // scale), order=1)
-
-    img = random_noise(img, mode="salt", amount=0.005)
-    img = random_noise(img, mode="pepper", amount=0.005)
-    img = filters.gaussian(img, sigma=5) + 1e-10
-    img = norm(img)
-    # return npzoom(img, 1/scale, order=1)
-    return img
-
+#####################################
+#
+# New crappifiers created by me.
 
 def em_poisson_crappify(img, scale, lam=1.0):
     img = transform.resize(img, (img.shape[0] // scale, img.shape[1] // scale), order=1)
@@ -183,7 +164,28 @@ def em_gaussian_crappify(img, scale, mu=-0.1, sigma=0.15, scalar=0.9):
     img = norm(img + scalar*noise)
     return img
 
+#
+#####################################
+
+#####
+# Function and dictionary that control the crappifiers
+#####
+
 def apply_crappifier(x, scale, crappifier_name):
+    """
+    Apply the specified crappifier to the input data.
+
+    Parameters:
+        x (numpy.ndarray): The input data.
+        scale (float): The scaling factor for the crappifier.
+        crappifier_name (str): The name of the crappifier to apply.
+
+    Returns:
+        numpy.ndarray: The output data after applying the crappifier.
+
+    Raises:
+        ValueError: If the specified crappifier_name is not in the CRAPPIFIER_DICT.
+    """
     if crappifier_name in CRAPPIFIER_DICT:
         return norm(CRAPPIFIER_DICT[crappifier_name](norm(x), scale).astype(np.float32))
     else:
@@ -193,6 +195,7 @@ def apply_crappifier(x, scale, crappifier_name):
             )
         )
 
+# Dictionary with all the crappifier functions
 CRAPPIFIER_DICT = {
     "downsampleonly": downsampleonly,
     "fluo_G_D": fluo_G_D,
@@ -206,8 +209,6 @@ CRAPPIFIER_DICT = {
     "em_P_D_001": em_P_D_001,
     "new_crap_AG_SP": new_crap_AG_SP,
     "new_crap": new_crap,
-    "em_crappify": em_crappify,
-    "fluo_crappify": fluo_crappify,
     "em_poisson_crappify": em_poisson_crappify,
     "fluo_poisson_crappify": fluo_poisson_crappify,
     "em_gaussian_crappify": em_gaussian_crappify,

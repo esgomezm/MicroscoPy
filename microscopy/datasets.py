@@ -8,34 +8,72 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from . import crappifiers
+from utils import min_max_normalization as normalization
 
-from matplotlib import pyplot as plt
-
-#####
-# Functions to sample an image using probability density function
-#####
-# Functions from https://github.com/esgomezm/microscopy-dl-suite-tf/blob/fcb8870624208bfb72dc7aea18a90738a081217f/dl-suite/utils
-
+#####################################
+#
+# Functions to sample an image using a probability density function.
+# Code from: https://github.com/esgomezm/microscopy-dl-suite-tf/blob/fcb8870624208bfb72dc7aea18a90738a081217f/dl-suite/utils
 
 def index_from_pdf(pdf_im):
+    """
+    Generate the index coordinates from a probability density function (pdf) image.
+
+    Parameters:
+    - pdf_im: numpy.ndarray
+        The input pdf image.
+
+    Returns:
+    - tuple
+        A tuple containing the index coordinates (indexh, indexw) of the randomly chosen element from the pdf image.
+
+    Example:
+    ```
+    pdf_image = np.array([[0.1, 0.2, 0.3],
+                          [0.2, 0.3, 0.4],
+                          [0.3, 0.4, 0.5]])
+    index = index_from_pdf(pdf_image)
+    print(index)  # (1, 2)
+    ```
+    """
     prob = np.copy(pdf_im)
+
     # Normalize values to create a pdf with sum = 1
     prob = prob.ravel() / np.sum(prob)
+    
     # Convert into a 1D pdf
     choices = np.prod(pdf_im.shape)
     index = np.random.choice(choices, size=1, p=prob)
+    
     # Recover 2D shape
     coordinates = np.unravel_index(index, shape=pdf_im.shape)
+    
     # Extract index
     indexh = coordinates[0][0]
     indexw = coordinates[1][0]
+    
     return indexh, indexw
 
+def sampling_pdf(y, pdf_flag, height, width):
+    """
+        Generate the function comment for the given function body in a markdown code block with the correct language syntax.
 
-def sampling_pdf(y, pdf, height, width):
+        Parameters:
+        - y: the input array
+        - pdf_flag: a flag indicating whether to select indexes randomly (0) or based on a PDF (1)
+        - height: the height of the crop
+        - width: the width of the crop
+
+        Returns:
+        - indexh: the index for the center of the crop along the height dimension
+        - indexw: the index for the center of the crop along the width dimension
+    """
+
+    # Obtain the height and width of the input array
     h, w = y.shape[0], y.shape[1]
 
-    if pdf == 1:
+    if pdf_flag == 0:
+         # If pdf_flag is 0 then select the indexes for the center of the crop randomly
         indexw = np.random.randint(
             np.floor(width // 2),
             max(w - np.floor(width // 2), np.floor(width // 2) + 1),
@@ -45,11 +83,14 @@ def sampling_pdf(y, pdf, height, width):
             max(h - np.floor(height // 2), np.floor(height // 2) + 1),
         )
     else:
+        # If pdf_flag is 1 then select the indexes for the center of the crop based on a PDF
+
         # crop to fix patch size
         # croped_y = y[int(np.floor(height // 2)):-int(np.floor(height // 2)),
         #              int(np.floor(width // 2)) :-int(np.floor(width // 2))]
         # indexh, indexw = index_from_pdf(croped_y)
 
+        # In order to speed the process, this is done on the Fourier domain
         kernel = np.ones((height, width))
 
         pdf = np.fft.irfft2(np.fft.rfft2(y) * np.fft.rfft2(kernel, y.shape))
@@ -65,63 +106,112 @@ def sampling_pdf(y, pdf, height, width):
 
     return indexh, indexw
 
-
-#####
 #
-#####
+#####################################
 
+#####################################
+#
+# Functions to read image pairs from a given path.
 
-def normalization(data, desired_accuracy=np.float32):
-    return (data - data.min()) / (data.max() - data.min() + 1e-10).astype(
-        desired_accuracy
-    )
+def read_image(file_path, desired_accuracy=np.float32):
+    """
+    Reads an image from a given file path.
 
+    Args:
+        file_path (str): The path to the image file.
+        desired_accuracy (type, optional): The desired accuracy of the image. Defaults to np.float32.
 
-def read_image(filename, desired_accuracy=np.float32):
-    return normalization(io.imread(filename), desired_accuracy=desired_accuracy)
+    Returns:
+        The normalized image.
+    """
+    return normalization(io.imread(file_path), desired_accuracy=desired_accuracy)
 
 
 def obtain_scale_factor(hr_filename, lr_filename, scale_factor, crappifier_name):
+    """
+    Calculates the scale factor between a low-resolution image and a high-resolution image.
+
+    Args:
+        hr_filename (str): The path to the high-resolution image file.
+        lr_filename (str): The path to the low-resolution image file.
+        scale_factor (int): The scale factor to be applied to the low-resolution image.
+        crappifier_name (str): The name of the crappifier to use for generating the low-resolution image.
+
+    Raises:
+        ValueError: If no scale factor is given and no low-resolution image file is provided.
+
+    Returns:
+        int: The scale factor of the images.
+    """
+    
     if scale_factor is None and lr_filename is None:
+        # In case that there is no LR image and no scale factor is given, raise an error
         raise ValueError("A scale factor has to be given.")
 
+    # HR image should always be given, herefore read it
     hr_img = read_image(hr_filename)
-
+    
     if lr_filename is None:
-        # If no path to the LR images is given, they will be artificially generated
+        # If no path to the LR images is given, they will be artificially generated with a crappifier
         lr_img = normalization(
             crappifiers.apply_crappifier(hr_img, scale_factor, crappifier_name)
         )
     else:
+        # Otherwise, read the LR image
         lr_img = read_image(lr_filename)
 
+    # Obtain the real scale factor of the image
     images_scale_factor = hr_img.shape[0] // lr_img.shape[0]
 
-    return images_scale_factor if scale_factor is None else scale_factor
+    return images_scale_factor
 
 
 def read_image_pairs(hr_filename, lr_filename, scale_factor, crappifier_name):
+    """
+    Reads a pair of high-resolution (HR) and low-resolution (LR) images and returns them.
+
+    Parameters:
+        hr_filename (str): The path to the HR image file.
+        lr_filename (str): The path to the LR image file. If None, the LR image will be artificially generated.
+        scale_factor (int): The scale factor for downsampling the LR image.
+        crappifier_name (str): The name of the crappifier to be used for generating the LR image.
+
+    Returns:
+        tuple: A tuple containing the HR and LR images.
+            - hr_img (ndarray): The high-resolution image.
+            - lr_img (ndarray): The low-resolution image.
+    """
     hr_img = read_image(hr_filename)
 
     if lr_filename is None:
-        # If no path to the LR images is given, they will be artificially generated
+        # If no path to the LR images is given, they will be artificially generated with a crappifier
         lr_img = normalization(
             crappifiers.apply_crappifier(hr_img, scale_factor, crappifier_name)
         )
     else:
+        # Otherwise, read the LR image
         lr_img = read_image(lr_filename)
 
+        # Then calculate the scale factor
         images_scale_factor = hr_img.shape[0] // lr_img.shape[0]
 
         if scale_factor > images_scale_factor:
+            # And in case that the given scale factor is larger than the real scale factor of the images,
+            # downsample the low-resolution image to match the given scale factor 
             lr_img = normalization(
                 crappifiers.apply_crappifier(
-                    lr_img, scale_factor // images_scale_factor, crappifier_name
+                    lr_img, scale_factor // images_scale_factor, "downsampleonly"
                 )
             )
 
     return hr_img, lr_img
 
+#
+#####################################
+
+#####################################
+#
+# Functions to read images and extract patches from them.
 
 def extract_random_patches_from_image(
     hr_filename,
@@ -131,14 +221,31 @@ def extract_random_patches_from_image(
     lr_patch_shape,
     datagen_sampling_pdf,
 ):
+    """
+    Extracts random patches from an image.
+
+    :param hr_filename: The path to the high-resolution image file.
+    :param lr_filename: The path to the low-resolution image file.
+    :param scale_factor: The scale factor used for downsampling the image.
+    :param crappifier_name: The name of the crappifier used for generating the low-resolution image.
+    :param lr_patch_shape: The shape of the patches in the low-resolution image. If None, the complete image will be used.
+    :param datagen_sampling_pdf: A flag indicating whether a probability density function (PDF) is used for sampling the patch coordinates.
+    :return: A tuple containing the low-resolution and high-resolution patches.
+    :raises ValueError: If the patch size is bigger than the given images.
+    """
+
+    # First lets read the images from given paths
     hr_img, lr_img = read_image_pairs(
         hr_filename, lr_filename, scale_factor, crappifier_name
     )
 
     if lr_patch_shape is None:
+        # In case that the patch shape (on the low-resolution image) is not given, 
+        # the complete image will be used
         lr_patch_size_width = lr_img.shape[0]
         lr_patch_size_height = lr_img.shape[1]
     else:
+        # Otherwise, use the given patch shape
         lr_patch_size_width = lr_patch_shape[0]
         lr_patch_size_height = lr_patch_shape[1]
 
@@ -146,28 +253,36 @@ def extract_random_patches_from_image(
         lr_img.shape[0] < lr_patch_size_width
         or hr_img.shape[0] < lr_patch_size_width * scale_factor
     ):
+        # In case that the patch size is bigger than the given images, raise an error
         raise ValueError("Patch size is bigger than the given images.")
 
     if (
-        lr_patch_size_width >= lr_img.shape[0]
-        and lr_patch_size_height >= lr_img.shape[1]
+        lr_patch_size_width == lr_img.shape[0]
+        and lr_patch_size_height == lr_img.shape[1]
     ):
+        # In case that the patch size is the same as the given images, return the images
         lr_patch = lr_img
         hr_patch = hr_img
     else:
+        # Otherwise, extract the patch 
+
+        # For that the indexes for the center of the patch are calculated (using a PDF or ranfomly)
         lr_idx_width, lr_idx_height = sampling_pdf(
             y=lr_img,
-            pdf=datagen_sampling_pdf,
+            pdf_flag=datagen_sampling_pdf,
             height=lr_patch_size_height,
             width=lr_patch_size_width,
         )
 
+        # Calculate the lower-row (lr) and upper-row (ur) coordinates
         lr = int(lr_idx_height - np.floor(lr_patch_size_height // 2))
         ur = int(lr_idx_height + np.round(lr_patch_size_height // 2))
 
+        # Calculate the lower-column (lc) and upper-column (uc) coordinates
         lc = int(lr_idx_width - np.floor(lr_patch_size_width // 2))
         uc = int(lr_idx_width + np.round(lr_patch_size_width // 2))
 
+        # Extract the patches
         lr_patch = lr_img[lc:uc, lr:ur]
         hr_patch = hr_img[
             lc * scale_factor : uc * scale_factor, lr * scale_factor : ur * scale_factor
@@ -185,6 +300,24 @@ def extract_random_patches_from_folder(
     lr_patch_shape,
     datagen_sampling_pdf,
 ):
+    """
+    Extracts random patches from a folder of high-resolution and low-resolution images.
+    
+    Args:
+        hr_data_path (str): The path to the folder containing the high-resolution images.
+        lr_data_path (str): The path to the folder containing the low-resolution images.
+        filenames (list): A list of filenames of the images to extract patches from.
+        scale_factor (float): The scale factor for downsampling the images.
+        crappifier_name (str): The name of the crappifier to use for downsampling.
+        lr_patch_shape (tuple): The shape of the low-resolution patches to extract.
+        datagen_sampling_pdf (str): The probability density function for sampling the patches.
+    
+    Returns:
+        final_lr_patches (numpy.ndarray): An array of extracted low-resolution patches.
+        final_hr_patches (numpy.ndarray): An array of extracted high-resolution patches.
+        actual_scale_factor (float): The actual scale factor used for downsampling.
+    """
+    
     # First lets check what is the scale factor, in case None is given
     actual_scale_factor = obtain_scale_factor(
         hr_filename=os.path.join(hr_data_path, filenames[0]),
@@ -198,6 +331,7 @@ def extract_random_patches_from_folder(
     final_lr_patches = []
     final_hr_patches = []
 
+    # Then for a fiven list of filenames, extract a single patch for each image
     for f in filenames:
         hr_image_path = os.path.join(hr_data_path, f)
         if lr_data_path is not None:
@@ -220,11 +354,12 @@ def extract_random_patches_from_folder(
 
     return final_lr_patches, final_hr_patches, actual_scale_factor
 
+#
+#####################################
 
-#####
-# TensorFlow tf.data dataset
-#####
-
+#####################################
+#
+# Functions to define a TensorFlow datasets with its generator.
 
 class TFDataGenerator:
     def __init__(
@@ -248,43 +383,86 @@ class TFDataGenerator:
         self.lr_patch_shape = lr_patch_shape
         self.datagen_sampling_pdf = datagen_sampling_pdf
 
-        self.validation_split = validation_split
-        self.actual_scale_factor = None
+        self.validation_split = validation_split      
+    
+        # In order to not calculate the actual scale factor on each step, its calculated on the initialization  
+        _, _, actual_scale_factor = extract_random_patches_from_folder(
+                                        self.hr_data_path,
+                                        self.lr_data_path,
+                                        [self.filenames[0]],
+                                        scale_factor=self.scale_factor,
+                                        crappifier_name=self.crappifier_name,
+                                        lr_patch_shape=self.lr_patch_shape,
+                                        datagen_sampling_pdf=self.datagen_sampling_pdf,
+                                    )
+        self.actual_scale_factor = actual_scale_factor
 
     def __len__(self):
+        """
+        Returns the length of the object.
+        Which will be used for the number of images on each epoch (not the batches).
+
+        :return: int
+            The length of the object.
+        """
         return int(len(self.filenames))
 
     def __getitem__(self, idx):
-        # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
-        # Generate data
-        (
-            aux_lr_patches,
-            aux_hr_patches,
-            actual_scale_factor,
-        ) = extract_random_patches_from_folder(
-            self.hr_data_path,
-            self.lr_data_path,
-            [self.filenames[idx]],
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_name,
-            lr_patch_shape=self.lr_patch_shape,
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
+        """
+        Retrieves a pair of low-resolution and high-resolution image patches from the dataset.
+
+        Parameters:
+            idx (int): The index of the image in the dataset.
+
+        Returns:
+            tuple: A tuple containing the low-resolution and high-resolution image patches.
+                - lr_patches (ndarray): A 4D numpy array of low-resolution image patches.
+                - hr_patches (ndarray): A 4D numpy array of high-resolution image patches.
+        """
+        hr_image_path = os.path.join(self.hr_data_path, self.filenames[idx])
+        if self.lr_data_path is not None:
+            lr_image_path = os.path.join(self.lr_data_path, self.filenames[idx])
+        else:
+            lr_image_path = None
+
+        aux_lr_patches, aux_hr_patches = extract_random_patches_from_image(
+            hr_image_path,
+            lr_image_path,
+            self.actual_scale_factor,
+            self.crappifier_name,
+            self.lr_patch_shape,
+            self.datagen_sampling_pdf,
         )
 
-        # As we are only taking one element and the batch is obtained outside, we take the [0] element
-        lr_patches = np.expand_dims(aux_lr_patches[0], axis=-1)
-        hr_patches = np.expand_dims(aux_hr_patches[0], axis=-1)
-
-        self.actual_scale_factor = actual_scale_factor
+        lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
+        hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
 
         return lr_patches, hr_patches
 
     def __call__(self):
+        """
+        Calls the object as a function.
+
+        Yields each item in the object by iterating over it.
+        """
         for i in range(self.__len__()):
             yield self.__getitem__(i)
 
 
 def prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip):
+    """
+    Applies random preprocessing transformations to the input images.
+
+    Args:
+        x (Tensor): The input image tensor.
+        y (Tensor): The target image tensor.
+        rotation (bool): Whether to apply rotation.
+        horizontal_flip (bool): Whether to apply horizontal flip.
+        vertical_flip (bool): Whether to apply vertical flip.
+
+    Returns:
+        Tuple[Tensor, Tensor]: The preprocessed input and target image tensors.
+    """
     apply_rotation = (tf.random.uniform(shape=[]) < 0.5) and rotation
     apply_horizontal_flip = (tf.random.uniform(shape=[]) < 0.5) and horizontal_flip
     apply_vertical_flip = (tf.random.uniform(shape=[]) < 0.5) and vertical_flip
@@ -316,6 +494,30 @@ def TFDataset(
     horizontal_flip,
     vertical_flip,
 ):
+    """
+    Generate a TensorFlow Dataset for training and validation.
+
+    Args:
+        filenames (list): List of filenames to be used for generating the dataset.
+        hr_data_path (str): Path to the high-resolution data directory.
+        lr_data_path (str): Path to the low-resolution data directory.
+        scale_factor (int): Scale factor for upsampling the low-resolution data.
+        crappifier_name (str): Name of the crappifier to be used for generating low-resolution data.
+        lr_patch_shape (tuple): Shape of the low-resolution patches.
+        datagen_sampling_pdf (str): Path to the sampling PDF file for data generation.
+        validation_split (float): Proportion of data to be used for validation.
+        batch_size (int): Number of samples per batch.
+        rotation (bool): Whether to apply random rotations to the data.
+        horizontal_flip (bool): Whether to apply random horizontal flips to the data.
+        vertical_flip (bool): Whether to apply random vertical flips to the data.
+
+    Returns:
+        tuple: A tuple containing the following elements:
+            - dataset (tf.data.Dataset): The generated TensorFlow Dataset.
+            - lr_shape (tuple): Shape of the low-resolution data.
+            - hr_shape (tuple): Shape of the high-resolution data.
+            - actual_scale_factor (float): The actual scale factor used for upsampling.
+    """
     data_generator = TFDataGenerator(
         filenames=filenames,
         hr_data_path=hr_data_path,
@@ -327,18 +529,22 @@ def TFDataset(
         validation_split=validation_split,
     )
 
+    # Get the first item to extract information from it
     lr, hr = data_generator.__getitem__(0)
     actual_scale_factor = data_generator.actual_scale_factor
 
+    # Create the dataset generator
     dataset = tf.data.Dataset.from_generator(
         data_generator,
         output_types=(lr.dtype, hr.dtype),
         output_shapes=(tf.TensorShape(lr.shape), tf.TensorShape(hr.shape)),
     )
 
+    # Map the preprocessing function
     dataset = dataset.map(
         lambda x, y: prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip)
     )
+    # Batch the data
     dataset = dataset.batch(batch_size)
 
     return (
@@ -348,11 +554,12 @@ def TFDataset(
         actual_scale_factor,
     )
 
+#
+#####################################
 
-#####
-# TensorFlow Sequence dataset
-#####
-
+#####################################
+#
+# Functions to define a different Tensorflow Data generator which is based on Sequence.
 
 class DataGenerator(tf.keras.utils.Sequence):
     def __init__(
@@ -394,27 +601,69 @@ class DataGenerator(tf.keras.utils.Sequence):
         self.horizontal_flip = horizontal_flip
         self.vertical_flip = vertical_flip
 
-        self.shuffle = shuffle  # #
+        # Make an initial shuffle
+        self.shuffle = shuffle
         self.on_epoch_end()
 
-        self.actual_scale_factor = None
+        # In order to not calculate the actual scale factor on each step, its calculated on the initialization  
+        _, _, actual_scale_factor = extract_random_patches_from_folder(
+                                        self.hr_data_path,
+                                        self.lr_data_path,
+                                        [self.filenames[0]],
+                                        scale_factor=self.scale_factor,
+                                        crappifier_name=self.crappifier_name,
+                                        lr_patch_shape=self.lr_patch_shape,
+                                        datagen_sampling_pdf=self.datagen_sampling_pdf,
+                                    )
+        self.actual_scale_factor = actual_scale_factor
 
     def __len__(self):
-        "Denotes the number of batches per epoch"
+        """
+        Denotes the number of batches per epoch.
+
+        Returns:
+            int: The number of batches per epoch.
+        """
         return int(np.floor(len(self.filenames) / self.batch_size))
 
     def get_sample(self, idx):
+        """
+        Get a sample from the dataset.
+
+        Parameters:
+            idx (int): The index of the sample to retrieve.
+
+        Returns:
+            tuple: A tuple containing the x and y values of the sample, as well as the actual scale factor.
+        """
         x, y = self.__getitem__(idx)
 
         return x, y, self.actual_scale_factor
 
     def on_epoch_end(self):
-        "Updates indexes after each epoch"
+        """
+        Perform actions at the end of each epoch.
+
+        This method is called at the end of each epoch in the training process.
+        It updates the `indexes` attribute by creating a numpy array of indices
+        corresponding to the length of the `filenames` attribute. If `shuffle`
+        is set to `True`, it shuffles the indices using the `np.random.shuffle`
+        function.
+        """
         self.indexes = np.arange(len(self.filenames))
         if self.shuffle == True:
             np.random.shuffle(self.indexes)
 
     def __getitem__(self, index):
+        """
+        Returns a tuple of low-resolution patches and high-resolution patches corresponding to the given index.
+
+        Parameters:
+            index (int): The index of the batch.
+        
+        Returns:
+            tuple: A tuple containing the low-resolution patches and high-resolution patches.
+        """
         # Generate indexes of the batch
         indexes = self.indexes[index * self.batch_size : (index + 1) * self.batch_size]
         # Find list of IDs
@@ -424,10 +673,26 @@ class DataGenerator(tf.keras.utils.Sequence):
         return lr_patches, hr_patches
 
     def __call__(self):
+        """
+        Calls the object as a function.
+
+        Yields each item in the object by iterating over it.
+        """
         for i in range(self.__len__()):
             yield self.__getitem__(i)
 
     def __preprocess(self, x, y):
+        """
+        Preprocesses the input data by applying random rotations, horizontal flips, and vertical flips.
+
+        Parameters:
+            x (ndarray): The input data to be preprocessed.
+            y (ndarray): The target data to be preprocessed.
+
+        Returns:
+            processed_x (ndarray): The preprocessed input data.
+            processed_y (ndarray): The preprocessed target data.
+        """
         apply_rotation = (np.random.random() < 0.5) * self.rotation
         apply_horizontal_flip = (np.random.random() < 0.5) * self.horizontal_flip
         apply_vertical_flip = (np.random.random() < 0.5) * self.vertical_flip
@@ -449,20 +714,30 @@ class DataGenerator(tf.keras.utils.Sequence):
         return processed_x, processed_y
 
     def __data_generation(self, list_IDs_temp):
-        # 'Generates data containing batch_size samples' # X : (n_samples, *dim, n_channels)
-        # Generate data
-        (
-            aux_lr_patches,
-            aux_hr_patches,
-            actual_scale_factor,
-        ) = extract_random_patches_from_folder(
-            self.hr_data_path,
-            self.lr_data_path,
-            self.filenames[list_IDs_temp],
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_name,
-            lr_patch_shape=self.lr_patch_shape,
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
+        """
+        Generate data batches for training or validation.
+
+        Parameters:
+            list_IDs_temp (list): The list of data IDs to generate the data for.
+
+        Returns:
+            lr_patches (ndarray): The low-resolution image patches generated from the data.
+            hr_patches (ndarray): The high-resolution image patches generated from the data.
+        """
+        
+        hr_image_path = os.path.join(self.hr_data_path, self.filenames[idx])
+        if self.lr_data_path is not None:
+            lr_image_path = os.path.join(self.lr_data_path, self.filenames[idx])
+        else:
+            lr_image_path = None
+
+        aux_lr_patches, aux_hr_patches = extract_random_patches_from_image(
+            hr_image_path,
+            lr_image_path,
+            self.actual_scale_factor,
+            self.crappifier_name,
+            self.lr_patch_shape,
+            self.datagen_sampling_pdf,
         )
 
         lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
@@ -470,72 +745,45 @@ class DataGenerator(tf.keras.utils.Sequence):
 
         lr_patches, hr_patches = self.__preprocess(lr_patches, hr_patches)
 
-        self.actual_scale_factor = actual_scale_factor
-
         return lr_patches, hr_patches
 
-#####
-# TensorFlow old dataset
-#####
+#
+#####################################
 
-import numpy as np
-from skimage.util import img_as_ubyte
-from skimage import io
-from matplotlib import pyplot as plt
+#####################################
+#
+# Functions that will be used to define and create an old version of the TensorFlow dataset.
+# This version would load the complete dataset on memory and only once, therefore
+# it would have the same images for each epoch. Even if is may be faster, 
 
-# We define a method to create an arbitrary number of random crops of
-# a given size
-def create_random_patches( lr_path, hr_path, file_names, scale, num_patches,
-                          lr_shape ):
-    ''' Create a list of images patches out of a list of images
-    Args:
-        lr_path (string): low resolution (LR) image path (input images).
-        hr_path (string): high resolution (HR) image path (ground truth images).
-        file_names (list): image file names (same for LR and HR images).
-        scale (int): scale factor between LR and HR images. Example: 2.
-        num_patches (int): number of patches for each image.
-        lr_shape (2D array): size of the LR patches. Example: [128, 128].
-
-    Returns:
-        list of image patches (LR) and patches of corresponding labels (HR)
-    '''
-
-    # read training images
-    lr_img = img_as_ubyte( io.imread( lr_path + '/' + file_names[0] ) )
-
-    original_size = lr_img.shape
-
-    input_patches = []
-    output_patches = []
-    for n in range( 0, len( file_names ) ):
-        lr_img = img_as_ubyte( io.imread( lr_path + '/' + file_names[n] ) )
-        hr_img = img_as_ubyte( io.imread( hr_path + '/' + file_names[n] ) )
-        for i in range( num_patches ):
-          r = np.random.randint(0,original_size[0]-lr_shape[0])
-          c = np.random.randint(0,original_size[1]-lr_shape[1])
-          input_patches.append(  lr_img[ r : r + lr_shape[0],
-                                  c : c + lr_shape[1] ] )
-          output_patches.append( hr_img[ r*scale : (r + lr_shape[0])*scale,
-                                  c*scale : (c + lr_shape[1])*scale ])
-    
-    input_patches = normalization(np.array(input_patches)) # normalize between 0 and 1
-    input_patches = np.expand_dims(input_patches, axis=-1)
-
-    output_patches = normalization(np.array(output_patches)) # normalize between 0 and 1
-    output_patches = np.expand_dims(output_patches, axis=-1)
-
-    return input_patches, output_patches
-
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from skimage import transform
 
-# Random rotation of an image by a multiple of 90 degrees
 def random_90rotation( img ):
+    """
+    Rotate an image randomly by 90 degrees.
+
+    Parameters:
+        img (array-like): The image to be rotated.
+
+    Returns:
+        array-like: The rotated image.
+    """
     return transform.rotate(img, 90*np.random.randint( 0, 5 ), preserve_range=True)
 
-# Runtime data augmentation
-def get_train_val_generators(X_data, Y_data,
-                             batch_size=32, seed=42, show_examples=False):
+
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+def get_train_val_generators(X_data, Y_data, batch_size=32, seed=42, show_examples=False):
+    """
+    Generate train and validation data generators using image data augmentation.
+
+    :param X_data: The input data for training.
+    :param Y_data: The target data for training.
+    :param batch_size: The batch size used for training. Default is 32.
+    :param seed: The seed used for random number generation. Default is 42.
+    :param show_examples: Whether to show examples of augmented images. Default is False.
+    :return: The train generator that yields augmented image and target data.
+    """
 
     # Image data generator distortion options
     data_gen_args = dict( #rotation_range = 45,
@@ -564,16 +812,15 @@ def get_train_val_generators(X_data, Y_data,
 
     return train_generator
 
-print("Created functions for data augmentation")
+#
+#####################################
 
-#####
-# Pytorch dataset
-#####
-
+#####################################
+#
+# Functions that will be used to define and create the Pytorch dataset
 
 class ToTensor(object):
     """Convert ndarrays in sample to Tensors."""
-
     def __call__(self, sample):
         hr, lr = sample["hr"], sample["lr"]
         # Pytorch is (batch, channels, width, height)
@@ -581,10 +828,8 @@ class ToTensor(object):
         lr = lr.transpose((2, 0, 1))
         return {"hr": torch.from_numpy(hr), "lr": torch.from_numpy(lr)}
 
-
 class RandomHorizontalFlip(object):
     """Random horizontal flip"""
-
     def __init__(self):
         self.rng = np.random.default_rng()
 
@@ -597,10 +842,8 @@ class RandomHorizontalFlip(object):
 
         return {"hr": hr.copy(), "lr": lr.copy()}
 
-
 class RandomVerticalFlip(object):
     """Random vertical flip"""
-
     def __init__(self):
         self.rng = np.random.default_rng()
 
@@ -613,10 +856,8 @@ class RandomVerticalFlip(object):
 
         return {"hr": hr.copy(), "lr": lr.copy()}
 
-
 class RandomRotate(object):
     """Random rotation"""
-
     def __init__(self):
         self.rng = np.random.default_rng()
 
@@ -669,35 +910,67 @@ class PytorchDataset(Dataset):
 
         self.datagen_sampling_pdf = datagen_sampling_pdf
 
+        # In order to not calculate the actual scale factor on each step, its calculated on the initialization  
+        _, _, actual_scale_factor = extract_random_patches_from_folder(
+                                        self.hr_data_path,
+                                        self.lr_data_path,
+                                        [self.filenames[0]],
+                                        scale_factor=self.scale_factor,
+                                        crappifier_name=self.crappifier_name,
+                                        lr_patch_shape=self.lr_patch_shape,
+                                        datagen_sampling_pdf=self.datagen_sampling_pdf,
+                                    )
+        self.actual_scale_factor = actual_scale_factor
+
     def __len__(self):
+        """
+        Returns the length of the object.
+        Which will be used for the number of images on each epoch (not the batches).
+
+        :return: int
+            The length of the object.
+        """
         return len(self.filenames)
 
     def __getitem__(self, idx):
+        """
+        Returns a sample from the dataset.
+
+        Parameters:
+            - idx (int): The index of the sample to retrieve.
+
+        Returns:
+            - sample (dict): A dictionary containing the high-resolution and low-resolution patches of an image.
+                - hr (ndarray): The high-resolution patches.
+                - lr (ndarray): The low-resolution patches.
+        """
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        hr_filename = os.path.join(self.hr_data_path, self.filenames[idx])
-        lr_filename = (
-            None
-            if self.lr_data_path is None
-            else os.path.join(self.lr_data_path, self.filenames[idx])
+        hr_image_path = os.path.join(self.hr_data_path, self.filenames[idx])
+        if self.lr_data_path is not None:
+            lr_image_path = os.path.join(self.lr_data_path, self.filenames[idx])
+        else:
+            lr_image_path = None
+
+        aux_lr_patches, aux_hr_patches = extract_random_patches_from_image(
+            hr_image_path,
+            lr_image_path,
+            self.actual_scale_factor,
+            self.crappifier_name,
+            self.lr_patch_shape,
+            self.datagen_sampling_pdf,
         )
 
-        lr_patch, hr_patch = extract_random_patches_from_image(
-            hr_filename=hr_filename,
-            lr_filename=lr_filename,
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_name,
-            lr_patch_shape=self.lr_patch_shape,
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
-        )
+        lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
+        hr_patches = np.expand_dims(aux_hr_patches, axis=-1)
 
-        lr_patch = np.expand_dims(lr_patch, axis=-1)
-        hr_patch = np.expand_dims(hr_patch, axis=-1)
-
-        sample = {"hr": hr_patch, "lr": lr_patch}
+        sample = {"hr": hr_patches, "lr": lr_patches}
 
         if self.transformations:
             sample = self.transformations(sample)
 
         return sample
+
+#
+#####################################
