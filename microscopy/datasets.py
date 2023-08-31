@@ -8,7 +8,7 @@ import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 
 from . import crappifiers
-from utils import min_max_normalization as normalization
+from .utils import min_max_normalization as normalization
 
 #####################################
 #

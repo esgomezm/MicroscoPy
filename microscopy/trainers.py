@@ -19,7 +19,7 @@ from . import utils
 from . import metrics
 from . import model_utils
 from . import optimizer_scheduler_utils
-from . import tensorflow_callbacks
+from . import custom_callbacks
 
 #######
 
@@ -494,7 +494,7 @@ class TensorflowTrainer(ModelsTrainer):
         callbacks.append(earlystopper)
 
         # callback for saving the learning rate
-        lr_observer = tensorflow_callbacks.LearningRateObserver()
+        lr_observer = custom_callbacks.LearningRateObserver()
         callbacks.append(lr_observer)
 
         for x, y in self.val_generator:
@@ -504,7 +504,7 @@ class TensorflowTrainer(ModelsTrainer):
         
         plt_saving_path = os.path.join(self.saving_path, "training_images")
         os.makedirs(plt_saving_path, exist_ok=True)
-        plot_callback = tensorflow_callbacks.PerformancePlotCallback(
+        plot_callback = custom_callbacks.PerformancePlotCallback(
             x_val, y_val, plt_saving_path, frequency=10, is_cddpm=self.model_name=="cddpm"
         )
         callbacks.append(plot_callback)

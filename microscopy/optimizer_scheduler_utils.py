@@ -4,8 +4,12 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau
 
 import torch
 
-from . import tensorflow_callbacks
+from . import custom_callbacks
 
+
+#####################################
+#
+# Functions to select an optimizer.
 
 def select_optimizer(
     library_name,
@@ -15,6 +19,23 @@ def select_optimizer(
     parameters,
     additional_configuration,
 ):
+    """
+    Selects the appropriate optimizer based on the given library name and returns it.
+
+    Parameters:
+        library_name (str): The name of the library to select optimizer from.
+        optimizer_name (str): The name of the optimizer to select.
+        learning_rate (float): The learning rate for the optimizer.
+        check_point (str): The checkpoint for pytorch optimizer (required only for pytorch).
+        parameters (list): The parameters for pytorch optimizer (required only for pytorch).
+        additional_configuration (dict): Additional configuration for the optimizer.
+
+    Returns:
+        The selected optimizer.
+
+    Raises:
+        Exception: If an invalid library name is provided.
+    """
     if library_name == "tensorflow":
         return select_tensorflow_optimizer(
             optimizer_name=optimizer_name,
@@ -36,6 +57,21 @@ def select_optimizer(
 def select_tensorflow_optimizer(
     optimizer_name, learning_rate, additional_configuration
 ):
+    """
+    Selects and returns a TensorFlow optimizer based on the provided optimizer name,
+    learning rate, and additional configuration.
+
+    Parameters:
+        optimizer_name (str): The name of the optimizer to select.
+        learning_rate (float): The learning rate for the optimizer.
+        additional_configuration (object): An object containing additional configuration parameters.
+
+    Returns:
+        tf.keras.optimizers.Optimizer: The selected TensorFlow optimizer.
+
+    Raises:
+        Exception: If no available optimizer matches the provided optimizer name.
+    """
     if optimizer_name == "rms_prop":
         return tf.keras.optimizers.RMSprop(learning_rate=learning_rate,
                                            rho=additional_configuration.used_optim.rho,
@@ -75,6 +111,22 @@ def select_tensorflow_optimizer(
 def select_pytorch_optimizer(
     optimizer_name, learning_rate, check_point, parameters, additional_configuration
 ):
+    """
+    Selects and initializes a PyTorch optimizer based on the given parameters.
+
+    Parameters:
+        optimizer_name (str): The name of the optimizer to be selected.
+        learning_rate (float): The learning rate to be used by the optimizer.
+        check_point (Any): A checkpoint to determine if additional configuration is needed.
+        parameters (Iterable): The parameters to be optimized.
+        additional_configuration (Any): Additional configuration parameters.
+
+    Returns:
+        torch.optim.Optimizer: The initialized PyTorch optimizer.
+
+    Raises:
+        Exception: If no available optimizer is found.
+    """
     if check_point is None:
         if optimizer_name == "adam":
             return torch.optim.Adam(
@@ -132,9 +184,12 @@ def select_pytorch_optimizer(
         else:
             raise Exception("No available optimizer.")
 
+#
+#####################################
 
-#######
-
+#####################################
+#
+# Functions to select a learning rate scheduler.
 
 def select_lr_schedule(
     library_name,
@@ -148,6 +203,27 @@ def select_lr_schedule(
     frequency,
     additional_configuration,
 ):
+    """
+    Selects the appropriate learning rate schedule based on the given library name.
+
+    Parameters:
+        library_name (str): The name of the deep learning library ("tensorflow" or "pytorch").
+        lr_scheduler_name (str): The name of the learning rate scheduler.
+        data_len (int): The length of the dataset.
+        num_epochs (int): The number of epochs.
+        learning_rate (float): The initial learning rate.
+        monitor_loss (bool): Whether to monitor the loss.
+        name (str): The name of the model.
+        optimizer (str): The name of the optimizer.
+        frequency (int): The frequency of the learning rate update.
+        additional_configuration (dict): Additional configuration parameters.
+
+    Returns:
+        The selected learning rate schedule.
+
+    Raises:
+        Exception: If the library name is not "tensorflow" or "pytorch".
+    """
     if library_name == "tensorflow":
         return select_tensorflow_lr_schedule(
             lr_scheduler_name,
@@ -181,9 +257,26 @@ def select_tensorflow_lr_schedule(
     monitor_loss,
     additional_configuration,
 ):
+    """
+    Generates a TensorFlow learning rate schedule based on the given parameters.
+
+    Args:
+        lr_scheduler_name (str): The name of the learning rate scheduler.
+        data_len (int): The length of the data.
+        num_epochs (int): The number of epochs.
+        learning_rate (float): The initial learning rate.
+        monitor_loss (str): The loss to monitor.
+        additional_configuration (object): Additional configuration for the scheduler.
+
+    Returns:
+        tf.keras.optimizers.schedules.LearningRateSchedule or None: The generated learning rate schedule.
+
+    Raises:
+        Exception: If the specified learning rate scheduler is not available.
+    """
     if lr_scheduler_name == "OneCycle":
         steps = data_len * num_epochs
-        return tensorflow_callbacks.OneCycleScheduler(learning_rate, steps)
+        return custom_callbacks.OneCycleScheduler(learning_rate, steps)
     elif lr_scheduler_name == "ReduceOnPlateau":
         return ReduceLROnPlateau(
             monitor=monitor_loss,
@@ -201,7 +294,7 @@ def select_tensorflow_lr_schedule(
     elif lr_scheduler_name == "MultiStepScheduler":
         total_steps = data_len * num_epochs
         lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
-        return tensorflow_callbacks.MultiStepScheduler(
+        return custom_callbacks.MultiStepScheduler(
             learning_rate,
             lr_steps=lr_steps,
             lr_rate_decay=additional_configuration.used_sched.lr_rate_decay # 0.5
@@ -223,6 +316,26 @@ def select_pytorch_lr_schedule(
     frequency,
     additional_configuration,
 ):
+    """
+    Selects and returns a PyTorch learning rate schedule based on the provided parameters.
+
+    Parameters:
+        - lr_scheduler_name (str): The name of the learning rate scheduler to select.
+        - data_len (int): The length of the training data.
+        - num_epochs (int): The number of epochs to train for.
+        - learning_rate (float): The initial learning rate.
+        - monitor_loss (str): The name of the loss function to monitor.
+        - name (str): The name of the learning rate schedule.
+        - optimizer (torch.optim.Optimizer): The optimizer object.
+        - frequency (int): The frequency of the learning rate schedule.
+        - additional_configuration (Any): Additional configuration parameters.
+
+    Returns:
+        dict: A dictionary containing the selected learning rate scheduler, interval, name, monitor, and frequency.
+
+    Raises:
+        Exception: If the provided learning rate scheduler is not available.
+    """
     if lr_scheduler_name == "OneCycle":
         return {
             "scheduler": torch.optim.lr_scheduler.OneCycleLR(
@@ -292,3 +405,6 @@ def select_pytorch_lr_schedule(
         } 
     else:
         raise Exception("Not available Learning rate Scheduler.")
+
+#
+#####################################

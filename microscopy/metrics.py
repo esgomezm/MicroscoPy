@@ -14,16 +14,30 @@ lpips_vgg = lpips.LPIPS(net="vgg", version="0.1")
 from nanopyx.core.transform.new_error_map import ErrorMap
 from nanopyx.core.analysis.decorr import DecorrAnalysis
 
+# ILNIQE (in a local file)
 from .ILNIQE import calculate_ilniqe
 
-# from torchmetrics.image.fid import FrechetInceptionDistance
-
-# import piq
-# dists_loss = piq.DISTS()
-# pieapp_loss = piq.PieAPP()
-
-
 def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metric_indexes):
+    """
+    Calculate various metrics for evaluating the performance of an image prediction model.
+
+    Args:
+        gt_image_list (List[np.ndarray]): A list of ground truth images.
+        predicted_image_list (List[np.ndarray]): A list of predicted images.
+        wf_image_list (List[np.ndarray]): A list of wavefront images.
+        test_metric_indexes (List[int]): A list of indexes to calculate additional metrics.
+
+    Returns:
+        dict: A dictionary containing different metrics as keys and their corresponding values as lists.
+
+    Raises:
+        AssertionError: If the minimum value of the wavefront image is greater than 0 or the maximum value is less than 0.
+
+    Note:
+        This function uses various image metrics including MSE, SSIM, PSNR, GT RSE, GT RSP, Pred RSE, Pred RSP, and Decorrelation.
+        It also calculates metrics using the LPIPS (Learned Perceptual Image Patch Similarity) model, ILNIQE (Image Lab Non-Reference Image Quality Evaluation), and other metrics.
+        The calculated metrics are stored in a dictionary with the metric names as keys and lists of values as their corresponding values.
+    """
     metrics_dict = {
         "ssim": [],
         "psnr": [],
@@ -50,45 +64,14 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
     test_data_length = len(gt_image_list)
 
     for i in tqdm(range(test_data_length)):
+        
+        # Load the widefield image, ground truth image, and predicted image
         gt_image = gt_image_list[i][:, :, 0]
         predicted_image = predicted_image_list[i][:, :, 0]
         wf_image = wf_image_list[i][:, :, 0]
 
-        gt_image_piq = np.expand_dims(gt_image, axis=0)
-        gt_image_piq = np.expand_dims(gt_image_piq, axis=0)
-        if gt_image_piq.dtype == np.uint16:
-            gt_image_piq = gt_image_piq.astype(
-                np.uint8
-            )  # Pytorch does not support uint16
-        gt_image_piq = torch.from_numpy(gt_image_piq)
 
-        predicted_image_piq = np.expand_dims(predicted_image, axis=0)
-        predicted_image_piq = np.expand_dims(predicted_image_piq, axis=0)
-        if predicted_image_piq.dtype == np.uint16:
-            predicted_image_piq = predicted_image_piq.astype(
-                np.uint8
-            )  # Pytorch does not support uint16
-        predicted_image_piq = torch.from_numpy(predicted_image_piq)
-
-        """
-        gt_image_piq_3c = np.expand_dims(gt_image, axis=0)
-        gt_image_piq_3c = np.concatenate((gt_image_piq_3c,gt_image_piq_3c,gt_image_piq_3c), axis=0)
-        gt_image_piq_3c = np.expand_dims(gt_image_piq_3c, axis=0)
-        gt_image_piq_3c = torch.from_numpy(gt_image_piq_3c)
-
-        predicted_image_piq_3c = np.expand_dims(predicted_image, axis=0)
-        predicted_image_piq_3c = np.concatenate((predicted_image_piq_3c,predicted_image_piq_3c,predicted_image_piq_3c), axis=0)
-        predicted_image_piq_3c = np.expand_dims(predicted_image_piq_3c, axis=0)
-        predicted_image_piq_3c = torch.from_numpy(predicted_image_piq_3c)
-        """
-
-        # the input is expected to be mini-batches of 3-channel RGB images of shape (3 x H x W)
-        # All images will be resized to 299 x 299 which is the size of the original training data.
-        # fid = FrechetInceptionDistance(feature=64, normalize=True) # feature=64,192,768,2048 normalize=False(uint8),True(float)
-        # fid.update(gt_image_piq_3c, real=True)
-        # fid.update(predicted_image_piq_3c, real=False)
-        # fid.compute()
-
+        # Print info about the images
         print(
             f"gt_image: {gt_image.shape} - {gt_image.min()} {gt_image.max()} - {gt_image.dtype}"
         )
@@ -96,14 +79,44 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
             f"predicted_image: {predicted_image.shape} - {predicted_image.min()} {predicted_image.max()} - {predicted_image.dtype}"
         )
         print(
-            f"predicted_image: {wf_image.shape} - {wf_image.min()} {wf_image.max()} - {wf_image.dtype}"
+            f"wf_image: {wf_image.shape} - {wf_image.min()} {wf_image.max()} - {wf_image.dtype}"
         )
 
+
+        # Convert the Numpy images into Pytorch tensors
+        # Pass the images into Pytorch format (1, 1, X, X)
+        gt_image_piq = np.expand_dims(gt_image, axis=0)
+        gt_image_piq = np.expand_dims(gt_image_piq, axis=0)
+        
+        predicted_image_piq = np.expand_dims(predicted_image, axis=0)
+        predicted_image_piq = np.expand_dims(predicted_image_piq, axis=0)
+
+        # Pytorch does not support uint16
+        if gt_image_piq.dtype == np.uint16:
+            gt_image_piq = gt_image_piq.astype(np.uint8)
+        if predicted_image_piq.dtype == np.uint16:
+            predicted_image_piq = predicted_image_piq.astype(np.uint8) 
+            
+        # Convert the images into Pytorch tensors
+        gt_image_piq = torch.from_numpy(gt_image_piq)
+        predicted_image_piq = torch.from_numpy(predicted_image_piq)
+
+        
+        # Assert that there are no negative values
         assert wf_image.min() <= 0. and wf_image.max() >= 0.
+
+        # In case all the predicted values are equal (all zeros for example)
+        all_equals = np.all(predicted_image==np.ravel(predicted_image)[0])
+
+    
+        #####################################
+        #
+        # Calculate the skimage metrics
 
         metrics_dict["mse"].append(
             skimage_metrics.mean_squared_error(gt_image, predicted_image)
         )
+
         metrics_dict["ssim"].append(
             skimage_metrics.structural_similarity(
                 predicted_image, gt_image, data_range=1.0
@@ -113,6 +126,35 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
             skimage_metrics.peak_signal_noise_ratio(gt_image, predicted_image)
         )
 
+        #
+        #####################################
+
+        #####################################
+        #
+        # Calculate the LPIPS metrics
+
+        metrics_dict["alex"].append(
+                np.squeeze(
+                    lpips_alex(gt_image_piq.float(), predicted_image_piq.float())
+                    .detach()
+                    .numpy()
+                )
+            )
+        metrics_dict["vgg"].append(
+            np.squeeze(
+                lpips_vgg(gt_image_piq.float(), predicted_image_piq.float())
+                .detach()
+                .numpy()
+            )
+        )
+
+        #
+        #####################################
+
+        #####################################
+        #
+        # Calculate the Nanopyx metrics
+
         error_map = ErrorMap()
         error_map.optimise(wf_image, gt_image)
         metrics_dict["gt_rse"].append(
@@ -121,9 +163,6 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
         metrics_dict["gt_rsp"].append(
             error_map.getRSP()
         )
-
-        # In case all the predicted values are equal (all zeros for example)
-        all_equals = np.all(predicted_image==np.ravel(predicted_image)[0])
 
         if not all_equals:
             error_map = ErrorMap()
@@ -147,54 +186,27 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
         else: 
             metrics_dict["decor"].append(np.nan)
 
-        metrics_dict["alex"].append(
-                np.squeeze(
-                    lpips_alex(gt_image_piq.float(), predicted_image_piq.float())
-                    .detach()
-                    .numpy()
-                )
-            )
-        metrics_dict["vgg"].append(
-            np.squeeze(
-                lpips_vgg(gt_image_piq.float(), predicted_image_piq.float())
-                .detach()
-                .numpy()
-            )
-        )
+        #
+        #####################################
+
+        #####################################
+        #
+        # Calculate the ILNIQE
         
-        if not all_equals:
-            metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0,
-                                            input_order='HW', resize=True, version='python'))
-        else: 
-            metrics_dict['ilniqe'].append(np.nan)
+        # Temporally commented to avoid long evaluation times (83 seconds for each image)
+        # if not all_equals:
+        #     metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0,
+        #                                     input_order='HW', resize=True, version='python'))
+        # else: 
+        #     metrics_dict['ilniqe'].append(np.nan)
 
-        # metrics_dict['fsim'].append(piq.fsim(predicted_image_piq, gt_image_piq, chromatic=False).item())
-        # metrics_dict['gmsd'].append(piq.gmsd(predicted_image_piq, gt_image_piq).item())
-        # metrics_dict['vsi'].append(piq.vsi(predicted_image_piq, gt_image_piq).item())
-        # metrics_dict['haarpsi'].append(piq.haarpsi(predicted_image_piq, gt_image_piq).item())
-        # metrics_dict['mdsi'].append(piq.mdsi(predicted_image_piq, gt_image_piq).item())
-        # metrics_dict['dists'].append(dists_loss(predicted_image_piq, gt_image_piq).item())
-        # metrics_dict['brisqe'].append(piq.brisque(predicted_image_piq).item())
+        #
+        #####################################
 
-        '''
+        
         if i in test_metric_indexes:
-            metrics_dict["alex"].append(
-                np.squeeze(
-                    lpips_alex(gt_image_piq.float(), predicted_image_piq.float())
-                    .detach()
-                    .numpy()
-                )
-            )
-            metrics_dict["vgg"].append(
-                np.squeeze(
-                    lpips_vgg(gt_image_piq.float(), predicted_image_piq.float())
-                    .detach()
-                    .numpy()
-                )
-            )
-            # metrics_dict['ilniqe'].append(calculate_ilniqe(img_as_ubyte(predicted_image), 0,
-            #                                  input_order='HW', resize=True, version='python'))
-            # metrics_dict['pieapp'].append(pieapp_loss(predicted_image_piq.float(), gt_image_piq.float()).item())
-        '''
+            # In case you want to calculate in specific images (a reduced number to avoid time issues)
+            pass
+        
 
     return metrics_dict

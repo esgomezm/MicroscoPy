@@ -5,7 +5,7 @@ from skimage.util import random_noise
 from scipy.ndimage.interpolation import zoom as npzoom
 from skimage.transform import rescale
 
-from utils import min_max_normalization as norm
+from .utils import min_max_normalization as norm
 
 def add_poisson_noise(img, lam=1.0):
     """

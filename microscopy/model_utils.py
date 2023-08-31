@@ -2,9 +2,6 @@ import numpy as np
 
 from . import model
 
-######
-
-
 def select_model(
     model_name=None,
     input_shape=None,
@@ -32,6 +29,43 @@ def select_model(
     d_scheduler=None,
     checkpoint=None,
 ):
+    """
+    Selects and returns a specific model based on the given parameters.
+
+    Args:
+        model_name (str, optional): The name of the model to select. Defaults to None.
+        input_shape (tuple, optional): The shape of the input data. Defaults to None.
+        output_channels (int, optional): The number of output channels for the selected model. Defaults to None.
+        scale_factor (int, optional): The scale factor for upsampling the input data. Defaults to None.
+        model_configuration (object, optional): The configuration object for the model. Defaults to None.
+        batch_size (int, optional): The batch size for training the model. Defaults to None.
+        lr_patch_size_x (int, optional): The patch size in the x-direction for training the model. Defaults to None.
+        lr_patch_size_y (int, optional): The patch size in the y-direction for training the model. Defaults to None.
+        datagen_sampling_pdf (array, optional): The sampling probability distribution function for the data generator. Defaults to None.
+        learning_rate_g (float, optional): The learning rate for the generator model. Defaults to None.
+        learning_rate_d (float, optional): The learning rate for the discriminator model. Defaults to None.
+        epochs (int, optional): The number of epochs for training the model. Defaults to None.
+        train_hr_path (str, optional): The file path for the high-resolution training data. Defaults to None.
+        train_lr_path (str, optional): The file path for the low-resolution training data. Defaults to None.
+        train_filenames (list, optional): The list of training file names. Defaults to None.
+        val_hr_path (str, optional): The file path for the high-resolution validation data. Defaults to None.
+        val_lr_path (str, optional): The file path for the low-resolution validation data. Defaults to None.
+        val_filenames (list, optional): The list of validation file names. Defaults to None.
+        crappifier_method (str, optional): The method used for creating low-resolution data. Defaults to None.
+        save_basedir (str, optional): The base directory for saving the model. Defaults to None.
+        g_optimizer (str, optional): The optimizer for the generator model. Defaults to None.
+        d_optimizer (str, optional): The optimizer for the discriminator model. Defaults to None.
+        g_scheduler (str, optional): The scheduler for the generator model. Defaults to None.
+        d_scheduler (str, optional): The scheduler for the discriminator model. Defaults to None.
+        checkpoint (bool, optional): Whether to save checkpoints during training. Defaults to None.
+
+    Returns:
+        object: The selected model based on the given parameters.
+
+    Raises:
+        Exception: If the selected model is not available in the TensorFlow configuration.
+    """
+
     if model_name == "unet":
         return model.unet.preResUNet(
             output_channels=output_channels,
