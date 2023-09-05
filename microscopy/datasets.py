@@ -220,6 +220,7 @@ def extract_random_patches_from_image(
     crappifier_name,
     lr_patch_shape,
     datagen_sampling_pdf,
+    verbose = 0
 ):
     """
     Extracts random patches from an image.
@@ -288,6 +289,13 @@ def extract_random_patches_from_image(
             lc * scale_factor : uc * scale_factor, lr * scale_factor : ur * scale_factor
         ]
 
+    if verbose:
+        print("lr_patch[{}:{}, {}:{}] - {} - min: {} max: {}".format(lc, uc, lr, ur, lr_patch.shape,
+                                                                hr_patch.min(), hr_patch.max()))
+        print("hr_patch[{}:{}, {}:{}] - {} - min: {} max: {}".format(lc * scale_factor, uc * scale_factor, 
+                                              lr * scale_factor, ur * scale_factor, hr_patch.shape,
+                                              hr_patch.min(), hr_patch.max()))
+
     return lr_patch, hr_patch
 
 
@@ -299,6 +307,7 @@ def extract_random_patches_from_folder(
     crappifier_name,
     lr_patch_shape,
     datagen_sampling_pdf,
+    verbose = 0
 ):
     """
     Extracts random patches from a folder of high-resolution and low-resolution images.
@@ -345,6 +354,7 @@ def extract_random_patches_from_folder(
             crappifier_name,
             lr_patch_shape,
             datagen_sampling_pdf,
+            verbose=verbose
         )
         final_lr_patches.append(lr_patches)
         final_hr_patches.append(hr_patches)
@@ -372,6 +382,7 @@ class TFDataGenerator:
         lr_patch_shape,
         datagen_sampling_pdf,
         validation_split,
+        verbose
     ):
         self.filenames = np.array(filenames)
         self.indexes = np.arange(len(self.filenames))
@@ -396,6 +407,7 @@ class TFDataGenerator:
                                         datagen_sampling_pdf=self.datagen_sampling_pdf,
                                     )
         self.actual_scale_factor = actual_scale_factor
+        self.verbose = verbose
 
     def __len__(self):
         """
@@ -425,6 +437,9 @@ class TFDataGenerator:
         else:
             lr_image_path = None
 
+        if self.verbose:
+            print('Extracting patches for image {}'.format(os.path.join(self.hr_data_path, self.filenames[idx])))
+
         aux_lr_patches, aux_hr_patches = extract_random_patches_from_image(
             hr_image_path,
             lr_image_path,
@@ -432,6 +447,7 @@ class TFDataGenerator:
             self.crappifier_name,
             self.lr_patch_shape,
             self.datagen_sampling_pdf,
+            verbose=self.verbose
         )
 
         lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
@@ -493,6 +509,7 @@ def TFDataset(
     rotation,
     horizontal_flip,
     vertical_flip,
+    verbose
 ):
     """
     Generate a TensorFlow Dataset for training and validation.
@@ -527,6 +544,7 @@ def TFDataset(
         lr_patch_shape=lr_patch_shape,
         datagen_sampling_pdf=datagen_sampling_pdf,
         validation_split=validation_split,
+        verbose=verbose
     )
 
     # Get the first item to extract information from it
@@ -615,7 +633,7 @@ class DataGenerator(tf.keras.utils.Sequence):
                                         lr_patch_shape=self.lr_patch_shape,
                                         datagen_sampling_pdf=self.datagen_sampling_pdf,
                                     )
-        self.actual_scale_factor = actual_scale_factor
+        self.actual_scale_facto
 
     def __len__(self):
         """

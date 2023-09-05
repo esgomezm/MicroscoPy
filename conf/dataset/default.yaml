@@ -58,7 +58,7 @@ MT:
   patch_size_x: 128
   patch_size_y: 128
   scale: null
-MT-SMLM_all:
+MT-SMLM_registered:
   crappifier: downsampleonly
   data_paths:
   - train/wf
@@ -67,18 +67,6 @@ MT-SMLM_all:
   - null
   - test/wf
   - test/gt
-  patch_size_x: 64
-  patch_size_y: 64
+  patch_size_x: 128
+  patch_size_y: 128
   scale: null
-MitoTracker_small:
-  crappifier: fluo_poisson_crappify
-  data_paths:
-  - null
-  - train
-  - null
-  - null
-  - null
-  - test
-  patch_size_x: 64
-  patch_size_y: 64
-  scale: 4

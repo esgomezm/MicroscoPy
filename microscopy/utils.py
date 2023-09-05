@@ -168,6 +168,11 @@ def ssim_loss(y_true, y_pred):
         >>> ssim_loss(y_true, y_pred)
         <tf.Tensor: shape=(), dtype=float32, numpy=0.75>
     """
+
+    # Printing the loss
+    # tf.print('\nSSIM:')
+    # tf.print(tf.image.ssim(y_true, y_pred, max_val=1.0))
+    
     return tf.image.ssim(y_true, y_pred, max_val=1.0)
 
 def vgg_loss(image_shape):

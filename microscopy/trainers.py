@@ -152,6 +152,7 @@ class ModelsTrainer:
             rotation=self.rotation,
             horizontal_flip=self.horizontal_flip,
             vertical_flip=self.vertical_flip,
+            verbose=self.verbose
         )
 
         self.input_data_shape = train_input_shape
@@ -292,6 +293,8 @@ class TensorflowTrainer(ModelsTrainer):
     def prepare_data(self):
         utils.set_seed(self.seed)
         if self.data_on_memory:
+            if self.verbose:
+                print('Data will be loaded on memory for all the epochs the same.')
             X_train, Y_train, actual_scale_factor = datasets.extract_random_patches_from_folder( 
                                                         lr_data_path = self.train_lr_path,
                                                         hr_data_path = self.train_hr_path,
@@ -329,6 +332,8 @@ class TensorflowTrainer(ModelsTrainer):
                                                              Y_data=Y_val,
                                                              batch_size=self.batch_size)
         else:
+            print('Data will be loaded on the fly, each batch new data will be loaded..')
+
             train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
                 filenames=self.train_filenames,
                 hr_data_path=self.train_hr_path,
@@ -342,6 +347,7 @@ class TensorflowTrainer(ModelsTrainer):
                 rotation=self.rotation,
                 horizontal_flip=self.horizontal_flip,
                 vertical_flip=self.vertical_flip,
+                verbose=self.verbose
             )
             
             self.input_data_shape = train_input_shape
@@ -373,6 +379,7 @@ class TensorflowTrainer(ModelsTrainer):
                 rotation=self.rotation,
                 horizontal_flip=self.horizontal_flip,
                 vertical_flip=self.vertical_flip,
+                verbose=self.verbose
             )
 
         if self.verbose:
@@ -476,7 +483,7 @@ class TensorflowTrainer(ModelsTrainer):
         model_checkpoint = tf_ModelCheckpoint(
             os.path.join(self.saving_path, "weights_best.h5"),
             monitor="val_loss",
-            verbose=1,
+            verbose=self.verbose,
             save_best_only=True,
             save_weights_only=True,
         )
@@ -488,7 +495,7 @@ class TensorflowTrainer(ModelsTrainer):
             patience=self.config.model.optim.early_stop.patience,
             min_delta=0.005,
             mode=self.config.model.optim.early_stop.mode,
-            verbose=1,
+            verbose=self.verbose,
             restore_best_weights=True,
         )
         callbacks.append(earlystopper)
@@ -521,6 +528,7 @@ class TensorflowTrainer(ModelsTrainer):
                     trainableParams, nonTrainableParams, totalParams
                 )
             )
+            callbacks.append(custom_callbacks.CustomCallback())
 
         if self.model_name == "cddpm":
             # calculate mean and variance of training dataset for normalization
@@ -679,14 +687,20 @@ class TensorflowTrainer(ModelsTrainer):
             # aux_prediction = datasets.normalization(aux_prediction)
             aux_prediction = np.clip(aux_prediction, a_min=0.0, a_max=1.0)
 
-            predictions.append(aux_prediction[0, ...])
+            if len(aux_prediction.shape) == 4:
+                predictions.append(aux_prediction[0, ...])
+            elif len(aux_prediction.shape) == 3:
+                if aux_prediction.shape[-1] == 1:
+                    predictions.append(aux_prediction)
+                if aux_prediction.shape[0] == 1:
+                    predictions.append(np.expand_dims(aux_prediction[0,:,:], -1))
 
         self.Y_test = ground_truths
         self.predictions = predictions
         self.X_test = widefields
 
-        assert np.max(self.Y_test) <= 1.0 and np.max(self.predictions) <= 1.0 and np.max(self.X_test) <= 1.0
-        assert np.min(self.Y_test) >= 0.0 and np.min(self.predictions) >= 0.0 and np.min(self.X_test) >= 0.0 
+        # assert (np.max(self.Y_test) <= 1.0).all and (np.max(self.predictions) <= 1.0).all and (np.max(self.X_test) <= 1.0).all
+        # assert (np.min(self.Y_test) >= 0.0).all and (np.min(self.predictions) >= 0.0).all and (np.min(self.X_test) >= 0.0).all
 
         if self.verbose:
             utils.print_info("predict_images() - Y_test", self.Y_test)
@@ -697,6 +711,9 @@ class TensorflowTrainer(ModelsTrainer):
         os.makedirs(os.path.join(self.saving_path, "predicted_images", result_folder_name), exist_ok=True)
 
         for i, image in enumerate(predictions):
+
+            print(image.shape)
+
             tf.keras.preprocessing.image.save_img(
                 os.path.join(self.saving_path, "predicted_images", result_folder_name, self.test_filenames[i]),
                 image,

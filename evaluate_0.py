@@ -16,14 +16,14 @@ def load_path(dataset_root, dataset_name, folder):
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     
-    dataset_combination = ["LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT"] #"LiveFActinDataset", "EM", "MitoTracker_small", "F-actin", "ER", "MT", "MT-SMLM_all"
-    model_combination = ["rcan", "unet", "dfcan", "wdsr"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
-    batch_size_combination = [8] 
-    num_epochs_combination = [50, 100, 200]
+    dataset_combination = ["MT-SMLM_registered"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
+    model_combination = ["rcan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
+    batch_size_combination = [2]
+    num_epochs_combination = [10]
     lr_combination = [(0.001,0.001)]
     scheduler_combination = ['OneCycle'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
-    base_folder = 'tests_italy'
+    base_folder = 'prueba_rapida'
     
     for dataset_name in dataset_combination:  
         cfg.dataset_name = dataset_name
@@ -86,7 +86,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
                                     verbose=1,
-                                    data_on_memory=1,
+                                    data_on_memory=0,
                                 )
                                 del model
 

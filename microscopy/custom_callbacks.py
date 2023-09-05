@@ -245,6 +245,79 @@ class OneCycleScheduler(tf_callback):
         ax.plot(self.moms)
         ax.set_title("Momentum")
 
+
+class CustomCallback(tf_callback):
+    def on_train_begin(self, logs=None):
+        print("\nStarting training:")
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_train_end(self, logs=None):
+        print("\nStop training:")
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_epoch_begin(self, epoch, logs=None):
+        print("\nStart epoch {} of training:".format(epoch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_epoch_end(self, epoch, logs=None):
+        print("\nEnd epoch {} of training:".format(epoch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_test_begin(self, logs=None):
+        print("\nStart testing:")
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_test_end(self, logs=None):
+        print("\nStop testing:")
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_predict_begin(self, logs=None):
+        print("\nStart predicting:")
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_predict_end(self, logs=None):
+        print("\nStop predicting:")
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_train_batch_begin(self, batch, logs=None):
+        print("\n...Training: start of batch {}:".format(batch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_train_batch_end(self, batch, logs=None):
+        print("\n...Training: end of batch {}:".format(batch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_test_batch_begin(self, batch, logs=None):
+        print("\n...Testing: start of batch {}:".format(batch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_test_batch_end(self, batch, logs=None):
+        print("\n...Testing: end of batch {}:".format(batch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_predict_batch_begin(self, batch, logs=None):
+        print("\n...Predicting: start of batch {}:".format(batch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+    def on_predict_batch_end(self, batch, logs=None):
+        print("\n...Predicting: end of batch {}:".format(batch))
+        for k,v in logs.items():
+            print("{}: {}".format(k,v))
+
+
 #
 #####################################
 
