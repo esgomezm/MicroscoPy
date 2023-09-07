@@ -345,24 +345,36 @@ class PerformancePlotCallback_Pytorch(pl_callback):
             None
         """
         if pl_module.current_epoch % self.frequency == 0:
-            y_pred = pl_module.forward(self.x_test)
+            y_pred = pl_module.forward(self.x_test.cuda()).cpu().detach().numpy()
 
-            ssim = utils.ssim_loss(self.y_test[0], y_pred[0])
+            print(f'y_pred: {y_pred.shape}')
+            print(f'self.x_test: {self.x_test.shape}')
+            print(f'self.x_test: {self.x_test.shape}')
+
+            aux_y_pred = np.expand_dims(y_pred[:,0,:,:], axis=-1)
+            aux_x_test = np.expand_dims(self.x_test[:,0,:,:], axis=-1)
+            aux_y_test = np.expand_dims(self.y_test[:,0,:,:], axis=-1)
+
+            print(f'aux_y_pred: {aux_y_pred.shape}')
+            print(f'aux_y_test: {aux_y_test.shape}')
+            print(f'aux_x_test: {aux_x_test.shape}')
+
+            ssim = utils.ssim_loss(aux_y_test[0], aux_y_pred[0])
 
             plt.switch_backend("agg")
             plt.figure(figsize=(15, 5))
             plt.subplot(1, 4, 1)
             plt.title("Input LR image")
-            plt.imshow(self.x_test[0], "gray")
+            plt.imshow(aux_x_test[0], "gray")
             plt.subplot(1, 4, 2)
             plt.title("Ground truth")
-            plt.imshow(self.y_test[0], "gray")
+            plt.imshow(aux_y_test[0], "gray")
             plt.subplot(1, 4, 3)
             plt.title("Prediction")
-            plt.imshow(y_pred[0], "gray")
+            plt.imshow(aux_y_pred[0], "gray")
             plt.subplot(1, 4, 4)
             plt.title(f"SSIM: {ssim.numpy():.3f}")
-            plt.imshow(1 - utils.normalization(self.y_test[0] - y_pred[0]), "inferno")
+            plt.imshow(1 - utils.min_max_normalization(aux_y_test[0] - aux_y_pred[0]), "inferno")
 
             plt.tight_layout()
             plt.savefig(f"{self.img_saving_path}/{pl_module.current_epoch}.png")

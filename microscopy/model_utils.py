@@ -28,6 +28,7 @@ def select_model(
     g_scheduler=None,
     d_scheduler=None,
     checkpoint=None,
+    verbose=None
 ):
     """
     Selects and returns a specific model based on the given parameters.
@@ -58,6 +59,7 @@ def select_model(
         g_scheduler (str, optional): The scheduler for the generator model. Defaults to None.
         d_scheduler (str, optional): The scheduler for the discriminator model. Defaults to None.
         checkpoint (bool, optional): Whether to save checkpoints during training. Defaults to None.
+        verbose (int, optional): The verbosity level. Defaults to None.
 
     Returns:
         object: The selected model based on the given parameters.
@@ -144,6 +146,7 @@ def select_model(
             g_scheduler=g_scheduler,
             d_scheduler=d_scheduler,
             additonal_configuration=model_configuration,
+            verbose=verbose
         )
 
     elif model_name == "esrganplus":

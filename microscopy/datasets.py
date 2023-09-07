@@ -290,11 +290,18 @@ def extract_random_patches_from_image(
         ]
 
     if verbose:
+        print('\nExtracting patches:')
         print("lr_patch[{}:{}, {}:{}] - {} - min: {} max: {}".format(lc, uc, lr, ur, lr_patch.shape,
-                                                                hr_patch.min(), hr_patch.max()))
+                                                                lr_patch.min(), lr_patch.max()))
+        print(lr_filename)
+        print(f'\tLR_patch: {lr_patch[0,:5]}')
+        print(f'\t{lr_img[0,:5]}')
         print("hr_patch[{}:{}, {}:{}] - {} - min: {} max: {}".format(lc * scale_factor, uc * scale_factor, 
                                               lr * scale_factor, ur * scale_factor, hr_patch.shape,
                                               hr_patch.min(), hr_patch.max()))
+        print(f'\t{hr_patch[0,:5]}')
+        print(f'\t{hr_img[0,:5]}')
+        print(hr_filename)
 
     return lr_patch, hr_patch
 
@@ -910,6 +917,7 @@ class PytorchDataset(Dataset):
         datagen_sampling_pdf,
         val_split=None,
         validation=False,
+        verbose=0
     ):
         self.hr_data_path = hr_data_path
         self.lr_data_path = lr_data_path
@@ -939,6 +947,8 @@ class PytorchDataset(Dataset):
                                         datagen_sampling_pdf=self.datagen_sampling_pdf,
                                     )
         self.actual_scale_factor = actual_scale_factor
+
+        self.verbose = verbose
 
     def __len__(self):
         """
@@ -978,6 +988,7 @@ class PytorchDataset(Dataset):
             self.crappifier_name,
             self.lr_patch_shape,
             self.datagen_sampling_pdf,
+            verbose=self.verbose
         )
 
         lr_patches = np.expand_dims(aux_lr_patches, axis=-1)
@@ -987,6 +998,9 @@ class PytorchDataset(Dataset):
 
         if self.transformations:
             sample = self.transformations(sample)
+
+        if self.verbose:
+            print(sample)
 
         return sample
 

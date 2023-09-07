@@ -1,0 +1,168 @@
+dataset:
+  EM:
+    crappifier: em_gaussian_crappify
+    data_paths:
+    - null
+    - train
+    - null
+    - null
+    - null
+    - test
+    patch_size_x: 64
+    patch_size_y: 64
+    scale: 4
+  ER:
+    crappifier: downsampleonly
+    data_paths:
+    - train/training_wf
+    - train/training_gt
+    - val/validate_wf
+    - val/validate_gt
+    - test/test_wf/level_01
+    - test/test_gt/level_06
+    patch_size_x: 128
+    patch_size_y: 128
+    scale: null
+  F-actin:
+    crappifier: downsampleonly
+    data_paths:
+    - train/training_wf
+    - train/training_gt
+    - val/validate_wf
+    - val/validate_gt
+    - test/test_wf/level_01
+    - test/test_gt
+    patch_size_x: 128
+    patch_size_y: 128
+    scale: null
+  LiveFActinDataset:
+    crappifier: downsampleonly
+    data_paths:
+    - train_split/wf
+    - train_split/gt
+    - val_split/wf
+    - val_split/gt
+    - test_split/wf
+    - test_split/gt
+    patch_size_x: 128
+    patch_size_y: 128
+    scale: null
+  MT:
+    crappifier: downsampleonly
+    data_paths:
+    - train/training_wf
+    - train/training_gt
+    - val/validate_wf
+    - val/validate_gt
+    - test/test_wf/level_01
+    - test/test_gt
+    patch_size_x: 128
+    patch_size_y: 128
+    scale: null
+  MT-SMLM_registered:
+    crappifier: downsampleonly
+    data_paths:
+    - train/wf
+    - train/gt
+    - null
+    - null
+    - test/wf
+    - test/gt
+    patch_size_x: 128
+    patch_size_y: 128
+    scale: null
+model:
+  dfcan:
+    n_RCAB: 4
+    n_ResGroup: 4
+  esrganplus:
+    n_critic_steps: 5
+  optim:
+    MultiStepScheduler:
+      lr_rate_decay: 0.5
+    ReduceOnPlateau:
+      factor: 0.5
+      monitor: val_ssim_loss
+      patience: 10
+      mode: max
+    OneCycle: 0
+    CosineDecay: 0
+    adam:
+      beta1: 0.5
+      beta2: 0.9
+      epsilon: 1.0e-07
+    adamW:
+      beta1: 0.5
+      beta2: 0.9
+      decay: 0.004
+      epsilon: 1.0e-07
+    adamax:
+      beta1: 0.5
+      beta2: 0.9
+      epsilon: 1.0e-07
+    rms_prop:
+      rho: 0.9
+      momentum: 0.0
+    early_stop:
+      loss: val_ssim_loss
+      mode: max
+      patience: 10
+    sgd:
+      momentum: 0.9
+    rms_drop:
+      aux: null
+  others:
+    positional_encoding: false
+    positional_encoding_channels: 64
+  rcan:
+    num_filters: 16
+  unet:
+    depth: 4
+    init_channels: 16
+    maxpooling: false
+    upsample_method: SubpixelConv2D
+  wdsr:
+    num_res_blocks: 32
+  cddpm:
+    widths:
+    - 32
+    - 64
+    - 96
+    - 128
+    block_depth: 4
+  wgan:
+    g_layers: 15
+    lambda_gp: 10
+    recloss: 100.0
+hyperparam:
+  test_metric_indexes:
+  - 1
+  - 2
+  - 3
+  - 4
+  - 5
+  optimizer: adam
+  discriminator_optimizer: adam
+  scheduler: OneCycle
+  discriminator_lr_scheduler: OneCycle
+  lr: 0.001
+  discriminator_lr: 0.001
+  seed: 666
+  batch_size: 4
+  num_epochs: 10
+  validation_split: 0.1
+  additional_folder: null
+  data_augmentation:
+  - rotation
+  - horizontal_flip
+  - vertical_flip
+  datagen_sampling_pdf: 1
+model.optim.early_stop.patience: ${hyperparam.num_epochs}
+dataset_name: EM
+model_name: unet
+used_dataset: ${dataset.${dataset_name}}
+used_model: ${model.${model_name}}
+used_optim: ${model.optim.${hyperparam.optimizer}}
+used_optim_d: ${model.optim.${hyperparam.discriminator_optimizer}}
+used_sched: ${model.optim.${hyperparam.scheduler}}
+used_sched_d: ${model.optim.${hyperparam.discriminator_lr_scheduler}}

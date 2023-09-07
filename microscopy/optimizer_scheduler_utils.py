@@ -18,6 +18,7 @@ def select_optimizer(
     check_point,
     parameters,
     additional_configuration,
+    verbose=0
 ):
     """
     Selects the appropriate optimizer based on the given library name and returns it.
@@ -41,6 +42,7 @@ def select_optimizer(
             optimizer_name=optimizer_name,
             learning_rate=learning_rate,
             additional_configuration=additional_configuration,
+            verbose=verbose
         )
     elif library_name == "pytorch":
         return select_pytorch_optimizer(
@@ -49,13 +51,14 @@ def select_optimizer(
             check_point=check_point,
             parameters=parameters,
             additional_configuration=additional_configuration,
+            verbose=verbose
         )
     else:
         raise Exception("Wrong library name.")
 
 
 def select_tensorflow_optimizer(
-    optimizer_name, learning_rate, additional_configuration
+    optimizer_name, learning_rate, additional_configuration, verbose
 ):
     """
     Selects and returns a TensorFlow optimizer based on the provided optimizer name,
@@ -109,7 +112,7 @@ def select_tensorflow_optimizer(
 
 
 def select_pytorch_optimizer(
-    optimizer_name, learning_rate, check_point, parameters, additional_configuration
+    optimizer_name, learning_rate, check_point, parameters, additional_configuration, verbose
 ):
     """
     Selects and initializes a PyTorch optimizer based on the given parameters.
@@ -129,7 +132,13 @@ def select_pytorch_optimizer(
     """
     if check_point is None:
         if optimizer_name == "adam":
-            return torch.optim.Adam(
+            if verbose:
+                print('adam optimizer has been selected')
+                print(f'lr={learning_rate}')
+                print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
+                print(f'eps={additional_configuration.used_optim.epsilon}')
+
+            optimizer = torch.optim.Adam(
                 parameters,
                 lr=learning_rate,
                 betas=(
@@ -139,15 +148,24 @@ def select_pytorch_optimizer(
                 eps=additional_configuration.used_optim.epsilon
             )
         elif optimizer_name == "rms_prop":
-            return torch.optim.RMSprop(parameters, 
+            if verbose:
+                print('rms_prop optimizer has been selected')
+                print(f'lr={learning_rate}')
+                print(f'alpha={additional_configuration.used_optim.rho}')
+                print(f'momentum={additional_configuration.used_optim.momentum}')
+
+            optimizer =  torch.optim.RMSprop(parameters, 
                                        lr=learning_rate,
-                                       betas=(
-                                            additional_configuration.used_optim.beta1,
-                                            additional_configuration.used_optim.beta2,
-                                       ),
-                                       eps=additional_configuration.used_optim.epsilon)
+                                       alpha=additional_configuration.used_optim.rho,
+                                       momentum=additional_configuration.used_optim.momentum)
         elif optimizer_name == "adamax":
-            return torch.optim.Adamax(parameters, 
+            if verbose:
+                print('adamax optimizer has been selected')
+                print(f'lr={learning_rate}')
+                print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
+                print(f'eps={additional_configuration.used_optim.epsilon}')
+
+            optimizer =  torch.optim.Adamax(parameters, 
                                       lr=learning_rate,
                                       betas=(
                                         additional_configuration.used_optim.beta1,
@@ -155,15 +173,28 @@ def select_pytorch_optimizer(
                                       ),
                                       eps=additional_configuration.used_optim.epsilon)
         elif optimizer_name == "adamW":
-            return torch.optim.AdamW(parameters, 
+            if verbose:
+                print('Adam optimizer has been selected')
+                print(f'lr={learning_rate}')
+                print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
+                print(f'weight_decay={additional_configuration.used_optim.decay}')
+                print(f'eps={additional_configuration.used_optim.epsilon}')
+
+            optimizer =  torch.optim.AdamW(parameters, 
                                      lr=learning_rate,
                                      betas=(
                                         additional_configuration.used_optim.beta1,
                                         additional_configuration.used_optim.beta2,
                                      ),
+                                     weight_decay=additional_configuration.used_optim.decay,
                                      eps=additional_configuration.used_optim.epsilon)
         elif optimizer_name == "sgd":
-            return tf.keras.optimizers.SGD(
+            if verbose:
+                print('sgd optimizer has been selected')
+                print(f'lr={learning_rate}')
+                print(f'momentum={additional_configuration.used_optim.momentum}')
+
+            optimizer =  tf.keras.optimizers.SGD(
                 parameters,
                 learning_rate=learning_rate,
                 momentum=additional_configuration.used_optim.momentum,
@@ -172,17 +203,23 @@ def select_pytorch_optimizer(
             raise Exception("No available optimizer.")
     else:
         if optimizer_name == "adam":
-            return torch.optim.Adam(parameters)
+            optimizer =  torch.optim.Adam(parameters)
         elif optimizer_name == "rms_prop":
-            return torch.optim.RMSprop(parameters)
+            optimizer =  torch.optim.RMSprop(parameters)
         elif optimizer_name == "adamax":
-            return torch.optim.Adamax(parameters)
+            optimizer =  torch.optim.Adamax(parameters)
         elif optimizer_name == "adamW":
-            return torch.optim.AdamW(parameters)
+            optimizer =  torch.optim.AdamW(parameters)
         elif optimizer_name == "sgd":
-            return tf.keras.optimizers.SGD(parameters)
+            optimizer =  tf.keras.optimizers.SGD(parameters)
         else:
             raise Exception("No available optimizer.")
+
+    if verbose:
+        print('Return optimizer:')
+        print(f'{optimizer}')
+
+    return optimizer
 
 #
 #####################################
@@ -348,15 +385,14 @@ def select_pytorch_lr_schedule(
             "name": name,
             "frequency": frequency,
         }
+
     elif lr_scheduler_name == "ReduceOnPlateau":
         return {
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 mode="min",
                 factor=additional_configuration.used_sched.factor,
-                patience=additional_configuration.used_sched.ReduceOnPlateau[
-                    "patience"
-                ],
+                patience=additional_configuration.used_sched.patience,
                 min_lr=(learning_rate / 10),
             ),
             "interval": "epoch",

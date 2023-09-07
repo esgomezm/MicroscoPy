@@ -800,21 +800,27 @@ class PytorchTrainer(ModelsTrainer):
             val_filenames=self.val_filenames,
             crappifier_method=self.crappifier_method,
             model_configuration=self.config,
+            verbose=self.verbose,
         )
-
+        
+        # Take one batch of data
+        data = next(iter(model.train_dataloader()))
+        
         if self.verbose:
-            data = next(iter(model.train_dataloader()))
-
             print("LR patch shape: {}".format(data["lr"][0][0].shape))
             print("HR patch shape: {}".format(data["hr"][0][0].shape))
 
             utils.print_info("train_model() - lr", data["lr"])
             utils.print_info("train_model() - hr", data["hr"])
 
-        os.makedirs(self.saving_path + "/Quality Control", exist_ok=True)
-        logger = CSVLogger(self.saving_path + "/Quality Control", name="Logger")
-
+        # Let's define the callbacks that will be used during training
+        callbacks = [] 
+        
+        # First to monitor the LR en each epoch (for validating the scheduler and the optimizer)
         lr_monitor = LearningRateMonitor(logging_interval="epoch")
+        callbacks.append(lr_monitor)
+
+        # Saving checkpoints during training based
         checkpoints = ModelCheckpoint(
             monitor="val_ssim",
             mode="max",
@@ -823,13 +829,26 @@ class PytorchTrainer(ModelsTrainer):
             save_last=True,
             filename="{epoch:02d}-{val_ssim:.3f}",
         )
+        callbacks.append(checkpoints)
+
+        # Saving plots during training to see the evolution on the performance
+        plt_saving_path = os.path.join(self.saving_path, "training_images")
+        os.makedirs(plt_saving_path, exist_ok=True)
+        plot_callback = custom_callbacks.PerformancePlotCallback_Pytorch(
+            data["lr"], data["hr"], plt_saving_path, frequency=10
+        )
+        callbacks.append(plot_callback)
         
+
+        os.makedirs(self.saving_path + "/Quality Control", exist_ok=True)
+        logger = CSVLogger(self.saving_path + "/Quality Control", name="Logger")
+
         trainer = Trainer(
             accelerator="gpu",
-            devices=1,
+            devices=self.gpu_id,
             max_epochs=self.num_epochs,
             logger=logger,
-            callbacks=[checkpoints, lr_monitor],
+            callbacks=callbacks,
         )
 
         print("Training is going to start:")
@@ -951,7 +970,7 @@ class PytorchTrainer(ModelsTrainer):
             checkpoint=os.path.join(self.saving_path, "best_checkpoint.pth"),
         )
 
-        trainer = Trainer(accelerator="gpu", devices=1)
+        trainer = Trainer(accelerator="gpu", devices=self.gpu_id)
 
         dataset = datasets.PytorchDataset(
             hr_data_path=self.test_hr_path,
@@ -1103,69 +1122,69 @@ def predict_configuration(
     data_on_memory=0,
 ):
 
-    if config.dataset_name in ['ER', 'MT', 'F-actin']:
-        dataset_levels = {'ER':6, 'MT':9, 'F-actin':12}
-        levels = dataset_levels[config.dataset_name]
-        for i in range(1, levels):
-            level_folder = f"level_{i:02d}"
-            if "level" in test_lr_path:
-                test_lr_path = os.path.join(test_lr_path[:-9], level_folder)
-            else:
-                test_lr_path = os.path.join(test_lr_path, level_folder)
+    # if config.dataset_name in ['ER', 'MT', 'F-actin']:
+    #     dataset_levels = {'ER':6, 'MT':9, 'F-actin':12}
+    #     levels = dataset_levels[config.dataset_name]
+    #     for i in range(1, levels):
+    #         level_folder = f"level_{i:02d}"
+    #         if "level" in test_lr_path:
+    #             test_lr_path = os.path.join(test_lr_path[:-9], level_folder)
+    #         else:
+    #             test_lr_path = os.path.join(test_lr_path, level_folder)
 
-            if config.model_name in ["wgan", "esrganplus"]:
-                model_trainer = PytorchTrainer(
-                    config,
-                    train_lr_path, train_hr_path,
-                    val_lr_path, val_hr_path,
-                    test_lr_path, test_hr_path,
-                    saving_path,
-                    verbose=verbose,
-                    gpu_id=gpu_id,
-                    data_on_memory=data_on_memory,
-                )
-            elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
-                model_trainer = TensorflowTrainer(
-                    config,
-                    train_lr_path, train_hr_path,
-                    val_lr_path, val_hr_path,
-                    test_lr_path, test_hr_path,
-                    saving_path,
-                    verbose=verbose,
-                    data_on_memory=data_on_memory,
-                )
-            else:
-                raise Exception("Not available model.")
+    #         if config.model_name in ["wgan", "esrganplus"]:
+    #             model_trainer = PytorchTrainer(
+    #                 config,
+    #                 train_lr_path, train_hr_path,
+    #                 val_lr_path, val_hr_path,
+    #                 test_lr_path, test_hr_path,
+    #                 saving_path,
+    #                 verbose=verbose,
+    #                 gpu_id=gpu_id,
+    #                 data_on_memory=data_on_memory,
+    #             )
+    #         elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+    #             model_trainer = TensorflowTrainer(
+    #                 config,
+    #                 train_lr_path, train_hr_path,
+    #                 val_lr_path, val_hr_path,
+    #                 test_lr_path, test_hr_path,
+    #                 saving_path,
+    #                 verbose=verbose,
+    #                 data_on_memory=data_on_memory,
+    #             )
+    #         else:
+    #             raise Exception("Not available model.")
 
-            model_trainer.predict_images(result_folder_name=level_folder)
-            model_trainer.eval_model(result_folder_name=level_folder)
+    #         model_trainer.predict_images(result_folder_name=level_folder)
+    #         model_trainer.eval_model(result_folder_name=level_folder)
+    # else:
+    if config.model_name in ["wgan", "esrganplus"]:
+        model_trainer = PytorchTrainer(
+            config,
+            train_lr_path, train_hr_path,
+            val_lr_path, val_hr_path,
+            test_lr_path, test_hr_path,
+            saving_path,
+            verbose=verbose,
+            gpu_id=gpu_id,
+            data_on_memory=data_on_memory,
+        )
+    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+        model_trainer = TensorflowTrainer(
+            config,
+            train_lr_path, train_hr_path,
+            val_lr_path, val_hr_path,
+            test_lr_path, test_hr_path,
+            saving_path,
+            verbose=verbose,
+            data_on_memory=data_on_memory,
+        )
     else:
-        if config.model_name in ["wgan", "esrganplus"]:
-            model_trainer = PytorchTrainer(
-                config,
-                train_lr_path, train_hr_path,
-                val_lr_path, val_hr_path,
-                test_lr_path, test_hr_path,
-                saving_path,
-                verbose=verbose,
-                gpu_id=gpu_id,
-                data_on_memory=data_on_memory,
-            )
-        elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
-            model_trainer = TensorflowTrainer(
-                config,
-                train_lr_path, train_hr_path,
-                val_lr_path, val_hr_path,
-                test_lr_path, test_hr_path,
-                saving_path,
-                verbose=verbose,
-                data_on_memory=data_on_memory,
-            )
-        else:
-            raise Exception("Not available model.")
+        raise Exception("Not available model.")
 
-        model_trainer.predict_images()
-        model_trainer.eval_model()
+    model_trainer.predict_images()
+    model_trainer.eval_model()
 
 
     

@@ -23,6 +23,6 @@ data_augmentation:
 - "horizontal_flip"
 - "vertical_flip"
 
-datagen_sampling_pdf: 0
+datagen_sampling_pdf: 1
 
 
