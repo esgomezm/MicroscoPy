@@ -55,7 +55,7 @@ def select_optimizer(
         )
     else:
         raise Exception("Wrong library name.")
-
+    
 
 def select_tensorflow_optimizer(
     optimizer_name, learning_rate, additional_configuration, verbose
@@ -132,7 +132,7 @@ def select_pytorch_optimizer(
     """
     if check_point is None:
         if optimizer_name == "adam":
-            if verbose:
+            if verbose > 1:
                 print('adam optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
@@ -148,7 +148,7 @@ def select_pytorch_optimizer(
                 eps=additional_configuration.used_optim.epsilon
             )
         elif optimizer_name == "rms_prop":
-            if verbose:
+            if verbose > 1:
                 print('rms_prop optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'alpha={additional_configuration.used_optim.rho}')
@@ -159,7 +159,7 @@ def select_pytorch_optimizer(
                                        alpha=additional_configuration.used_optim.rho,
                                        momentum=additional_configuration.used_optim.momentum)
         elif optimizer_name == "adamax":
-            if verbose:
+            if verbose > 1:
                 print('adamax optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
@@ -173,7 +173,7 @@ def select_pytorch_optimizer(
                                       ),
                                       eps=additional_configuration.used_optim.epsilon)
         elif optimizer_name == "adamW":
-            if verbose:
+            if verbose > 1:
                 print('Adam optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
@@ -189,14 +189,14 @@ def select_pytorch_optimizer(
                                      weight_decay=additional_configuration.used_optim.decay,
                                      eps=additional_configuration.used_optim.epsilon)
         elif optimizer_name == "sgd":
-            if verbose:
+            if verbose > 1:
                 print('sgd optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'momentum={additional_configuration.used_optim.momentum}')
 
             optimizer =  tf.keras.optimizers.SGD(
                 parameters,
-                learning_rate=learning_rate,
+                lr=learning_rate,
                 momentum=additional_configuration.used_optim.momentum,
             )
         else:
@@ -215,7 +215,7 @@ def select_pytorch_optimizer(
         else:
             raise Exception("No available optimizer.")
 
-    if verbose:
+    if verbose > 0:
         print('Return optimizer:')
         print(f'{optimizer}')
 

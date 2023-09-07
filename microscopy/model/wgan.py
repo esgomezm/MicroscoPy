@@ -248,7 +248,7 @@ class WGANGP(LightningModule):
         self.verbose = verbose
         print('self.verbose: {}'.format(self.verbose))
 
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: Model initialized (begining)\n')
 
         self.save_hyperparameters()
@@ -271,7 +271,7 @@ class WGANGP(LightningModule):
 
         self.discriminator = Discriminator()
 
-        if self.verbose:
+        if self.verbose > 1:
             print(
                 "Generators parameters: {}".format(
                     sum(p.numel() for p in self.generator.parameters())
@@ -295,7 +295,7 @@ class WGANGP(LightningModule):
         self.validation_step_hr = []
         self.validation_step_pred = []
 
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: Model initialized (end)\n')
 
     def save_model(self, filename):
@@ -358,7 +358,7 @@ class WGANGP(LightningModule):
 
     def training_step(self, batch, batch_idx):
         
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: Training step (begining)\n')
 
         lr, hr = batch["lr"], batch["hr"]
@@ -374,7 +374,7 @@ class WGANGP(LightningModule):
         # Predict the HR image
         generated = self(lr)
 
-        if self.verbose:
+        if self.verbose > 1:
             print('Generator step:')
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
@@ -402,7 +402,7 @@ class WGANGP(LightningModule):
         # Predict the HR image
         generated = self(lr)
 
-        if self.verbose:
+        if self.verbose > 1:
             print('Discriminator step:')
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
@@ -435,22 +435,22 @@ class WGANGP(LightningModule):
 
         # The critic/discriminator is updated every step
         if (batch_idx + 1) % 1 == 0:
-            if self.verbose:
+            if self.verbose > 1:
                 print(f'Generator updated on step {batch_idx + 1}')
             sched_g.step(g_loss)
         # The critic/discriminator is updated every self.hparams.n_critic_steps
         if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
-            if self.verbose:
+            if self.verbose > 1:
                 print(f'Discriminator  updated on step {batch_idx + 1}')
             sched_d.step(d_loss)
 
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: Training step (end)\n')
 
 
     def configure_optimizers(self):
         
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: configure_optimizers (begining)\n')
 
         self.opt_g = select_optimizer(
@@ -503,14 +503,14 @@ class WGANGP(LightningModule):
 
     def validation_step(self, batch, batch_idx):
         
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: validation_step (begining)\n')
             
         # Right now used for just plotting, might want to change it later
         lr, hr = batch["lr"], batch["hr"]
         generated = self(lr)
 
-        if self.verbose:
+        if self.verbose > 1:
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
             print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
@@ -535,14 +535,14 @@ class WGANGP(LightningModule):
         self.validation_step_hr.append(hr)
         self.validation_step_pred.append(generated)
 
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: validation_step (end)\n')
 
         return lr, hr, generated
 
     def on_validation_epoch_end(self):
 
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: on_validation_epoch_end (begining)\n')
 
         # Right now used for just plotting, might want to change it later
@@ -551,7 +551,7 @@ class WGANGP(LightningModule):
         hr = torch.cat(self.validation_step_hr, 0)
         generated = torch.cat(self.validation_step_pred, 0)
         
-        if self.verbose:
+        if self.verbose > 1:
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()} values: {lr[0,0,0,:10]}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
             print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
@@ -571,7 +571,7 @@ class WGANGP(LightningModule):
 
         self.log("val_d_wasserstein", wasserstein)
 
-        if self.verbose:
+        if self.verbose > 1:
             print(f'g_loss: {g_loss}')
             print(f'self.best_valid_loss: {self.best_valid_loss}')
 
@@ -583,22 +583,22 @@ class WGANGP(LightningModule):
         self.validation_step_hr.clear()  # free memory
         self.validation_step_pred.clear()  # free memory
 
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: on_validation_epoch_end (begining)\n')
 
     def on_train_end(self):
         
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: on_train_end (begining)\n')
 
         self.save_model("last_checkpoint.pth")
         
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: on_train_end (end)\n')
 
     def train_dataloader(self):
         
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: train_dataloader (begining)\n')
 
         transformations = []
@@ -612,7 +612,7 @@ class WGANGP(LightningModule):
 
         transformations.append(ToTensor())
 
-        if self.verbose:
+        if self.verbose > 1:
             print(f'Transformations: {transformations}')
 
         transf = torchvision.transforms.Compose(transformations)
@@ -651,7 +651,7 @@ class WGANGP(LightningModule):
                 verbose=self.verbose
             )
 
-        if self.verbose:
+        if self.verbose > 1:
 
             print(f'hr_data_path: {dataset.hr_data_path}')
             print(f'lr_data_path: {dataset.lr_data_path}')
@@ -663,6 +663,7 @@ class WGANGP(LightningModule):
             print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
             print(f'actual_scale_factor: {dataset.actual_scale_factor}')
 
+        if self.verbose > 1:
             print('\nVerbose: train_dataloader (end)\n')
 
         return DataLoader(
@@ -671,7 +672,7 @@ class WGANGP(LightningModule):
 
     def val_dataloader(self):
 
-        if self.verbose:
+        if self.verbose > 1:
             print('\nVerbose: val_dataloader (begining)\n')
 
         transf = ToTensor()
@@ -709,7 +710,7 @@ class WGANGP(LightningModule):
                 verbose=self.verbose
             )
 
-        if self.verbose:
+        if self.verbose > 1:
 
             print(f'hr_data_path: {dataset.hr_data_path}')
             print(f'lr_data_path: {dataset.lr_data_path}')
@@ -721,6 +722,7 @@ class WGANGP(LightningModule):
             print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
             print(f'actual_scale_factor: {dataset.actual_scale_factor}')
 
+        if self.verbose > 1:
             print('\nVerbose: val_dataloader (end)\n')
 
         return DataLoader(

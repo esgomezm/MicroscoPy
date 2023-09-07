@@ -165,7 +165,7 @@ class ModelsTrainer:
                 "actual_scale_factor",
                 actual_scale_factor,
             )
-            if self.verbose:
+            if self.verbose > 0:
                 print(
                     "Actual scale factor that will be used is: {}".format(
                         self.scale_factor
@@ -237,7 +237,7 @@ class ModelsTrainer:
     def eval_model(self, result_folder_name=""):
         utils.set_seed(self.seed)
 
-        if self.verbose:
+        if self.verbose  > 0:
             utils.print_info("eval_model() - self.Y_test", self.Y_test)
             utils.print_info("eval_model() - self.predictions", self.predictions)
             utils.print_info("eval_model() - self.X_test", self.X_test)
@@ -293,7 +293,7 @@ class TensorflowTrainer(ModelsTrainer):
     def prepare_data(self):
         utils.set_seed(self.seed)
         if self.data_on_memory:
-            if self.verbose:
+            if self.verbose > 0:
                 print('Data will be loaded on memory for all the epochs the same.')
             X_train, Y_train, actual_scale_factor = datasets.extract_random_patches_from_folder( 
                                                         lr_data_path = self.train_lr_path,
@@ -382,7 +382,7 @@ class TensorflowTrainer(ModelsTrainer):
                 verbose=self.verbose
             )
 
-        if self.verbose:
+        if self.verbose > 0:
             print("input_data_shape: {}".format(self.input_data_shape))
             print("output_data_shape: {}".format(self.output_data_shape))
 
@@ -393,7 +393,7 @@ class TensorflowTrainer(ModelsTrainer):
                 "actual_scale_factor",
                 actual_scale_factor,
             )
-            if self.verbose:
+            if self.verbose > 0:
                 print(
                     "Actual scale factor that will be used is: {}".format(
                         self.scale_factor
@@ -461,6 +461,7 @@ class TensorflowTrainer(ModelsTrainer):
             datagen_sampling_pdf=self.datagen_sampling_pdf,
             model_configuration=self.config.used_model,
             batch_size=self.batch_size,
+            verbose=self.verbose
         )
 
         loss_funct = tf.keras.losses.mean_absolute_error
@@ -516,7 +517,7 @@ class TensorflowTrainer(ModelsTrainer):
         )
         callbacks.append(plot_callback)
 
-        if self.verbose:
+        if self.verbose > 0:
             print("Model configuration:")
             print(f"\tModel_name: {self.model_name}")
             print(f"\tOptimizer: {self.optim}")
@@ -601,7 +602,7 @@ class TensorflowTrainer(ModelsTrainer):
             widefields.append(lr_images[0, ...])
             
             if self.model_name == "unet":
-                if self.verbose:
+                if self.verbose > 0:
                     print("Padding will be added to the images.")
                     print("LR images before padding:")
                     print(
@@ -617,7 +618,7 @@ class TensorflowTrainer(ModelsTrainer):
                     scale=self.scale_factor,
                 )
 
-                if self.verbose and (
+                if self.verbose > 0 and (
                     height_padding == (0, 0) and width_padding == (0, 0)
                 ):
                     print("No padding has been needed to be added.")
@@ -628,7 +629,7 @@ class TensorflowTrainer(ModelsTrainer):
                     width_padding=width_padding,
                 )
 
-            if self.verbose:
+            if self.verbose > 0:
                 print(
                     "HR images - shape:{} dtype:{}".format(
                         hr_images.shape, hr_images.dtype
@@ -662,6 +663,7 @@ class TensorflowTrainer(ModelsTrainer):
                 scale_factor=self.scale_factor,
                 datagen_sampling_pdf=self.datagen_sampling_pdf,
                 model_configuration=self.config.used_model,
+                verbose=self.verbose
             )
 
             loss_funct = "mean_absolute_error"
@@ -702,7 +704,7 @@ class TensorflowTrainer(ModelsTrainer):
         # assert (np.max(self.Y_test) <= 1.0).all and (np.max(self.predictions) <= 1.0).all and (np.max(self.X_test) <= 1.0).all
         # assert (np.min(self.Y_test) >= 0.0).all and (np.min(self.predictions) >= 0.0).all and (np.min(self.X_test) >= 0.0).all
 
-        if self.verbose:
+        if self.verbose > 0:
             utils.print_info("predict_images() - Y_test", self.Y_test)
             utils.print_info("predict_images() - predictions", self.predictions)
             utils.print_info("predict_images() - X_test", self.X_test)
@@ -806,7 +808,7 @@ class PytorchTrainer(ModelsTrainer):
         # Take one batch of data
         data = next(iter(model.train_dataloader()))
         
-        if self.verbose:
+        if self.verbose > 0:
             print("LR patch shape: {}".format(data["lr"][0][0].shape))
             print("HR patch shape: {}".format(data["hr"][0][0].shape))
 
@@ -832,12 +834,12 @@ class PytorchTrainer(ModelsTrainer):
         callbacks.append(checkpoints)
 
         # Saving plots during training to see the evolution on the performance
-        plt_saving_path = os.path.join(self.saving_path, "training_images")
-        os.makedirs(plt_saving_path, exist_ok=True)
-        plot_callback = custom_callbacks.PerformancePlotCallback_Pytorch(
-            data["lr"], data["hr"], plt_saving_path, frequency=10
-        )
-        callbacks.append(plot_callback)
+        # plt_saving_path = os.path.join(self.saving_path, "training_images")
+        # os.makedirs(plt_saving_path, exist_ok=True)
+        # plot_callback = custom_callbacks.PerformancePlotCallback_Pytorch(
+        #     data["lr"], data["hr"], plt_saving_path, frequency=10
+        # )
+        # callbacks.append(plot_callback)
         
 
         os.makedirs(self.saving_path + "/Quality Control", exist_ok=True)
@@ -968,6 +970,7 @@ class PytorchTrainer(ModelsTrainer):
             model_configuration=self.config,
             datagen_sampling_pdf=self.datagen_sampling_pdf,
             checkpoint=os.path.join(self.saving_path, "best_checkpoint.pth"),
+            verbose=self.verbose
         )
 
         trainer = Trainer(accelerator="gpu", devices=self.gpu_id)
@@ -994,7 +997,7 @@ class PytorchTrainer(ModelsTrainer):
             ]
         )
 
-        if self.verbose:
+        if self.verbose > 0:
             data = next(iter(dataloader))
             utils.print_info("predict_images() - lr", data["lr"])
             utils.print_info("predict_images() - hr", data["hr"])
@@ -1030,7 +1033,7 @@ class PytorchTrainer(ModelsTrainer):
         self.Y_test = np.expand_dims(hr_images, axis=-1)
         self.X_test = np.expand_dims(lr_images, axis=-1)
 
-        if self.verbose:
+        if self.verbose > 0:
             utils.print_info("predict_images() - self.Y_test", self.Y_test)
             utils.print_info("predict_images() - self.predictions", self.predictions)
             utils.print_info("predict_images() - self.X_test", self.X_test)

@@ -345,7 +345,8 @@ class PerformancePlotCallback_Pytorch(pl_callback):
             None
         """
         if pl_module.current_epoch % self.frequency == 0:
-            y_pred = pl_module.forward(self.x_test.cuda()).cpu().detach().numpy()
+            cuda_x_test_img = self.x_test.to("cuda")
+            y_pred = pl_module.forward(cuda_x_test_img).detach().cpu().numpy()
 
             print(f'y_pred: {y_pred.shape}')
             print(f'self.x_test: {self.x_test.shape}')

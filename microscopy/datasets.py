@@ -289,7 +289,7 @@ def extract_random_patches_from_image(
             lc * scale_factor : uc * scale_factor, lr * scale_factor : ur * scale_factor
         ]
 
-    if verbose:
+    if verbose > 1:
         print('\nExtracting patches:')
         print("lr_patch[{}:{}, {}:{}] - {} - min: {} max: {}".format(lc, uc, lr, ur, lr_patch.shape,
                                                                 lr_patch.min(), lr_patch.max()))
@@ -444,7 +444,7 @@ class TFDataGenerator:
         else:
             lr_image_path = None
 
-        if self.verbose:
+        if self.verbose > 1:
             print('Extracting patches for image {}'.format(os.path.join(self.hr_data_path, self.filenames[idx])))
 
         aux_lr_patches, aux_hr_patches = extract_random_patches_from_image(
@@ -999,7 +999,8 @@ class PytorchDataset(Dataset):
         if self.transformations:
             sample = self.transformations(sample)
 
-        if self.verbose:
+        if self.verbose > 1:
+            print('__get_item__')
             print(sample)
 
         return sample

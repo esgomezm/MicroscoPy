@@ -18,10 +18,10 @@ def load_path(dataset_root, dataset_name, folder):
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     
-    dataset_combination = ["EM"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
+    dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
     model_combination = ["wgan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [4]
-    num_epochs_combination = [100]
+    num_epochs_combination = [20]
     lr_combination = [(0.001,0.001)]
     scheduler_combination = ['ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam', 'adamW', 'adamax', 'rms_prop', 'sgd']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
@@ -87,7 +87,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=1,
+                                    verbose=1, # 0, 1 or 2
                                     data_on_memory=0,
                                     gpu_id=gpu_id
                                 )
