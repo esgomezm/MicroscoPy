@@ -13,6 +13,7 @@ optim:
     mode: max
   OneCycle: 0
   CosineDecay: 0
+  Fixed: 0
   adam:
     beta1: 0.5
     beta2: 0.9
@@ -57,6 +58,7 @@ cddpm:
   - 128
   block_depth: 4
 wgan:
+  n_critic_steps: 5
   g_layers: 15
-  lambda_gp: 10
+  lambda_gp: 1
   recloss: 100.0

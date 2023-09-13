@@ -884,62 +884,12 @@ class PytorchTrainer(ModelsTrainer):
                 keys = next(csvRead)
                 keys.remove("step")
 
-                if self.model_name == "wgan":
-                    train_metrics = {
-                        "g_lr": [],
-                        "d_lr": [],
-                        "g_loss_step": [],
-                        "g_l1_step": [],
-                        "g_adv_loss_step": [],
-                        "d_real_step": [],
-                        "d_fake_step": [],
-                        "d_loss_step": [],
-                        "d_wasserstein_step": [],
-                        "d_gp_step": [],
-                        "epoch": [],
-                        "val_ssim": [],
-                        "val_psnr": [],
-                        "val_g_loss": [],
-                        "val_g_l1": [],
-                        "val_d_wasserstein": [],
-                        "g_loss_epoch": [],
-                        "g_l1_epoch": [],
-                        "g_adv_loss_epoch": [],
-                        "d_real_epoch": [],
-                        "d_fake_epoch": [],
-                        "d_loss_epoch": [],
-                        "d_wasserstein_epoch": [],
-                        "d_gp_epoch": [],
-                    }
-                elif self.model_name == "esrganplus":
-                    train_metrics = {
-                        "g_lr": [],
-                        "d_lr": [],
-                        "ssim_step": [],
-                        "g_loss_step": [],
-                        "g_pixel_loss_step": [],
-                        "g_features_loss_step": [],
-                        "g_adversarial_loss_step": [],
-                        "d_loss_step": [],
-                        "d_real_step": [],
-                        "d_fake_step": [],
-                        "epoch": [],
-                        "val_ssim": [],
-                        "val_psnr": [],
-                        "val_g_loss": [],
-                        "val_g_pixel_loss": [],
-                        "val_g_features_loss": [],
-                        "val_g_adversarial_loss": [],
-                        "ssim_epoch": [],
-                        "g_loss_epoch": [],
-                        "g_pixel_loss_epoch": [],
-                        "g_features_loss_epoch": [],
-                        "g_adversarial_loss_epoch": [],
-                        "d_loss_epoch": [],
-                        "d_real_epoch": [],
-                        "d_fake_epoch": [],
-                    }
+                # Initialize the dictionary with empty lists
+                train_metrics = {}
+                for k in keys:
+                    train_metrics[k] = []
 
+                # Fill the dictionary
                 for row in csvRead:
                     step = int(row[2])
                     row.pop(2)
@@ -949,6 +899,7 @@ class PytorchTrainer(ModelsTrainer):
 
                 os.makedirs(self.saving_path + "/train_metrics", exist_ok=True)
 
+                # Save the metrics
                 for key in train_metrics:
                     values_to_save = np.array([e[1] for e in train_metrics[key]])
                     np.save(

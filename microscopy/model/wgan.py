@@ -95,26 +95,26 @@ class GeneratorModule(LightningModule):
         y = self.generator(x)
         return y
 
-    def training_step(self, batch, batch_idx):
-        lr, hr = batch["lr"], batch["hr"]
+    # def training_step(self, batch, batch_idx):
+    #     lr, hr = batch["lr"], batch["hr"]
 
-        fake = self(lr)
+    #     fake = self(lr)
 
-        loss = self.l1loss(fake, hr)
+    #     loss = self.l1loss(fake, hr)
 
-        return loss
+    #     return loss
 
-    def configure_optimizers(self):
-        opt = torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
+    # def configure_optimizers(self):
+    #     opt = torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
 
-        sched = {
-            "scheduler": torch.optim.lr_scheduler.OneCycleLR(
-                opt, 0.0001, epochs=5, steps_per_epoch=712
-            ),
-            "interval": "step",
-        }
+    #     sched = {
+    #         "scheduler": torch.optim.lr_scheduler.OneCycleLR(
+    #             opt, 0.0001, epochs=5, steps_per_epoch=712
+    #         ),
+    #         "interval": "step",
+    #     }
 
-        return [opt], [sched]
+    #     return [opt], [sched]
 
 
 ###
@@ -154,54 +154,6 @@ class Discriminator(nn.Module):
     def forward(self, img):
         score = self.model(img)
         return torch.mean(score, dim=(-1, -2, -3))
-
-
-###
-
-
-class Discriminator_Complex(nn.Module):
-    def __init__(self):
-        super(Discriminator_Complex, self).__init__()
-
-        self.model = nn.Sequential(
-            nn.Conv2d(
-                in_channels=1, out_channels=64, kernel_size=3, stride=1, padding=1
-            ),
-            nn.InstanceNorm2d(64),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(
-                in_channels=64, out_channels=64, kernel_size=3, stride=2, padding=1
-            ),
-            nn.InstanceNorm2d(64),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(
-                in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1
-            ),
-            nn.InstanceNorm2d(128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(
-                in_channels=128, out_channels=128, kernel_size=3, stride=2, padding=1
-            ),
-            nn.InstanceNorm2d(128),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(
-                in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1
-            ),
-            nn.InstanceNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(
-                in_channels=256, out_channels=256, kernel_size=3, stride=2, padding=1
-            ),
-            nn.InstanceNorm2d(256),
-            nn.LeakyReLU(0.2, inplace=True),
-            nn.Conv2d(
-                in_channels=256, out_channels=1, kernel_size=3, stride=1, padding=1
-            ),
-        )
-
-    def forward(self, img):
-        score = self.model(img)
-        return score
 
 
 ###
@@ -390,6 +342,11 @@ class WGANGP(LightningModule):
         self.log("g_adv_loss", g_loss, prog_bar=True, on_epoch=True)
         self.log("g_l1", error, prog_bar=True, on_epoch=True)
 
+        real_logits = self.discriminator(hr).mean()
+        fake_logits = self.discriminator(generated).mean()
+        self.log("g_real", real_logits, prog_bar=False, on_epoch=True)
+        self.log("g_fake", fake_logits, prog_bar=False, on_epoch=True)
+
         # Optimize generator
         self.manual_backward(g_loss)
         g_opt.step()
@@ -416,7 +373,7 @@ class WGANGP(LightningModule):
 
         wasserstein = real_logits - fake_logits
 
-        d_loss = -wasserstein + self.hparams.lambda_gp * gradient_penalty
+        d_loss = - wasserstein + self.hparams.lambda_gp * gradient_penalty
 
         # Log the losses
         self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)
@@ -431,18 +388,19 @@ class WGANGP(LightningModule):
         self.untoggle_optimizer(d_opt)
 
         # Calculate the schedulers
-        sched_g, sched_d = self.lr_schedulers()
+        if self.lr_schedulers():
+            sched_g, sched_d = self.lr_schedulers()
 
-        # The critic/discriminator is updated every step
-        if (batch_idx + 1) % 1 == 0:
-            if self.verbose > 1:
-                print(f'Generator updated on step {batch_idx + 1}')
-            sched_g.step(g_loss)
-        # The critic/discriminator is updated every self.hparams.n_critic_steps
-        if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
-            if self.verbose > 1:
-                print(f'Discriminator  updated on step {batch_idx + 1}')
-            sched_d.step(d_loss)
+            # The critic/discriminator is updated every step
+            if (batch_idx + 1) % 1 == 0:
+                if self.verbose > 1:
+                    print(f'Discriminator  updated on step {batch_idx + 1}')
+                sched_d.step(d_loss)
+            # The generator is updated every self.hparams.n_critic_steps
+            if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
+                if self.verbose > 1:
+                    print(f'Generator updated on step {batch_idx + 1}')
+                sched_g.step(g_loss)
 
         if self.verbose > 1:
             print('\nVerbose: Training step (end)\n')
@@ -452,6 +410,10 @@ class WGANGP(LightningModule):
         
         if self.verbose > 1:
             print('\nVerbose: configure_optimizers (begining)\n')
+            print(f'Generator optimizer: {self.hparams.g_optimizer}')
+            print(f'Discriminator optimizer: {self.hparams.d_optimizer}')
+            print(f'Generator scheduler: {self.hparams.g_scheduler}')
+            print(f'Discriminator scheduler: {self.hparams.d_scheduler}')
 
         self.opt_g = select_optimizer(
             library_name="pytorch",
@@ -484,6 +446,7 @@ class WGANGP(LightningModule):
             optimizer=self.opt_g,
             frequency=1,
             additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
         )
 
         sched_d = select_lr_schedule(
@@ -497,9 +460,15 @@ class WGANGP(LightningModule):
             optimizer=self.opt_d,
             frequency=self.hparams.n_critic_steps,
             additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
         )
 
-        return [self.opt_g, self.opt_d], [sched_g, sched_d]
+        if sched_g is None and sched_d is None:
+            scheduler_list = []
+        else:
+            scheduler_list = [sched_g, sched_d]
+
+        return [self.opt_g, self.opt_d], scheduler_list
 
     def validation_step(self, batch, batch_idx):
         

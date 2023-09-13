@@ -194,7 +194,7 @@ def select_pytorch_optimizer(
                 print(f'lr={learning_rate}')
                 print(f'momentum={additional_configuration.used_optim.momentum}')
 
-            optimizer =  tf.keras.optimizers.SGD(
+            optimizer =  torch.optim.SGD(
                 parameters,
                 lr=learning_rate,
                 momentum=additional_configuration.used_optim.momentum,
@@ -239,6 +239,7 @@ def select_lr_schedule(
     optimizer,
     frequency,
     additional_configuration,
+    verbose
 ):
     """
     Selects the appropriate learning rate schedule based on the given library name.
@@ -269,6 +270,7 @@ def select_lr_schedule(
             learning_rate,
             monitor_loss,
             additional_configuration,
+            verbose
         )
     elif library_name == "pytorch":
         return select_pytorch_lr_schedule(
@@ -281,6 +283,7 @@ def select_lr_schedule(
             optimizer,
             frequency,
             additional_configuration,
+            verbose
         )
     else:
         raise Exception("Wrong library name.")
@@ -293,6 +296,7 @@ def select_tensorflow_lr_schedule(
     learning_rate,
     monitor_loss,
     additional_configuration,
+    verbose
 ):
     """
     Generates a TensorFlow learning rate schedule based on the given parameters.
@@ -313,8 +317,18 @@ def select_tensorflow_lr_schedule(
     """
     if lr_scheduler_name == "OneCycle":
         steps = data_len * num_epochs
+        if verbose > 1:
+            print('OneCycle scheduler has been selected')
+            print(f'lr={learning_rate}')
+            print(f'steps={steps}')
         return custom_callbacks.OneCycleScheduler(learning_rate, steps)
     elif lr_scheduler_name == "ReduceOnPlateau":
+        if verbose > 1:
+            print('ReduceLROnPlateau scheduler has been selected')
+            print(f'factor={additional_configuration.used_sched.factor}')
+            print(f'patience={additional_configuration.used_sched.patience}')
+            print(f'min_lr={(learning_rate / 10)}')
+            print(f'mode={additional_configuration.used_sched.mode}')
         return ReduceLROnPlateau(
             monitor=monitor_loss,
             factor=additional_configuration.used_sched.factor,
@@ -325,12 +339,21 @@ def select_tensorflow_lr_schedule(
         )
     elif lr_scheduler_name == "CosineDecay":
         decay_steps = data_len * num_epochs
+        if verbose > 1:
+            print('CosineDecay scheduler has been selected')
+            print(f'decay_steps={decay_steps}')
+            print(f'lr={learning_rate}')
         return tf.keras.optimizers.schedules.CosineDecay(
             learning_rate, decay_steps, alpha=0.0, name=None
         )
     elif lr_scheduler_name == "MultiStepScheduler":
         total_steps = data_len * num_epochs
         lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
+        if verbose > 1:
+            print('MultiStepScheduler scheduler has been selected')
+            print(f'lr={learning_rate}')
+            print(f'lr_steps={lr_steps}')
+            print(f'lr_rate_decay={additional_configuration.used_sched.lr_rate_decay}')
         return custom_callbacks.MultiStepScheduler(
             learning_rate,
             lr_steps=lr_steps,
@@ -352,6 +375,7 @@ def select_pytorch_lr_schedule(
     optimizer,
     frequency,
     additional_configuration,
+    verbose
 ):
     """
     Selects and returns a PyTorch learning rate schedule based on the provided parameters.
@@ -374,6 +398,10 @@ def select_pytorch_lr_schedule(
         Exception: If the provided learning rate scheduler is not available.
     """
     if lr_scheduler_name == "OneCycle":
+        if verbose > 1:
+            print('OneCycle scheduler has been selected')
+            print(f'lr={learning_rate}')
+            print(f'steps_per_epoch={data_len // frequency}')
         return {
             "scheduler": torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
@@ -387,6 +415,11 @@ def select_pytorch_lr_schedule(
         }
 
     elif lr_scheduler_name == "ReduceOnPlateau":
+        if verbose > 1:
+            print('ReduceLROnPlateau scheduler has been selected')
+            print(f'factor={additional_configuration.used_sched.factor}')
+            print(f'patience={additional_configuration.used_sched.patience}')
+            print(f'min_lr={(learning_rate / 10)}')
         return {
             "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
@@ -402,6 +435,10 @@ def select_pytorch_lr_schedule(
         }
     
     elif lr_scheduler_name == "CosineDecay":
+        if verbose > 1:
+            print('CosineDecay scheduler has been selected')
+            print(f'T_max={data_len * num_epochs}')
+            print(f'eta_min={learning_rate / 10}')
         return {
             "scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
@@ -416,6 +453,10 @@ def select_pytorch_lr_schedule(
     elif lr_scheduler_name == "MultiStepScheduler":
         total_steps = num_epochs
         lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
+        if verbose > 1:
+            print('MultiStepScheduler scheduler has been selected')
+            print(f'milestones={lr_steps}')
+            print(f'gamma={additional_configuration.used_sched.lr_rate_decay}')
         return {
             "scheduler": torch.optim.lr_scheduler.MultiStepLR(
                 optimizer,
@@ -428,17 +469,10 @@ def select_pytorch_lr_schedule(
             "frequency": frequency,
         }
     elif lr_scheduler_name is None or lr_scheduler_name == "Fixed":
-        return {
-            "scheduler": torch.optim.lr_scheduler.ConstantLR(
-                optimizer,
-                factor=1,
-                total_iters=num_epochs,
-            ),
-            "interval": "epoch",
-            "name": name,
-            "monitor": monitor_loss,
-            "frequency": frequency,
-        } 
+        if verbose > 1:
+            print('Fixed scheduler has been selected')
+            print(f'Return None')
+        return None
     else:
         raise Exception("Not available Learning rate Scheduler.")
 
