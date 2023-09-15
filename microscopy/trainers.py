@@ -430,6 +430,7 @@ class TensorflowTrainer(ModelsTrainer):
                     optimizer=None,
                     frequency=None,
                     additional_configuration=self.config,
+                    verbose=self.verbose
         )
 
         if self.lr_scheduler_name in ["CosineDecay", "MultiStepScheduler"]:
@@ -439,7 +440,8 @@ class TensorflowTrainer(ModelsTrainer):
                 learning_rate=lr_schedule,
                 check_point=None,
                 parameters=None,
-                additional_configuration=self.config
+                additional_configuration=self.config,
+                verbose=self.verbose
             )
         else:
             self.optim = optimizer_scheduler_utils.select_optimizer(
@@ -448,7 +450,8 @@ class TensorflowTrainer(ModelsTrainer):
                 learning_rate=self.learning_rate,
                 check_point=None,
                 parameters=None,
-                additional_configuration=self.config
+                additional_configuration=self.config,
+                verbose=self.verbose
             )
             if not lr_schedule is None:
                 callbacks.append(lr_schedule)
@@ -582,7 +585,7 @@ class TensorflowTrainer(ModelsTrainer):
         ground_truths = []
         widefields = []
         predictions = []
-        print("Prediction is going to start:")
+        print(f"Prediction of {self.model_name} is going to start:")
         for test_filename in self.test_filenames:
             
             lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
@@ -665,6 +668,9 @@ class TensorflowTrainer(ModelsTrainer):
                 model_configuration=self.config.used_model,
                 verbose=self.verbose
             )
+
+            if self.verbose > 0:
+                print(model.summary())
 
             loss_funct = "mean_absolute_error"
             eval_metric = "mean_squared_error"
@@ -819,7 +825,7 @@ class PytorchTrainer(ModelsTrainer):
         callbacks = [] 
         
         # First to monitor the LR en each epoch (for validating the scheduler and the optimizer)
-        lr_monitor = LearningRateMonitor(logging_interval="epoch")
+        lr_monitor = LearningRateMonitor(logging_interval="step")
         callbacks.append(lr_monitor)
 
         # Saving checkpoints during training based
@@ -882,6 +888,7 @@ class PytorchTrainer(ModelsTrainer):
             with open(train_csv_path, "r") as csvfile:
                 csvRead = csv.reader(csvfile, delimiter=",")
                 keys = next(csvRead)
+                step_idx = keys.index("step")
                 keys.remove("step")
 
                 # Initialize the dictionary with empty lists
@@ -891,8 +898,8 @@ class PytorchTrainer(ModelsTrainer):
 
                 # Fill the dictionary
                 for row in csvRead:
-                    step = int(row[2])
-                    row.pop(2)
+                    step = int(row[step_idx])
+                    row.pop(step_idx)
                     for i, row_value in enumerate(row):
                         if row_value:
                             train_metrics[keys[i]].append([step, float(row_value)])
@@ -1076,66 +1083,66 @@ def predict_configuration(
     data_on_memory=0,
 ):
 
-    # if config.dataset_name in ['ER', 'MT', 'F-actin']:
-    #     dataset_levels = {'ER':6, 'MT':9, 'F-actin':12}
-    #     levels = dataset_levels[config.dataset_name]
-    #     for i in range(1, levels):
-    #         level_folder = f"level_{i:02d}"
-    #         if "level" in test_lr_path:
-    #             test_lr_path = os.path.join(test_lr_path[:-9], level_folder)
-    #         else:
-    #             test_lr_path = os.path.join(test_lr_path, level_folder)
+    if config.dataset_name in ['ER', 'MT', 'F-actin']:
+        dataset_levels = {'ER':6, 'MT':9, 'F-actin':12}
+        levels = dataset_levels[config.dataset_name]
+        for i in range(1, levels+1):
+            level_folder = f"level_{i:02d}"
+            if "level" in test_lr_path:
+                test_lr_path = os.path.join(test_lr_path[:-9], level_folder)
+            else:
+                test_lr_path = os.path.join(test_lr_path, level_folder)
 
-    #         if config.model_name in ["wgan", "esrganplus"]:
-    #             model_trainer = PytorchTrainer(
-    #                 config,
-    #                 train_lr_path, train_hr_path,
-    #                 val_lr_path, val_hr_path,
-    #                 test_lr_path, test_hr_path,
-    #                 saving_path,
-    #                 verbose=verbose,
-    #                 gpu_id=gpu_id,
-    #                 data_on_memory=data_on_memory,
-    #             )
-    #         elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
-    #             model_trainer = TensorflowTrainer(
-    #                 config,
-    #                 train_lr_path, train_hr_path,
-    #                 val_lr_path, val_hr_path,
-    #                 test_lr_path, test_hr_path,
-    #                 saving_path,
-    #                 verbose=verbose,
-    #                 data_on_memory=data_on_memory,
-    #             )
-    #         else:
-    #             raise Exception("Not available model.")
+            if config.model_name in ["wgan", "esrganplus"]:
+                model_trainer = PytorchTrainer(
+                    config,
+                    train_lr_path, train_hr_path,
+                    val_lr_path, val_hr_path,
+                    test_lr_path, test_hr_path,
+                    saving_path,
+                    verbose=verbose,
+                    gpu_id=gpu_id,
+                    data_on_memory=data_on_memory,
+                )
+            elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+                model_trainer = TensorflowTrainer(
+                    config,
+                    train_lr_path, train_hr_path,
+                    val_lr_path, val_hr_path,
+                    test_lr_path, test_hr_path,
+                    saving_path,
+                    verbose=verbose,
+                    data_on_memory=data_on_memory,
+                )
+            else:
+                raise Exception("Not available model.")
 
-    #         model_trainer.predict_images(result_folder_name=level_folder)
-    #         model_trainer.eval_model(result_folder_name=level_folder)
-    # else:
-    if config.model_name in ["wgan", "esrganplus"]:
-        model_trainer = PytorchTrainer(
-            config,
-            train_lr_path, train_hr_path,
-            val_lr_path, val_hr_path,
-            test_lr_path, test_hr_path,
-            saving_path,
-            verbose=verbose,
-            gpu_id=gpu_id,
-            data_on_memory=data_on_memory,
-        )
-    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
-        model_trainer = TensorflowTrainer(
-            config,
-            train_lr_path, train_hr_path,
-            val_lr_path, val_hr_path,
-            test_lr_path, test_hr_path,
-            saving_path,
-            verbose=verbose,
-            data_on_memory=data_on_memory,
-        )
+            model_trainer.predict_images(result_folder_name=level_folder)
+            model_trainer.eval_model(result_folder_name=level_folder)
     else:
-        raise Exception("Not available model.")
+        if config.model_name in ["wgan", "esrganplus"]:
+            model_trainer = PytorchTrainer(
+                config,
+                train_lr_path, train_hr_path,
+                val_lr_path, val_hr_path,
+                test_lr_path, test_hr_path,
+                saving_path,
+                verbose=verbose,
+                gpu_id=gpu_id,
+                data_on_memory=data_on_memory,
+            )
+        elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+            model_trainer = TensorflowTrainer(
+                config,
+                train_lr_path, train_hr_path,
+                val_lr_path, val_hr_path,
+                test_lr_path, test_hr_path,
+                saving_path,
+                verbose=verbose,
+                data_on_memory=data_on_memory,
+            )
+        else:
+            raise Exception("Not available model.")
 
     model_trainer.predict_images()
     model_trainer.eval_model()

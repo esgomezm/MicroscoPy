@@ -11,6 +11,8 @@ from ..datasets import PytorchDataset, ToTensor
 from ..datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
 from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
 
+from matplotlib import pyplot as plt
+import os
 
 class ResidualBlock(nn.Module):
     def __init__(self, in_channels, out_channels, k=3, p=1):
@@ -204,10 +206,17 @@ class WGANGP(LightningModule):
             print('\nVerbose: Model initialized (begining)\n')
 
         self.save_hyperparameters()
+
         # Important: This property activates manual optimization.
         self.automatic_optimization = False
 
-        if gen_checkpoint is not None:
+        # Initialize generator and load the checkpoint in case is given
+        if gen_checkpoint is None:
+            self.generator = GeneratorModule(
+                n_residual=g_layers, scale_factor=scale_factor
+            )
+            self.best_valid_loss = float("inf")
+        else:
             checkpoint = torch.load(gen_checkpoint)
             self.generator = GeneratorModule(
                 n_residual=checkpoint["n_residuals"],
@@ -215,11 +224,6 @@ class WGANGP(LightningModule):
             )
             self.generator.load_state_dict(checkpoint["model_state_dict"])
             self.best_valid_loss = checkpoint["best_valid_loss"]
-        else:
-            self.generator = GeneratorModule(
-                n_residual=g_layers, scale_factor=scale_factor
-            )
-            self.best_valid_loss = float("inf")
 
         self.discriminator = Discriminator()
 
@@ -246,229 +250,130 @@ class WGANGP(LightningModule):
         self.validation_step_lr = []
         self.validation_step_hr = []
         self.validation_step_pred = []
+        
+        self.val_ssim = []
+        
+        if self.verbose > 1:
+            os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
+
+
+        self.step_schedulers = ['CosineDecay', 'OneCycle']
+        self.epoch_schedulers = ['ReduceOnPlateau', 'MultiStepScheduler']
 
         if self.verbose > 1:
             print('\nVerbose: Model initialized (end)\n')
 
-    def save_model(self, filename):
-        print(f'\nVerbose: Saving the model: {self.hparams.save_basedir + "/" + filename}\n')
-        if self.hparams.save_basedir is not None:
-            torch.save(
-                {
-                    "model_state_dict": self.generator.state_dict(),
-                    "optimizer_state_dict": self.opt_g.state_dict(),
-                    "n_residuals": self.hparams.g_layers,
-                    "scale_factor": self.hparams.scale_factor,
-                    "best_valid_loss": self.best_valid_loss,
-                },
-                self.hparams.save_basedir + "/" + filename,
-            )
-        else:
-            raise Exception(
-                "No save_basedir was specified in the construction of the WGAN object."
-            )
 
     def forward(self, x):
         if isinstance(x, dict):
             return self.generator(x["lr"])
         else:
             return self.generator(x)
-
-    def compute_gradient_penalty(self, real_samples, fake_samples):
-        """Calculates the gradient penalty loss for WGAN GP
-
-        Source: https://github.com/nocotan/pytorch-lightning-gans"""
-        # Random weight term for interpolation between real and fake samples
-        alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1, 1))).to(
-            self.device
-        )
-        # Get random interpolation between real and fake samples
-        interpolates = (
-            alpha * real_samples + ((1 - alpha) * fake_samples)
-        ).requires_grad_(True)
-        interpolates = interpolates.to(self.device)
-        d_interpolates = self.discriminator(interpolates)
-        fake = torch.Tensor(d_interpolates.shape).fill_(1.0).to(self.device)
-        # Get gradient w.r.t. interpolates
-        gradients = torch.autograd.grad(
-            outputs=d_interpolates,
-            inputs=interpolates,
-            grad_outputs=fake,
-            create_graph=True,
-            retain_graph=True,
-            only_inputs=True,
-        )
-        # print("Interpolates", interpolates.shape)
-        # print("d_interpolates", d_interpolates.shape)
-        # print("gradients", len(gradients))
-        gradients = gradients[0]
-        # print("gradients", gradients.shape)
-
-        gradients = gradients.view(gradients.size(0), -1).to(self.device)
-        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
-        return gradient_penalty
-
+        
     def training_step(self, batch, batch_idx):
         
         if self.verbose > 1:
             print('\nVerbose: Training step (begining)\n')
 
+        # Take a batch of data
         lr, hr = batch["lr"], batch["hr"]
+        # Predict the HR image
+        generated = self(lr)
+        # Evaluate the real and the fake HR images
+        real_logits = self.discriminator(hr).mean()
+        fake_logits = self.discriminator(generated).mean()
 
         # Extract the optimizers
         g_opt, d_opt = self.optimizers()
 
-        # Optimize generator
-        # toggle_optimizer(): Makes sure only the gradients of the current optimizer's parameters are calculated
-        #                     in the training step to prevent dangling gradients in multiple-optimizer setup.
-        self.toggle_optimizer(g_opt)
-
-        # Predict the HR image
-        generated = self(lr)
-
-        if self.verbose > 1:
-            print('Generator step:')
-            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
-            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
-
-        # Calculate the generator's loss
-        adv_loss = -1 * self.discriminator(generated).mean()
-        error = self.mae(generated, hr)
-        g_loss = adv_loss + error * self.hparams.recloss
-
-        # Log the losses
-        self.log("g_loss", g_loss, prog_bar=True, on_epoch=True)
-        self.log("g_adv_loss", g_loss, prog_bar=True, on_epoch=True)
-        self.log("g_l1", error, prog_bar=True, on_epoch=True)
-
-        real_logits = self.discriminator(hr).mean()
-        fake_logits = self.discriminator(generated).mean()
-        self.log("g_real", real_logits, prog_bar=False, on_epoch=True)
-        self.log("g_fake", fake_logits, prog_bar=False, on_epoch=True)
-
-        # Optimize generator
-        self.manual_backward(g_loss)
-        g_opt.step()
-        g_opt.zero_grad()
-        self.untoggle_optimizer(g_opt)
-
-        # Optimize discriminator
-        self.toggle_optimizer(d_opt)
-
-        # Predict the HR image
-        generated = self(lr)
-
-        if self.verbose > 1:
-            print('Discriminator step:')
-            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
-            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
-
-        # Calculate the discriminator's loss
-        real_logits = self.discriminator(hr).mean()
-        fake_logits = self.discriminator(generated).mean()
-
-        gradient_penalty = self.compute_gradient_penalty(hr.data, generated.data)
-
-        wasserstein = real_logits - fake_logits
-
-        d_loss = - wasserstein + self.hparams.lambda_gp * gradient_penalty
-
-        # Log the losses
-        self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)
-        self.log("d_wasserstein", wasserstein, prog_bar=False, on_epoch=True)
-        self.log("d_real", real_logits, prog_bar=False, on_epoch=True)
-        self.log("d_fake", fake_logits, prog_bar=False, on_epoch=True)
-        self.log("d_gp", gradient_penalty, prog_bar=False, on_epoch=True)
-
-        self.manual_backward(d_loss)
-        d_opt.step()
-        d_opt.zero_grad()
-        self.untoggle_optimizer(d_opt)
-
-        # Calculate the schedulers
-        if self.lr_schedulers():
+        # Extract the schedulers
+        if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_d = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler == "Fixed":
+            sched_g = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler != "Fixed":
             sched_g, sched_d = self.lr_schedulers()
+        else:
+            # There are no schedulers
+            pass
 
-            # The critic/discriminator is updated every step
-            if (batch_idx + 1) % 1 == 0:
-                if self.verbose > 1:
-                    print(f'Discriminator  updated on step {batch_idx + 1}')
-                sched_d.step(d_loss)
-            # The generator is updated every self.hparams.n_critic_steps
-            if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
-                if self.verbose > 1:
-                    print(f'Generator updated on step {batch_idx + 1}')
-                sched_g.step(g_loss)
+        # The generator is updated every self.hparams.n_critic_steps
+        if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
+            if self.verbose > 1:
+                print(f'Generator updated on step {batch_idx + 1}')
+
+            # Optimize generator
+            # toggle_optimizer(): Makes sure only the gradients of the current optimizer's parameters are calculated
+            #                     in the training step to prevent dangling gradients in multiple-optimizer setup.
+            self.toggle_optimizer(g_opt)
+
+            if self.verbose > 1:
+                print('Generator step:')
+                print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
+                print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
+                print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
+
+            # Calculate the generator's loss
+            adv_loss = -1 * fake_logits
+            error = self.mae(generated, hr)
+            g_loss = adv_loss + error * self.hparams.recloss
+
+            # Log the losses
+            self.log("g_loss", adv_loss, prog_bar=True, on_epoch=True)
+            self.log("g_adv_loss", g_loss, prog_bar=True, on_epoch=True)
+            self.log("g_l1", error, prog_bar=True, on_epoch=True)
+
+            self.log("g_real", real_logits, prog_bar=False, on_epoch=True)
+            self.log("g_fake", fake_logits, prog_bar=False, on_epoch=True)
+
+            # Optimize generator
+            self.manual_backward(g_loss)
+            g_opt.step()
+            g_opt.zero_grad()
+            self.untoggle_optimizer(g_opt)
+            
+            if self.hparams.g_scheduler in self.step_schedulers:
+                sched_g.step()
+
+        # The discriminator is updated every step
+        if (batch_idx + 1) % 1 == 0:
+            if self.verbose > 1:
+                print(f'Discriminator  updated on step {batch_idx + 1}')
+                
+            # Optimize discriminator
+            self.toggle_optimizer(d_opt)
+
+            if self.verbose > 1:
+                print('Discriminator step:')
+                print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
+                print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
+                print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
+
+            gradient_penalty = self.compute_gradient_penalty(hr.data, generated.data)
+
+            wasserstein = real_logits - fake_logits
+
+            d_loss = - wasserstein + self.hparams.lambda_gp * gradient_penalty
+
+            # Log the losses
+            self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)
+            self.log("d_wasserstein", wasserstein, prog_bar=False, on_epoch=True)
+            self.log("d_gp", gradient_penalty, prog_bar=False, on_epoch=True)
+            
+            self.log("d_real", real_logits, prog_bar=False, on_epoch=True)
+            self.log("d_fake", fake_logits, prog_bar=False, on_epoch=True)
+
+            # Optimize discriminator/critic
+            self.manual_backward(d_loss)
+            d_opt.step()
+            d_opt.zero_grad()
+            self.untoggle_optimizer(d_opt)
+
+            if self.hparams.d_scheduler in self.step_schedulers:
+                sched_d.step()
 
         if self.verbose > 1:
             print('\nVerbose: Training step (end)\n')
-
-
-    def configure_optimizers(self):
-        
-        if self.verbose > 1:
-            print('\nVerbose: configure_optimizers (begining)\n')
-            print(f'Generator optimizer: {self.hparams.g_optimizer}')
-            print(f'Discriminator optimizer: {self.hparams.d_optimizer}')
-            print(f'Generator scheduler: {self.hparams.g_scheduler}')
-            print(f'Discriminator scheduler: {self.hparams.d_scheduler}')
-
-        self.opt_g = select_optimizer(
-            library_name="pytorch",
-            optimizer_name=self.hparams.g_optimizer,
-            learning_rate=self.hparams.learning_rate_g,
-            check_point=self.hparams.gen_checkpoint,
-            parameters=self.generator.parameters(),
-            additional_configuration=self.hparams.additonal_configuration,
-            verbose=self.verbose
-        )
-
-        self.opt_d = select_optimizer(
-            library_name="pytorch",
-            optimizer_name=self.hparams.d_optimizer,
-            learning_rate=self.hparams.learning_rate_d,
-            check_point=None,
-            parameters=self.discriminator.parameters(),
-            additional_configuration=self.hparams.additonal_configuration,
-            verbose=self.verbose
-        )
-
-        sched_g = select_lr_schedule(
-            library_name="pytorch",
-            lr_scheduler_name=self.hparams.g_scheduler,
-            data_len=self.len_data,
-            num_epochs=self.hparams.epochs,
-            learning_rate=self.hparams.learning_rate_g,
-            monitor_loss="val_g_loss",
-            name="g_lr",
-            optimizer=self.opt_g,
-            frequency=1,
-            additional_configuration=self.hparams.additonal_configuration,
-            verbose=self.verbose
-        )
-
-        sched_d = select_lr_schedule(
-            library_name="pytorch",
-            lr_scheduler_name=self.hparams.d_scheduler,
-            data_len=self.len_data,
-            num_epochs=self.hparams.epochs,
-            learning_rate=self.hparams.learning_rate_d,
-            monitor_loss="val_g_loss",
-            name="d_lr",
-            optimizer=self.opt_d,
-            frequency=self.hparams.n_critic_steps,
-            additional_configuration=self.hparams.additonal_configuration,
-            verbose=self.verbose
-        )
-
-        if sched_g is None and sched_d is None:
-            scheduler_list = []
-        else:
-            scheduler_list = [sched_g, sched_d]
-
-        return [self.opt_g, self.opt_d], scheduler_list
 
     def validation_step(self, batch, batch_idx):
         
@@ -483,7 +388,6 @@ class WGANGP(LightningModule):
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
             print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
-            
 
         true = hr.cpu().numpy()
         fake = generated.cpu().numpy()
@@ -494,6 +398,7 @@ class WGANGP(LightningModule):
                 true[i, 0, ...], fake[i, 0, ...], data_range=1.0
             )
             self.log("val_ssim", ssim)
+            self.val_ssim.append(ssim)
 
             psnr = peak_signal_noise_ratio(
                 true[i, 0, ...], fake[i, 0, ...], data_range=1.0
@@ -503,6 +408,25 @@ class WGANGP(LightningModule):
         self.validation_step_lr.append(lr)
         self.validation_step_hr.append(hr)
         self.validation_step_pred.append(generated)
+
+        if batch_idx < 3 and self.verbose > 1:
+            plt.figure(figsize=(15, 5))
+            plt.subplot(1, 4, 1)
+            plt.title("Input LR image")
+            plt.imshow(xlr[0,0], "gray")
+            plt.subplot(1, 4, 2)
+            plt.title("Ground truth")
+            plt.imshow(true[0,0], "gray")
+            plt.subplot(1, 4, 3)
+            plt.title("Prediction")
+            plt.imshow(fake[0,0], "gray")
+            plt.subplot(1, 4, 4)
+            plt.title(f"SSIM: {ssim:.3f}")
+            plt.imshow(true[0,0] - fake[0,0], "inferno")
+
+            plt.tight_layout()
+            plt.savefig(f"{self.hparams.save_basedir}/training_images/{self.current_epoch}_{batch_idx}.png")
+            plt.close()
 
         if self.verbose > 1:
             print('\nVerbose: validation_step (end)\n')
@@ -552,8 +476,30 @@ class WGANGP(LightningModule):
         self.validation_step_hr.clear()  # free memory
         self.validation_step_pred.clear()  # free memory
 
+
+        # Extract the schedulers
+        if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_d = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler == "Fixed":
+            sched_g = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_g, sched_d = self.lr_schedulers()
+        else:
+            # There are no schedulers
+            pass
+        
+        mean_val_ssim = np.array(self.val_ssim).mean()
+
+        # Note that step should be called after validate()
+        if self.hparams.d_scheduler in self.epoch_schedulers:
+            sched_d.step(mean_val_ssim)
+        if self.hparams.g_scheduler in self.epoch_schedulers:
+            sched_g.step(mean_val_ssim)
+
+        self.val_ssim.clear() # free memory
+
         if self.verbose > 1:
-            print('\nVerbose: on_validation_epoch_end (begining)\n')
+            print('\nVerbose: on_validation_epoch_end (end)\n')
 
     def on_train_end(self):
         
@@ -564,7 +510,71 @@ class WGANGP(LightningModule):
         
         if self.verbose > 1:
             print('\nVerbose: on_train_end (end)\n')
+            
+    def configure_optimizers(self):
+        
+        if self.verbose > 1:
+            print('\nVerbose: configure_optimizers (begining)\n')
+            print(f'Generator optimizer: {self.hparams.g_optimizer}')
+            print(f'Discriminator optimizer: {self.hparams.d_optimizer}')
+            print(f'Generator scheduler: {self.hparams.g_scheduler}')
+            print(f'Discriminator scheduler: {self.hparams.d_scheduler}')
 
+        self.opt_g = select_optimizer(
+            library_name="pytorch",
+            optimizer_name=self.hparams.g_optimizer,
+            learning_rate=self.hparams.learning_rate_g,
+            check_point=self.hparams.gen_checkpoint,
+            parameters=self.generator.parameters(),
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
+
+        self.opt_d = select_optimizer(
+            library_name="pytorch",
+            optimizer_name=self.hparams.d_optimizer,
+            learning_rate=self.hparams.learning_rate_d,
+            check_point=None,
+            parameters=self.discriminator.parameters(),
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
+
+        sched_g = select_lr_schedule(
+            library_name="pytorch",
+            lr_scheduler_name=self.hparams.g_scheduler,
+            data_len=self.len_data,
+            num_epochs=self.hparams.epochs,
+            learning_rate=self.hparams.learning_rate_g,
+            monitor_loss="val_g_loss",
+            name="g_lr",
+            optimizer=self.opt_g,
+            frequency=self.hparams.n_critic_steps,
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
+
+        sched_d = select_lr_schedule(
+            library_name="pytorch",
+            lr_scheduler_name=self.hparams.d_scheduler,
+            data_len=self.len_data,
+            num_epochs=self.hparams.epochs,
+            learning_rate=self.hparams.learning_rate_d,
+            monitor_loss="val_g_loss",
+            name="d_lr",
+            optimizer=self.opt_d,
+            frequency=1,
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
+
+        if sched_g is None and sched_d is None:
+            scheduler_list = []
+        else:
+            scheduler_list = [sched_g, sched_d]
+
+        return [self.opt_g, self.opt_d], scheduler_list
+    
     def train_dataloader(self):
         
         if self.verbose > 1:
@@ -697,3 +707,55 @@ class WGANGP(LightningModule):
         return DataLoader(
             dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0
         )
+    
+    def compute_gradient_penalty(self, real_samples, fake_samples):
+        """Calculates the gradient penalty loss for WGAN GP
+
+        Source: https://github.com/nocotan/pytorch-lightning-gans"""
+        # Random weight term for interpolation between real and fake samples
+        alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1, 1))).to(
+            self.device
+        )
+        # Get random interpolation between real and fake samples
+        interpolates = (
+            alpha * real_samples + ((1 - alpha) * fake_samples)
+        ).requires_grad_(True)
+        interpolates = interpolates.to(self.device)
+        d_interpolates = self.discriminator(interpolates)
+        fake = torch.Tensor(d_interpolates.shape).fill_(1.0).to(self.device)
+        # Get gradient w.r.t. interpolates
+        gradients = torch.autograd.grad(
+            outputs=d_interpolates,
+            inputs=interpolates,
+            grad_outputs=fake,
+            create_graph=True,
+            retain_graph=True,
+            only_inputs=True,
+        )
+        # print("Interpolates", interpolates.shape)
+        # print("d_interpolates", d_interpolates.shape)
+        # print("gradients", len(gradients))
+        gradients = gradients[0]
+        # print("gradients", gradients.shape)
+
+        gradients = gradients.view(gradients.size(0), -1).to(self.device)
+        gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        return gradient_penalty
+
+    def save_model(self, filename):
+        print(f'\nVerbose: Saving the model: {self.hparams.save_basedir + "/" + filename}\n')
+        if self.hparams.save_basedir is not None:
+            torch.save(
+                {
+                    "model_state_dict": self.generator.state_dict(),
+                    "optimizer_state_dict": self.opt_g.state_dict(),
+                    "n_residuals": self.hparams.g_layers,
+                    "scale_factor": self.hparams.scale_factor,
+                    "best_valid_loss": self.best_valid_loss,
+                },
+                self.hparams.save_basedir + "/" + filename,
+            )
+        else:
+            raise Exception(
+                "No save_basedir was specified in the construction of the WGAN object."
+            )

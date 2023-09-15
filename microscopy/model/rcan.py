@@ -1,15 +1,11 @@
-# @markdown ##Install Network and dependencies
-Notebook_version = "1.13"
-Network = "RCAN (2D)"
+# Model based on: https://github.com/yulunzhang/RCAN
 
 import sys
-
 sys.setrecursionlimit(10000)
 
 import warnings
 
 warnings.filterwarnings("ignore")
-
 import tensorflow as tf
 
 from tensorflow.keras.layers import (

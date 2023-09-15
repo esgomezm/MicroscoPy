@@ -1,16 +1,12 @@
-import sys
+# Model based on: https://github.com/qc17-THU/DL-SR
 
+import sys
 sys.setrecursionlimit(10000)
 
 import warnings
-
 warnings.filterwarnings("ignore")
 
-
 import tensorflow as tf
-
-print(tf.__version__)
-
 import numpy as np
 
 from tensorflow.keras.layers import Conv2D, Conv3D
@@ -22,7 +18,6 @@ from tensorflow.keras.layers import Input, add, multiply, Lambda
 
 
 import logging
-
 logging.getLogger("tensorflow").setLevel(logging.ERROR)
 
 ######

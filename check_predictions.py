@@ -5,7 +5,9 @@ for dataset_name in os.listdir(os.path.join('results')):
         for scale_folder in os.listdir(os.path.join('results', dataset_name, model_name)): 
             for config in os.listdir(os.path.join('results', dataset_name, model_name, scale_folder)):
                 config_path = os.path.join('results', dataset_name, model_name, scale_folder, config)
-                if 'predicted_images' in os.listdir(config_path) and 'test_metrics' in os.listdir(config_path):
+                # if 'predicted_images' in os.listdir(config_path) and 'test_metrics' in os.listdir(config_path):
+                #     print(config_path)
+                if 'predicted_images' not in os.listdir(config_path) and 'test_metrics' not in os.listdir(config_path):
                     print(config_path)
                 # if 'test_metrics' in os.listdir(config_path):
                 #     # print(config_path)

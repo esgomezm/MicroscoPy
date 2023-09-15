@@ -1,3 +1,5 @@
+# Model based on: https://github.com/ncarraz/ESRGANpluss
+
 import numpy as np
 import os
 
@@ -30,6 +32,9 @@ from pytorch_lightning.core import LightningModule
 
 from ..datasets import PytorchDataset, ToTensor
 from ..datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
+from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
+
+from matplotlib import pyplot as plt
 
 ####################
 # Basic blocks
@@ -742,10 +747,17 @@ class ESRGANplus(LightningModule):
         g_scheduler: str = None,
         d_scheduler: str = None,
         additonal_configuration: dict = {},
+        verbose: int = 0,
     ):
         super(ESRGANplus, self).__init__()
 
+        self.verbose = verbose
+        print('self.verbose: {}'.format(self.verbose))
+
         self.save_hyperparameters()
+
+        # Important: This property activates manual optimization.
+        self.automatic_optimization = False
 
         if gen_checkpoint is not None:
             checkpoint = torch.load(gen_checkpoint)
@@ -781,6 +793,39 @@ class ESRGANplus(LightningModule):
             self.len_data = self.train_dataloader().__len__()
             self.total_iters = epochs * self.len_data
 
+        if self.verbose > 1:
+            print(
+                "Generators parameters: {}".format(
+                    sum(p.numel() for p in self.generator.parameters())
+                )
+            )
+            print(
+                "Discriminators parameters: {}".format(
+                    sum(p.numel() for p in self.discriminator.parameters())
+                )
+            )
+            print(
+                "self.netF parameters: {}".format(
+                    sum(p.numel() for p in self.netF.parameters())
+                )
+            )
+        
+        self.validation_step_lr = []
+        self.validation_step_hr = []
+        self.validation_step_pred = []
+        
+        self.val_ssim = []
+        
+        if self.verbose > 1:
+            os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
+
+
+        self.step_schedulers = ['CosineDecay', 'OneCycle']
+        self.epoch_schedulers = ['ReduceOnPlateau', 'MultiStepScheduler']
+
+        if self.verbose > 1:
+            print('\nVerbose: Model initialized (end)\n')
+
     def save_model(self, filename):
         if self.hparams.save_basedir is not None:
             torch.save(
@@ -803,23 +848,41 @@ class ESRGANplus(LightningModule):
         else:
             return self.generator(x)
 
-    def training_step(self, batch, batch_idx, optimizer_idx):
+    def training_step(self, batch, batch_idx):
         lr, hr = batch["lr"], batch["hr"]
         fake_hr = self.generator(lr)
 
-        # Optimize generator
-        if optimizer_idx == 0:
-            l_g_total = 0
+        # Extract the optimizers
+        g_opt, d_opt = self.optimizers()
+
+        # Extract the schedulers
+        if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_d = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler == "Fixed":
+            sched_g = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_g, sched_d = self.lr_schedulers()
+        else:
+            # There are no schedulers
+            pass
+
+        # The generator is updated every self.hparams.n_critic_steps
+        if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
+            if self.verbose > 1:
+                print(f'Generator updated on step {batch_idx + 1}')
+                
+            # Optimize generator
+            # toggle_optimizer(): Makes sure only the gradients of the current optimizer's parameters are calculated
+            #                     in the training step to prevent dangling gradients in multiple-optimizer setup.
+            self.toggle_optimizer(g_opt)
 
             # pixel loss
             l_g_pix = self.l_pix_w * self.cri_pix(fake_hr, hr)
-            l_g_total += l_g_pix
 
             # feature loss
             real_fea = self.netF(hr)
             fake_fea = self.netF(fake_hr)
             l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
-            l_g_total += l_g_fea
 
             # G gan + cls loss
             pred_g_fake = self.discriminator(fake_hr)
@@ -828,26 +891,30 @@ class ESRGANplus(LightningModule):
             l_g_gan = self.l_gan_w * self.cri_gan(pred_g_fake, True)
             # l_g_gan = self.l_gan_w * (self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False) +
             #                          self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)) / 2
-            l_g_total += l_g_gan
+            
+            l_g_total = l_g_pix + l_g_fea + l_g_gan
 
             self.log("g_loss", l_g_total, prog_bar=True, on_epoch=True)
             self.log("g_pixel_loss", l_g_pix, prog_bar=True, on_epoch=True)
             self.log("g_features_loss", l_g_fea, prog_bar=True, on_epoch=True)
             self.log("g_adversarial_loss", l_g_gan, prog_bar=True, on_epoch=True)
 
-            for i in range(lr.size(0)):
-                ssim = structural_similarity(
-                    hr.cpu().detach().numpy()[i, 0, ...],
-                    fake_hr.cpu().detach().numpy()[i, 0, ...],
-                    data_range=1.0,
-                )
-                self.log("ssim", ssim, prog_bar=True, on_epoch=True)
+            # Optimize generator
+            self.manual_backward(l_g_total)
+            g_opt.step()
+            g_opt.zero_grad()
+            self.untoggle_optimizer(g_opt)
+            
+            if self.hparams.g_scheduler in self.step_schedulers:
+                sched_g.step()
 
-            return l_g_total
+        # The discriminator is updated every step
+        if (batch_idx + 1) % 1 == 0:
+            if self.verbose > 1:
+                print(f'Discriminator  updated on step {batch_idx + 1}')
+            # Optimize discriminator
+            self.toggle_optimizer(d_opt)
 
-        # Optimize discriminator
-        elif optimizer_idx == 1:
-            l_d_total = 0
             pred_d_real = self.discriminator(hr)
             pred_d_fake = self.discriminator(fake_hr)  # detach to avoid BP to G
             # l_d_real = self.cri_gan(pred_d_real - torch.mean(pred_d_fake), True)
@@ -861,81 +928,100 @@ class ESRGANplus(LightningModule):
             self.log("d_loss", l_d_total, prog_bar=True, on_epoch=True)
             self.log("d_real", l_d_real, prog_bar=False, on_epoch=True)
             self.log("d_fake", l_d_fake, prog_bar=False, on_epoch=True)
+ 
+            # Optimize discriminator/critic
+            self.manual_backward(l_d_total)
+            d_opt.step()
+            d_opt.zero_grad()
+            self.untoggle_optimizer(d_opt)
 
-            return l_d_total
+            if self.hparams.d_scheduler in self.step_schedulers:
+                sched_d.step()
+
+        if self.verbose > 1:
+            print('\nVerbose: Training step (end)\n')
+
 
     def configure_optimizers(self):
-        # G
-        n_critic = self.hparams.n_critic_steps
+        
+        if self.verbose > 1:
+            print('\nVerbose: configure_optimizers (begining)\n')
+            print(f'Generator optimizer: {self.hparams.g_optimizer}')
+            print(f'Discriminator optimizer: {self.hparams.d_optimizer}')
+            print(f'Generator scheduler: {self.hparams.g_scheduler}')
+            print(f'Discriminator scheduler: {self.hparams.d_scheduler}')
 
-        optim_params = []
-        for (
-            k,
-            v,
-        ) in self.generator.named_parameters():  # can optimize for a part of the model
-            if v.requires_grad:
-                optim_params.append(v)
-            else:
-                logger.warning("Params [{:s}] will not optimize.".format(k))
+        self.opt_g = select_optimizer(
+            library_name="pytorch",
+            optimizer_name=self.hparams.g_optimizer,
+            learning_rate=self.hparams.learning_rate_g,
+            check_point=self.hparams.gen_checkpoint,
+            parameters=self.generator.parameters(),
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
 
-        if self.hparams.gen_checkpoint is not None:
-            self.optimizer_G = torch.optim.Adam(
-                optim_params,
-                lr=self.hparams.learning_rate_g,
-                weight_decay=0,
-                betas=(0.9, 0.999),
-            )
+        self.opt_d = select_optimizer(
+            library_name="pytorch",
+            optimizer_name=self.hparams.d_optimizer,
+            learning_rate=self.hparams.learning_rate_d,
+            check_point=None,
+            parameters=self.discriminator.parameters(),
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
 
-            checkpoint = torch.load(self.hparams.gen_checkpoint)
-            self.optimizer_G.load_state_dict(checkpoint["optimizer_state_dict"])
+        sched_g = select_lr_schedule(
+            library_name="pytorch",
+            lr_scheduler_name=self.hparams.g_scheduler,
+            data_len=self.len_data,
+            num_epochs=self.hparams.epochs,
+            learning_rate=self.hparams.learning_rate_g,
+            monitor_loss="val_g_loss",
+            name="g_lr",
+            optimizer=self.opt_g,
+            frequency=self.hparams.n_critic_steps,
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
+
+        sched_d = select_lr_schedule(
+            library_name="pytorch",
+            lr_scheduler_name=self.hparams.d_scheduler,
+            data_len=self.len_data,
+            num_epochs=self.hparams.epochs,
+            learning_rate=self.hparams.learning_rate_d,
+            monitor_loss="val_g_loss",
+            name="d_lr",
+            optimizer=self.opt_d,
+            frequency=1,
+            additional_configuration=self.hparams.additonal_configuration,
+            verbose=self.verbose
+        )
+
+        if sched_g is None and sched_d is None:
+            scheduler_list = []
         else:
-            self.optimizer_G = torch.optim.Adam(
-                optim_params,
-                lr=self.hparams.learning_rate_g,
-                weight_decay=0,
-                betas=(0.9, 0.999),
-            )
+            scheduler_list = [sched_g, sched_d]
 
-        # D
-        self.optimizer_D = torch.optim.Adam(
-            self.discriminator.parameters(),
-            lr=self.hparams.learning_rate_d,
-            weight_decay=0,
-            betas=(0.9, 0.999),
-        )
-
-        sched_g = {
-            "scheduler": torch.optim.lr_scheduler.MultiStepLR(
-                self.optimizer_G, milestones=[50000, 100000, 200000, 300000], gamma=0.5
-            ),
-            "interval": "step",
-            "name": "g_lr",
-        }
-        sched_d = {
-            "scheduler": torch.optim.lr_scheduler.MultiStepLR(
-                self.optimizer_D, milestones=[50000, 100000, 200000, 300000], gamma=0.5
-            ),
-            "interval": "step",
-            "name": "d_lr",
-        }
-
-        return (
-            {"optimizer": self.optimizer_G, "frequency": 1, "lr_scheduler": sched_g},
-            {
-                "optimizer": self.optimizer_D,
-                "frequency": n_critic,
-                "lr_scheduler": sched_d,
-            },
-        )
+        return [self.opt_g, self.opt_d], scheduler_list
 
     def validation_step(self, batch, batch_idx):
+        
+        if self.verbose > 1:
+            print('\nVerbose: validation_step (begining)\n')
+            
         # Right now used for just plotting, might want to change it later
         lr, hr = batch["lr"], batch["hr"]
+        generated = self(lr)
 
-        fake_hr = self.generator(lr)
+        if self.verbose > 1:
+            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
+            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
+            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
 
         true = hr.cpu().numpy()
-        fake = fake_hr.cpu().numpy()
+        fake = generated.cpu().numpy()
         xlr = lr.cpu().numpy()
 
         for i in range(lr.size(0)):
@@ -943,58 +1029,117 @@ class ESRGANplus(LightningModule):
                 true[i, 0, ...], fake[i, 0, ...], data_range=1.0
             )
             self.log("val_ssim", ssim)
+            self.val_ssim.append(ssim)
 
             psnr = peak_signal_noise_ratio(
                 true[i, 0, ...], fake[i, 0, ...], data_range=1.0
             )
             self.log("val_psnr", psnr)
+            
+        self.validation_step_lr.append(lr)
+        self.validation_step_hr.append(hr)
+        self.validation_step_pred.append(generated)
 
-        return lr, hr, fake_hr
+        if batch_idx < 3 and self.verbose > 1:
+            plt.figure(figsize=(15, 5))
+            plt.subplot(1, 4, 1)
+            plt.title("Input LR image")
+            plt.imshow(xlr[0,0], "gray")
+            plt.subplot(1, 4, 2)
+            plt.title("Ground truth")
+            plt.imshow(true[0,0], "gray")
+            plt.subplot(1, 4, 3)
+            plt.title("Prediction")
+            plt.imshow(fake[0,0], "gray")
+            plt.subplot(1, 4, 4)
+            plt.title(f"SSIM: {ssim:.3f}")
+            plt.imshow(true[0,0] - fake[0,0], "inferno")
 
-    def validation_step_end(self, val_step_outputs):
+            plt.tight_layout()
+            plt.savefig(f"{self.hparams.save_basedir}/training_images/{self.current_epoch}_{batch_idx}.png")
+            plt.close()
+
+        if self.verbose > 1:
+            print('\nVerbose: validation_step (end)\n')
+
+        return lr, hr, generated
+
+    def on_validation_epoch_end(self):
+
+        if self.verbose > 1:
+            print('\nVerbose: on_validation_epoch_end (begining)\n')
+
         # Right now used for just plotting, might want to change it later
-        lr, hr, fake_hr = val_step_outputs
+        # lr, hr, generated = torch.stack(self.validation_step_outputs)
+        lr = torch.cat(self.validation_step_lr, 0)
+        hr = torch.cat(self.validation_step_hr, 0)
+        generated = torch.cat(self.validation_step_pred, 0)
+        
+        if self.verbose > 1:
+            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()} values: {lr[0,0,0,:10]}')
+            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
+            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
 
-        l_g_total = 0
+        adv_loss = -1 * self.discriminator(generated).mean()
+        error = self.mae(generated, hr)
 
-        # pixel loss
-        l_g_pix = self.l_pix_w * self.cri_pix(fake_hr, hr)
-        l_g_total += l_g_pix
+        g_loss = adv_loss + error * self.hparams.recloss
 
-        # feature loss
-        real_fea = self.netF(hr).detach()
-        fake_fea = self.netF(fake_hr)
-        l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
-        l_g_total += l_g_fea
+        self.log("val_g_loss", g_loss)
+        self.log("val_g_l1", error)
 
-        # G gan + cls loss
-        pred_g_fake = self.discriminator(fake_hr)
-        # pred_d_real = self.discriminator(hr).detach()
-        pred_d_real = self.discriminator(hr)
+        real_logits = self.discriminator(hr).mean()
+        fake_logits = self.discriminator(generated).mean()
 
-        l_g_gan = (
-            self.l_gan_w
-            * (
-                self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False)
-                + self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)
-            )
-            / 2
-        )
-        l_g_total += l_g_gan
+        wasserstein = real_logits - fake_logits
 
-        self.log("val_g_loss", l_g_total, prog_bar=True, on_epoch=True)
-        self.log("val_g_pixel_loss", l_g_pix, prog_bar=True, on_epoch=True)
-        self.log("val_g_features_loss", l_g_fea, prog_bar=True, on_epoch=True)
-        self.log("val_g_adversarial_loss", l_g_gan, prog_bar=True, on_epoch=True)
+        self.log("val_d_wasserstein", wasserstein)
 
-        if l_g_total < self.best_valid_loss:
-            self.best_valid_loss = l_g_total
+        if self.verbose > 1:
+            print(f'g_loss: {g_loss}')
+            print(f'self.best_valid_loss: {self.best_valid_loss}')
+
+        if g_loss < self.best_valid_loss:
+            self.best_valid_loss = g_loss
             self.save_model("best_checkpoint.pth")
+
+        self.validation_step_lr.clear()  # free memory
+        self.validation_step_hr.clear()  # free memory
+        self.validation_step_pred.clear()  # free memory
+
+
+        # Extract the schedulers
+        if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_d = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler == "Fixed":
+            sched_g = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_g, sched_d = self.lr_schedulers()
+        else:
+            # There are no schedulers
+            pass
+        
+        mean_val_ssim = np.array(self.val_ssim).mean()
+
+        # Note that step should be called after validate()
+        if self.hparams.d_scheduler in self.epoch_schedulers:
+            sched_d.step(mean_val_ssim)
+        if self.hparams.g_scheduler in self.epoch_schedulers:
+            sched_g.step(mean_val_ssim)
+
+        self.val_ssim.clear() # free memory
+
+        if self.verbose > 1:
+            print('\nVerbose: on_validation_epoch_end (end)\n')
 
     def on_train_end(self):
         self.save_model("last_checkpoint.pth")
 
     def train_dataloader(self):
+        
+        if self.verbose > 1:
+            print('\nVerbose: train_dataloader (begining)\n')
+
         transformations = []
 
         if self.hparams.horizontal_flip:
@@ -1005,6 +1150,9 @@ class ESRGANplus(LightningModule):
             transformations.append(RandomRotate())
 
         transformations.append(ToTensor())
+
+        if self.verbose > 1:
+            print(f'Transformations: {transformations}')
 
         transf = torchvision.transforms.Compose(transformations)
 
@@ -1023,6 +1171,7 @@ class ESRGANplus(LightningModule):
                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                 val_split=0.1,
                 validation=False,
+                verbose=self.verbose
             )
 
         else:
@@ -1038,13 +1187,33 @@ class ESRGANplus(LightningModule):
                 ),
                 transformations=transf,
                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
+                verbose=self.verbose
             )
 
+        if self.verbose > 1:
+
+            print(f'hr_data_path: {dataset.hr_data_path}')
+            print(f'lr_data_path: {dataset.lr_data_path}')
+            print(f'filenames[:3]: {dataset.filenames[:3]}')
+            print(f'transformations: {dataset.transformations}')
+            print(f'scale_factor: {dataset.scale_factor}')
+            print(f'crappifier_name: {dataset.crappifier_name}')
+            print(f'lr_patch_shape: {dataset.lr_patch_shape}')
+            print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
+            print(f'actual_scale_factor: {dataset.actual_scale_factor}')
+
+        if self.verbose > 1:
+            print('\nVerbose: train_dataloader (end)\n')
+
         return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=12
+            dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=0
         )
 
     def val_dataloader(self):
+ 
+        if self.verbose > 1:
+            print('\nVerbose: val_dataloader (begining)\n')
+
         transf = ToTensor()
 
         if self.hparams.val_hr_path is None:
@@ -1062,6 +1231,7 @@ class ESRGANplus(LightningModule):
                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
                 val_split=0.1,
                 validation=True,
+                verbose=self.verbose
             )
         else:
             dataset = PytorchDataset(
@@ -1076,96 +1246,24 @@ class ESRGANplus(LightningModule):
                 ),
                 transformations=transf,
                 datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
+                verbose=self.verbose
             )
+
+        if self.verbose > 1:
+
+            print(f'hr_data_path: {dataset.hr_data_path}')
+            print(f'lr_data_path: {dataset.lr_data_path}')
+            print(f'filenames[:3]: {dataset.filenames[:3]}')
+            print(f'transformations: {dataset.transformations}')
+            print(f'scale_factor: {dataset.scale_factor}')
+            print(f'crappifier_name: {dataset.crappifier_name}')
+            print(f'lr_patch_shape: {dataset.lr_patch_shape}')
+            print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
+            print(f'actual_scale_factor: {dataset.actual_scale_factor}')
+
+        if self.verbose > 1:
+            print('\nVerbose: val_dataloader (end)\n')
 
         return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=False
-        )  # , num_workers=12)
-
-    def train_dataloader(self):
-        transformations = []
-
-        if self.hparams.horizontal_flip:
-            transformations.append(RandomHorizontalFlip())
-        if self.hparams.vertical_flip:
-            transformations.append(RandomVerticalFlip())
-        if self.hparams.rotation:
-            transformations.append(RandomRotate())
-
-        transformations.append(ToTensor())
-
-        transf = torchvision.transforms.Compose(transformations)
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=False,
-            )
-
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-            )
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=1
-        )
-
-    def val_dataloader(self):
-        transf = ToTensor()
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=True,
-            )
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.val_hr_path,
-                lr_data_path=self.hparams.val_lr_path,
-                filenames=self.hparams.val_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-            )
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=1
+            dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0
         )

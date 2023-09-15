@@ -20,12 +20,12 @@ def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
     model_combination = ["wgan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
-    batch_size_combination = [4]
-    num_epochs_combination = [20]
-    lr_combination = [(0.001,0.001)]
-    scheduler_combination = ['ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'] #'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
-    optimizer_combination = ['adam', 'adamW', 'adamax', 'rms_prop', 'sgd']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
-    base_folder = 'GANS_test'
+    batch_size_combination = [8]
+    num_epochs_combination = [100]
+    lr_combination = [(0.0005,0.0005)]
+    scheduler_combination = ['Fixed', 'ReduceOnPlateau', 'MultiStepScheduler'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
+    
     
     for dataset_name in dataset_combination:  
         cfg.dataset_name = dataset_name
@@ -45,6 +45,9 @@ def my_app(cfg: DictConfig) -> None:
                     for lr, discriminator_lr in lr_combination:
                         for scheduler in scheduler_combination:
                             for optimizer in optimizer_combination:
+
+                                base_folder = 'WGAN'
+
                                 cfg.model_name = model_name
                                 cfg.hyperparam.batch_size = batch_size
                                 cfg.hyperparam.num_epochs = num_epochs
@@ -57,6 +60,18 @@ def my_app(cfg: DictConfig) -> None:
                                 cfg.hyperparam.discriminator_optimizer = optimizer
 
                                 cfg.model.optim.early_stop.patience = num_epochs
+
+                                if cfg.model_name in ["wgan", "esrganplus"]:
+                                    number_of_critic_steps = cfg.used_model.n_critic_steps
+                                    lambda_gp = cfg.used_model.lambda_gp
+                                    recloss = cfg.used_model.recloss
+                                    # number_of_critic_steps = 1
+                                    # cfg.used_model.n_critic_steps = number_of_critic_steps
+                                    # cfg.used_model.g_layers = 15
+                                    # cfg.used_model.lambda_gp = 0.5
+                                    # cfg.used_model.recloss = 0.5 # 100.0
+                                    base_folder=f"{base_folder}/cs_{number_of_critic_steps}-lgp_{lambda_gp}-rec_{recloss}"
+
                                 save_folder = "scale" + str(cfg.used_dataset.scale)
                                 if cfg.hyperparam.additional_folder is not None:
                                     save_folder += "_" + cfg.hyperparam.additional_folder
@@ -77,7 +92,7 @@ def my_app(cfg: DictConfig) -> None:
                                 test_metric_path = os.path.join(saving_path, "test_metrics")
                                 if (os.path.exists(test_metric_path) and len(os.listdir(test_metric_path)) > 0):
                                     saving_path = saving_path[:-1] + str(int(saving_path[-1]) + 1) 
-                                
+
                                 model = train_configuration(
                                     config=cfg,
                                     train_lr_path=train_lr_path,
@@ -87,7 +102,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=1, # 0, 1 or 2
+                                    verbose=0, # 0, 1 or 2
                                     data_on_memory=0,
                                     gpu_id=gpu_id
                                 )

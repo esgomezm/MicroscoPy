@@ -402,17 +402,12 @@ def select_pytorch_lr_schedule(
             print('OneCycle scheduler has been selected')
             print(f'lr={learning_rate}')
             print(f'steps_per_epoch={data_len // frequency}')
-        return {
-            "scheduler": torch.optim.lr_scheduler.OneCycleLR(
+        return torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
                 learning_rate,
                 epochs=num_epochs,
                 steps_per_epoch=data_len // frequency,
-            ),
-            "interval": "step",
-            "name": name,
-            "frequency": frequency,
-        }
+            )
 
     elif lr_scheduler_name == "ReduceOnPlateau":
         if verbose > 1:
@@ -420,36 +415,24 @@ def select_pytorch_lr_schedule(
             print(f'factor={additional_configuration.used_sched.factor}')
             print(f'patience={additional_configuration.used_sched.patience}')
             print(f'min_lr={(learning_rate / 10)}')
-        return {
-            "scheduler": torch.optim.lr_scheduler.ReduceLROnPlateau(
+        return torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 mode="min",
                 factor=additional_configuration.used_sched.factor,
                 patience=additional_configuration.used_sched.patience,
                 min_lr=(learning_rate / 10),
-            ),
-            "interval": "epoch",
-            "name": name,
-            "monitor": monitor_loss,
-            "frequency": frequency,
-        }
+            )
     
     elif lr_scheduler_name == "CosineDecay":
         if verbose > 1:
             print('CosineDecay scheduler has been selected')
             print(f'T_max={data_len * num_epochs}')
             print(f'eta_min={learning_rate / 10}')
-        return {
-            "scheduler": torch.optim.lr_scheduler.CosineAnnealingLR(
+        return torch.optim.lr_scheduler.CosineAnnealingLR(
                 optimizer,
                 T_max=data_len * num_epochs,
                 eta_min=(learning_rate / 10),
-            ),
-            "interval": "epoch",
-            "name": name,
-            "monitor": monitor_loss,
-            "frequency": frequency,
-        } 
+            )
     elif lr_scheduler_name == "MultiStepScheduler":
         total_steps = num_epochs
         lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
@@ -457,17 +440,11 @@ def select_pytorch_lr_schedule(
             print('MultiStepScheduler scheduler has been selected')
             print(f'milestones={lr_steps}')
             print(f'gamma={additional_configuration.used_sched.lr_rate_decay}')
-        return {
-            "scheduler": torch.optim.lr_scheduler.MultiStepLR(
+        return torch.optim.lr_scheduler.MultiStepLR(
                 optimizer,
                 milestones=lr_steps,
                 gamma=additional_configuration.used_sched.lr_rate_decay
-            ),
-            "interval": "epoch",
-            "name": name,
-            "monitor": monitor_loss,
-            "frequency": frequency,
-        }
+            )
     elif lr_scheduler_name is None or lr_scheduler_name == "Fixed":
         if verbose > 1:
             print('Fixed scheduler has been selected')

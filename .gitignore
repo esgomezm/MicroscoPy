@@ -15,9 +15,7 @@ lr_observer/*
 lr_observer_v1/*
 tests_italy/*
 big_models*
-GANS_test/*
-GANS_test_2/*
-GAN_without_adversarial/*
-GAN_half_and_half/*
+WGAN/*
 loggings/*
 everything_works/*
+RCAN_all_levels/*
