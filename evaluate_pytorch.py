@@ -5,8 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -18,7 +17,7 @@ def load_path(dataset_root, dataset_name, folder):
 def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
-    model_combination = ["wgan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
+    model_combination = ["esrganplus"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [1]
     num_epochs_combination = [10]
     lr_combination = [(0.00005,0.00005)]

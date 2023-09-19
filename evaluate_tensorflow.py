@@ -20,7 +20,7 @@ def load_path(dataset_root, dataset_name, folder):
 def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
-    model_combination = ["unet"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
+    model_combination = ["cddpm"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [8]
     num_epochs_combination = [30]
     lr_combination = [(0.001,0.001)]

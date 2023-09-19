@@ -134,7 +134,7 @@ class GaussianNoise(nn.Module):
         super().__init__()
         self.sigma = sigma
         self.is_relative_detach = is_relative_detach
-        self.noise = torch.tensor(0, dtype=torch.float)
+        self.noise = torch.tensor(0, dtype=torch.float).to(torch.device("cuda"))
 
     def forward(self, x):
         if self.training and self.sigma != 0:
@@ -588,7 +588,8 @@ class VGGFeatureExtractor(nn.Module):
         self,
         feature_layer=34,
         use_bn=False,
-        use_input_norm=True
+        use_input_norm=True,
+        device=torch.device("cpu"),
     ):
         super(VGGFeatureExtractor, self).__init__()
         if use_bn:
@@ -597,9 +598,9 @@ class VGGFeatureExtractor(nn.Module):
             model = torchvision.models.vgg19(pretrained=True)
         self.use_input_norm = use_input_norm
         if self.use_input_norm:
-            mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+            mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(device)
             # [0.485-1, 0.456-1, 0.406-1] if input in range [-1,1]
-            std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+            std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(device)
             # [0.229*2, 0.224*2, 0.225*2] if input in range [-1,1]
             self.register_buffer("mean", mean)
             self.register_buffer("std", std)
@@ -676,6 +677,8 @@ def define_G(scale):
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=0.1)
     netG.apply(weights_init_kaiming_)
 
+    if torch.cuda.is_available():
+        netG = nn.DataParallel(netG)
     return netG
 
 
@@ -690,24 +693,30 @@ def define_D():
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=1)
     netD.apply(weights_init_kaiming_)
 
+    if torch.cuda.is_available():
+        netD = nn.DataParallel(netD)
     return netD
 
 
 def define_F(use_bn=False):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if use_bn:
         feature_layer = 49
     else:
         feature_layer = 34
     netF = VGGFeatureExtractor(
-        feature_layer=feature_layer, use_bn=use_bn, use_input_norm=True
+        feature_layer=feature_layer, use_bn=use_bn, use_input_norm=True, device=device
     )
 
+    if torch.cuda.is_available():
+        netF = nn.DataParallel(netF)
     netF.eval()  # No need to train
     return netF
 
 
 ###
+
 
 
 class ESRGANplus(LightningModule):
@@ -745,6 +754,9 @@ class ESRGANplus(LightningModule):
 
         self.verbose = verbose
         print('self.verbose: {}'.format(self.verbose))
+
+        if self.verbose > 0:
+            print('\nVerbose: Model initialized (begining)\n')
 
         self.save_hyperparameters()
 
@@ -787,7 +799,7 @@ class ESRGANplus(LightningModule):
             self.len_data = self.train_dataloader().__len__()
             self.total_iters = epochs * self.len_data
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print(
                 "Generators parameters: {}".format(
                     sum(p.numel() for p in self.generator.parameters())
@@ -810,14 +822,14 @@ class ESRGANplus(LightningModule):
         
         self.val_ssim = []
         
-        if self.verbose > 1:
+        if self.verbose > 0:
             os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
 
 
         self.step_schedulers = ['CosineDecay', 'OneCycle', 'MultiStepScheduler']
         self.epoch_schedulers = ['ReduceOnPlateau']
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: Model initialized (end)\n')
 
     def save_model(self, filename):
@@ -843,6 +855,10 @@ class ESRGANplus(LightningModule):
             return self.generator(x)
 
     def training_step(self, batch, batch_idx):
+
+        if self.verbose > 1:
+            print('\nVerbose: Training step (begining)\n')
+
         lr, hr = batch["lr"], batch["hr"]
 
         # Extract the optimizers
@@ -861,7 +877,7 @@ class ESRGANplus(LightningModule):
 
         # The generator is updated every self.hparams.n_critic_steps
         if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
-            if self.verbose > 1:
+            if self.verbose > 0:
                 print(f'Generator updated on step {batch_idx + 1}')
 
             # Optimize generator
@@ -905,7 +921,7 @@ class ESRGANplus(LightningModule):
 
         # The discriminator is updated every step
         if (batch_idx + 1) % 1 == 0:
-            if self.verbose > 1:
+            if self.verbose > 0:
                 print(f'Discriminator  updated on step {batch_idx + 1}')
             # Optimize discriminator
             self.toggle_optimizer(d_opt)
@@ -935,13 +951,151 @@ class ESRGANplus(LightningModule):
             if self.hparams.d_scheduler in self.step_schedulers:
                 sched_d.step()
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: Training step (end)\n')
 
+    def validation_step(self, batch, batch_idx):
+        
+        if self.verbose > 0:
+            print('\nVerbose: validation_step (begining)\n')
+            
+        # Right now used for just plotting, might want to change it later
+        lr, hr = batch["lr"], batch["hr"]
+        generated = self(lr)
+
+        if self.verbose > 0:
+            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
+            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
+            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
+
+        true = hr.cpu().numpy()
+        fake = generated.cpu().numpy()
+        xlr = lr.cpu().numpy()
+
+        for i in range(lr.size(0)):
+            ssim = structural_similarity(
+                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
+            )
+            self.log("val_ssim", ssim)
+            self.val_ssim.append(ssim)
+
+            psnr = peak_signal_noise_ratio(
+                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
+            )
+            self.log("val_psnr", psnr)
+            
+        self.validation_step_lr.append(lr)
+        self.validation_step_hr.append(hr)
+        self.validation_step_pred.append(generated)
+
+        if batch_idx < 3 and self.verbose > 0:
+            plt.figure(figsize=(15, 5))
+            plt.subplot(1, 4, 1)
+            plt.title("Input LR image")
+            plt.imshow(xlr[0,0], "gray")
+            plt.subplot(1, 4, 2)
+            plt.title("Ground truth")
+            plt.imshow(true[0,0], "gray")
+            plt.subplot(1, 4, 3)
+            plt.title("Prediction")
+            plt.imshow(fake[0,0], "gray")
+            plt.subplot(1, 4, 4)
+            plt.title(f"SSIM: {ssim:.3f}")
+            plt.imshow(true[0,0] - fake[0,0], "inferno")
+
+            plt.tight_layout()
+            plt.savefig(f"{self.hparams.save_basedir}/training_images/{self.current_epoch}_{batch_idx}.png")
+            plt.close()
+
+        if self.verbose > 0:
+            print('\nVerbose: validation_step (end)\n')
+
+        return lr, hr, generated
+
+    def on_validation_epoch_end(self):
+
+        if self.verbose > 0:
+            print('\nVerbose: on_validation_epoch_end (begining)\n')
+
+        # Right now used for just plotting, might want to change it later
+        # lr, hr, generated = torch.stack(self.validation_step_outputs)
+        lr = torch.cat(self.validation_step_lr, 0)
+        hr = torch.cat(self.validation_step_hr, 0)
+        generated = torch.cat(self.validation_step_pred, 0)
+        
+        if self.verbose > 0:
+            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()} values: {lr[0,0,0,:10]}')
+            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
+            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
+
+
+        l_g_total = 0
+
+        # pixel loss
+        l_g_pix = self.l_pix_w * self.cri_pix(generated, hr)
+        
+        # feature loss
+        real_fea = self.netF(hr).detach()
+        fake_fea = self.netF(generated)
+        l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
+        
+        # G gan + cls loss
+        pred_g_fake = self.discriminator(generated)
+        #pred_d_real = self.discriminator(hr).detach()
+        pred_d_real = self.discriminator(hr)
+
+        l_g_gan = self.l_gan_w * (self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False) +
+                                  self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)) / 2
+        l_g_total = l_g_pix + l_g_fea + l_g_gan
+
+        self.log('val_g_loss', l_g_total, prog_bar=True, on_epoch=True)
+        self.log('val_g_pixel_loss', l_g_pix, prog_bar=True, on_epoch=True)
+        self.log('val_g_features_loss', l_g_fea, prog_bar=True, on_epoch=True)
+        self.log('val_g_adversarial_loss', l_g_gan, prog_bar=True, on_epoch=True)
+
+        if self.verbose > 0:
+            print(f'g_loss: {l_g_total}')
+            print(f'self.best_valid_loss: {self.best_valid_loss}')
+
+        if l_g_total < self.best_valid_loss:
+            self.best_valid_loss = l_g_total
+            self.save_model("best_checkpoint.pth")
+
+        self.validation_step_lr.clear()  # free memory
+        self.validation_step_hr.clear()  # free memory
+        self.validation_step_pred.clear()  # free memory
+
+
+        # Extract the schedulers
+        if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_d = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler == "Fixed":
+            sched_g = self.lr_schedulers()
+        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler != "Fixed":
+            sched_g, sched_d = self.lr_schedulers()
+        else:
+            # There are no schedulers
+            pass
+        
+        mean_val_ssim = np.array(self.val_ssim).mean()
+
+        # Note that step should be called after validate()
+        if self.hparams.d_scheduler in self.epoch_schedulers:
+            sched_d.step(mean_val_ssim)
+        if self.hparams.g_scheduler in self.epoch_schedulers:
+            sched_g.step(mean_val_ssim)
+
+        self.val_ssim.clear() # free memory
+
+        if self.verbose > 0:
+            print('\nVerbose: on_validation_epoch_end (end)\n')
+
+    def on_train_end(self):
+        self.save_model("last_checkpoint.pth")
 
     def configure_optimizers(self):
         
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: configure_optimizers (begining)\n')
             print(f'Generator optimizer: {self.hparams.g_optimizer}')
             print(f'Discriminator optimizer: {self.hparams.d_optimizer}')
@@ -1003,148 +1157,9 @@ class ESRGANplus(LightningModule):
 
         return [self.opt_g, self.opt_d], scheduler_list
 
-    def validation_step(self, batch, batch_idx):
-        
-        if self.verbose > 1:
-            print('\nVerbose: validation_step (begining)\n')
-            
-        # Right now used for just plotting, might want to change it later
-        lr, hr = batch["lr"], batch["hr"]
-        generated = self(lr)
-
-        if self.verbose > 1:
-            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
-            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
-
-        true = hr.cpu().numpy()
-        fake = generated.cpu().numpy()
-        xlr = lr.cpu().numpy()
-
-        for i in range(lr.size(0)):
-            ssim = structural_similarity(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_ssim", ssim)
-            self.val_ssim.append(ssim)
-
-            psnr = peak_signal_noise_ratio(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_psnr", psnr)
-            
-        self.validation_step_lr.append(lr)
-        self.validation_step_hr.append(hr)
-        self.validation_step_pred.append(generated)
-
-        if batch_idx < 3 and self.verbose > 1:
-            plt.figure(figsize=(15, 5))
-            plt.subplot(1, 4, 1)
-            plt.title("Input LR image")
-            plt.imshow(xlr[0,0], "gray")
-            plt.subplot(1, 4, 2)
-            plt.title("Ground truth")
-            plt.imshow(true[0,0], "gray")
-            plt.subplot(1, 4, 3)
-            plt.title("Prediction")
-            plt.imshow(fake[0,0], "gray")
-            plt.subplot(1, 4, 4)
-            plt.title(f"SSIM: {ssim:.3f}")
-            plt.imshow(true[0,0] - fake[0,0], "inferno")
-
-            plt.tight_layout()
-            plt.savefig(f"{self.hparams.save_basedir}/training_images/{self.current_epoch}_{batch_idx}.png")
-            plt.close()
-
-        if self.verbose > 1:
-            print('\nVerbose: validation_step (end)\n')
-
-        return lr, hr, generated
-
-    def on_validation_epoch_end(self):
-
-        if self.verbose > 1:
-            print('\nVerbose: on_validation_epoch_end (begining)\n')
-
-        # Right now used for just plotting, might want to change it later
-        # lr, hr, generated = torch.stack(self.validation_step_outputs)
-        lr = torch.cat(self.validation_step_lr, 0)
-        hr = torch.cat(self.validation_step_hr, 0)
-        generated = torch.cat(self.validation_step_pred, 0)
-        
-        if self.verbose > 1:
-            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()} values: {lr[0,0,0,:10]}')
-            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
-
-
-        l_g_total = 0
-
-        # pixel loss
-        l_g_pix = self.l_pix_w * self.cri_pix(generated, hr)
-        
-        # feature loss
-        real_fea = self.netF(hr).detach()
-        fake_fea = self.netF(generated)
-        l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
-        
-        # G gan + cls loss
-        pred_g_fake = self.discriminator(generated)
-        #pred_d_real = self.discriminator(hr).detach()
-        pred_d_real = self.discriminator(hr)
-
-        l_g_gan = self.l_gan_w * (self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False) +
-                                  self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)) / 2
-        l_g_total = l_g_pix + l_g_fea + l_g_gan
-
-        self.log('val_g_loss', l_g_total, prog_bar=True, on_epoch=True)
-        self.log('val_g_pixel_loss', l_g_pix, prog_bar=True, on_epoch=True)
-        self.log('val_g_features_loss', l_g_fea, prog_bar=True, on_epoch=True)
-        self.log('val_g_adversarial_loss', l_g_gan, prog_bar=True, on_epoch=True)
-
-        if self.verbose > 1:
-            print(f'g_loss: {l_g_total}')
-            print(f'self.best_valid_loss: {self.best_valid_loss}')
-
-        if l_g_total < self.best_valid_loss:
-            self.best_valid_loss = l_g_total
-            self.save_model("best_checkpoint.pth")
-
-        self.validation_step_lr.clear()  # free memory
-        self.validation_step_hr.clear()  # free memory
-        self.validation_step_pred.clear()  # free memory
-
-
-        # Extract the schedulers
-        if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
-            sched_d = self.lr_schedulers()
-        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler == "Fixed":
-            sched_g = self.lr_schedulers()
-        elif self.hparams.g_scheduler != "Fixed" and self.hparams.d_scheduler != "Fixed":
-            sched_g, sched_d = self.lr_schedulers()
-        else:
-            # There are no schedulers
-            pass
-        
-        mean_val_ssim = np.array(self.val_ssim).mean()
-
-        # Note that step should be called after validate()
-        if self.hparams.d_scheduler in self.epoch_schedulers:
-            sched_d.step(mean_val_ssim)
-        if self.hparams.g_scheduler in self.epoch_schedulers:
-            sched_g.step(mean_val_ssim)
-
-        self.val_ssim.clear() # free memory
-
-        if self.verbose > 1:
-            print('\nVerbose: on_validation_epoch_end (end)\n')
-
-    def on_train_end(self):
-        self.save_model("last_checkpoint.pth")
-
     def train_dataloader(self):
         
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: train_dataloader (begining)\n')
 
         transformations = []
@@ -1158,7 +1173,7 @@ class ESRGANplus(LightningModule):
 
         transformations.append(ToTensor())
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print(f'Transformations: {transformations}')
 
         transf = torchvision.transforms.Compose(transformations)
@@ -1197,7 +1212,7 @@ class ESRGANplus(LightningModule):
                 verbose=self.verbose
             )
 
-        if self.verbose > 1:
+        if self.verbose > 0:
 
             print(f'hr_data_path: {dataset.hr_data_path}')
             print(f'lr_data_path: {dataset.lr_data_path}')
@@ -1209,7 +1224,7 @@ class ESRGANplus(LightningModule):
             print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
             print(f'actual_scale_factor: {dataset.actual_scale_factor}')
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: train_dataloader (end)\n')
 
         return DataLoader(
@@ -1218,7 +1233,7 @@ class ESRGANplus(LightningModule):
 
     def val_dataloader(self):
  
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: val_dataloader (begining)\n')
 
         transf = ToTensor()
@@ -1256,7 +1271,7 @@ class ESRGANplus(LightningModule):
                 verbose=self.verbose
             )
 
-        if self.verbose > 1:
+        if self.verbose > 0:
 
             print(f'hr_data_path: {dataset.hr_data_path}')
             print(f'lr_data_path: {dataset.lr_data_path}')
@@ -1268,7 +1283,7 @@ class ESRGANplus(LightningModule):
             print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
             print(f'actual_scale_factor: {dataset.actual_scale_factor}')
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: val_dataloader (end)\n')
 
         return DataLoader(

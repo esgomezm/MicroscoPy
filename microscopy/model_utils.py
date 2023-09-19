@@ -178,6 +178,7 @@ def select_model(
             g_scheduler=g_scheduler,
             d_scheduler=d_scheduler,
             additonal_configuration=model_configuration,
+            verbose=verbose
         )
 
     else:

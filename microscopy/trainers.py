@@ -852,7 +852,7 @@ class PytorchTrainer(ModelsTrainer):
 
         trainer = Trainer(
             accelerator="gpu",
-            devices=-1,
+            devices="1",
             max_epochs=self.num_epochs,
             logger=logger,
             callbacks=callbacks,

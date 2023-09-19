@@ -200,6 +200,7 @@ class DiffusionModel(tf.keras.Model):
         
         if self.verbose > 0:
             print('\n Called denoise_conditioned \n')
+            print(f'Training: {training}')
             print(f'(input) noisy_images {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')
             print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
@@ -315,8 +316,7 @@ class DiffusionModel(tf.keras.Model):
         
         lr_images, hr_images = data
         
-        if self.verbose > 0:
-            print('\n Called denoise_conditioned \n')
+        if self.verbose > 0: 
             print(f'(input) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
             print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
@@ -372,52 +372,52 @@ class DiffusionModel(tf.keras.Model):
         if self.verbose > 0:
             print('\n Called test_step \n')
 
-        # lr_images, hr_images = data
+        lr_images, hr_images = data
 
-        # if self.verbose > 0:
-        #     print(f'(input) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
-        #     print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
+        if self.verbose > 0:
+            print(f'(input) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
+            print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
-        # lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
+        lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
 
-        # if self.verbose > 0:
-        #     print(f'(after resize) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
+        if self.verbose > 0:
+            print(f'(after resize) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
-        # # normalize images to have standard deviation of 1, like the noises
-        # hr_images = self.normalizer(hr_images, training=False)
-        # noises = tf.random.normal(shape=(self.batch_size,) + self.image_shape)
+        # normalize images to have standard deviation of 1, like the noises
+        hr_images = self.normalizer(hr_images, training=False)
+        noises = tf.random.normal(shape=(self.batch_size,) + self.image_shape)
 
-        # # sample uniform random diffusion times
-        # diffusion_times = tf.random.uniform(
-        #     shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
-        # )
-        # noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
+        # sample uniform random diffusion times
+        diffusion_times = tf.random.uniform(
+            shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
+        )
+        noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
         
-        # if self.verbose > 0:
-        #     print(f'(for noisy images) signal_rates {signal_rates.shape} - min: {tf.reduce_max(signal_rates)} max: {tf.reduce_max(signal_rates)} mean: {tf.reduce_mean(signal_rates)}')
-        #     print(f'(for noisy images) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
-        #     print(f'(for noisy images) noise_rates {noise_rates.shape} - min: {tf.reduce_max(noise_rates)} max: {tf.reduce_max(noise_rates)} mean: {tf.reduce_mean(noise_rates)}')
-        #     print(f'(for noisy images) noises {noises.shape} - min: {tf.reduce_max(noises)} max: {tf.reduce_max(noises)} mean: {tf.reduce_mean(noises)}')
+        if self.verbose > 0:
+            print(f'(for noisy images) signal_rates {signal_rates.shape} - min: {tf.reduce_max(signal_rates)} max: {tf.reduce_max(signal_rates)} mean: {tf.reduce_mean(signal_rates)}')
+            print(f'(for noisy images) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
+            print(f'(for noisy images) noise_rates {noise_rates.shape} - min: {tf.reduce_max(noise_rates)} max: {tf.reduce_max(noise_rates)} mean: {tf.reduce_mean(noise_rates)}')
+            print(f'(for noisy images) noises {noises.shape} - min: {tf.reduce_max(noises)} max: {tf.reduce_max(noises)} mean: {tf.reduce_mean(noises)}')
         
-        # # mix the images with noises accordingly
-        # noisy_images = signal_rates * hr_images + noise_rates * noises
+        # mix the images with noises accordingly
+        noisy_images = signal_rates * hr_images + noise_rates * noises
 
-        # if self.verbose > 0:
-        #     print(f'(noisy_images = signal_rates * hr_images + noise_rates * noises) signal_rates {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')
+        if self.verbose > 0:
+            print(f'(noisy_images = signal_rates * hr_images + noise_rates * noises) signal_rates {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')
 
-        # # use the network to separate noisy images to their components
-        # pred_noises, pred_images = self.denoise_conditioned(
-        #     noisy_images, lr_images, noise_rates, signal_rates, training=False
-        # )
+        # use the network to separate noisy images to their components
+        pred_noises, pred_images = self.denoise_conditioned(
+            noisy_images, lr_images, noise_rates, signal_rates, training=False
+        )
 
-        # noise_loss = self.loss(noises, pred_noises)
-        # image_loss = self.loss(hr_images, pred_images)
+        noise_loss = self.loss(noises, pred_noises)
+        image_loss = self.loss(hr_images, pred_images)
 
-        # self.image_loss_tracker.update_state(image_loss)
-        # self.noise_loss_tracker.update_state(noise_loss)
+        self.image_loss_tracker.update_state(image_loss)
+        self.noise_loss_tracker.update_state(noise_loss)
 
-        # if self.verbose > 0:
-        #     print('\n End test_step \n')
+        if self.verbose > 0:
+            print('\n End test_step \n')
 
-        # return {m.name: m.result() for m in self.metrics}
+        return {m.name: m.result() for m in self.metrics}
 
