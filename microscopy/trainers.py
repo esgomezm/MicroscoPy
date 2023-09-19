@@ -288,6 +288,8 @@ class TensorflowTrainer(ModelsTrainer):
             data_on_memory=data_on_memory
         )
 
+        tf.config.run_functions_eagerly(False)
+
         self.library_name = "tensorflow"
 
     def prepare_data(self):
@@ -532,7 +534,7 @@ class TensorflowTrainer(ModelsTrainer):
                     trainableParams, nonTrainableParams, totalParams
                 )
             )
-            callbacks.append(custom_callbacks.CustomCallback())
+            # callbacks.append(custom_callbacks.CustomCallback())
 
         if self.model_name == "cddpm":
             # calculate mean and variance of training dataset for normalization
@@ -747,7 +749,6 @@ class PytorchTrainer(ModelsTrainer):
         test_hr_path,
         saving_path,
         verbose=0,
-        gpu_id=0,
         data_on_memory=0,
     ):
         super().__init__(
@@ -762,8 +763,6 @@ class PytorchTrainer(ModelsTrainer):
             verbose=verbose,
             data_on_memory=data_on_memory
         )
-
-        self.gpu_id = gpu_id
 
         self.library_name = "pytorch"
 
@@ -853,11 +852,13 @@ class PytorchTrainer(ModelsTrainer):
 
         trainer = Trainer(
             accelerator="gpu",
-            devices=self.gpu_id,
+            devices=-1,
             max_epochs=self.num_epochs,
             logger=logger,
             callbacks=callbacks,
         )
+
+        print(trainer.strategy)
 
         print("Training is going to start:")
         start = time.time()
@@ -931,7 +932,7 @@ class PytorchTrainer(ModelsTrainer):
             verbose=self.verbose
         )
 
-        trainer = Trainer(accelerator="gpu", devices=self.gpu_id)
+        trainer = Trainer(accelerator="gpu", devices=-1)
 
         dataset = datasets.PytorchDataset(
             hr_data_path=self.test_hr_path,
@@ -1006,7 +1007,6 @@ def get_model_trainer(
     test_lr_path, test_hr_path,
     saving_path,
     verbose=0,
-    gpu_id=0,
     data_on_memory=0,
 ):
     if config.model_name in ["wgan", "esrganplus"]:
@@ -1017,7 +1017,6 @@ def get_model_trainer(
             test_lr_path, test_hr_path,
             saving_path,
             verbose=verbose,
-            gpu_id=gpu_id,
             data_on_memory=data_on_memory,
         )
     elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
@@ -1042,7 +1041,6 @@ def train_configuration(
     test_lr_path, test_hr_path,
     saving_path,
     verbose=0,
-    gpu_id=0,
     data_on_memory=0,
 ):
     if config.model_name in ["wgan", "esrganplus"]:
@@ -1053,7 +1051,6 @@ def train_configuration(
             test_lr_path, test_hr_path,
             saving_path,
             verbose=verbose,
-            gpu_id=gpu_id,
             data_on_memory=data_on_memory,
         )
     elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
@@ -1079,7 +1076,6 @@ def predict_configuration(
     test_lr_path, test_hr_path,
     saving_path,
     verbose=0,
-    gpu_id=0,
     data_on_memory=0,
 ):
 
@@ -1101,7 +1097,6 @@ def predict_configuration(
                     test_lr_path, test_hr_path,
                     saving_path,
                     verbose=verbose,
-                    gpu_id=gpu_id,
                     data_on_memory=data_on_memory,
                 )
             elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
@@ -1128,7 +1123,6 @@ def predict_configuration(
                 test_lr_path, test_hr_path,
                 saving_path,
                 verbose=verbose,
-                gpu_id=gpu_id,
                 data_on_memory=data_on_memory,
             )
         elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:

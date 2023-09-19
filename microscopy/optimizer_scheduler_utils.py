@@ -1,5 +1,4 @@
 import tensorflow as tf
-import tensorflow_addons as tfa
 from tensorflow.keras.callbacks import ReduceLROnPlateau
 
 import torch
@@ -95,7 +94,7 @@ def select_tensorflow_optimizer(
             epsilon=additional_configuration.used_optim.epsilon,
         )
     elif optimizer_name == "adamW":
-        return tfa.optimizers.AdamW(
+        return tf.keras.optimizers.AdamW(
             learning_rate=learning_rate,
             weight_decay=additional_configuration.used_optim.decay,
             beta_1=additional_configuration.used_optim.beta1,
@@ -132,7 +131,7 @@ def select_pytorch_optimizer(
     """
     if check_point is None:
         if optimizer_name == "adam":
-            if verbose > 1:
+            if verbose > 0:
                 print('adam optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
@@ -148,7 +147,7 @@ def select_pytorch_optimizer(
                 eps=additional_configuration.used_optim.epsilon
             )
         elif optimizer_name == "rms_prop":
-            if verbose > 1:
+            if verbose > 0:
                 print('rms_prop optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'alpha={additional_configuration.used_optim.rho}')
@@ -159,7 +158,7 @@ def select_pytorch_optimizer(
                                        alpha=additional_configuration.used_optim.rho,
                                        momentum=additional_configuration.used_optim.momentum)
         elif optimizer_name == "adamax":
-            if verbose > 1:
+            if verbose > 0:
                 print('adamax optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
@@ -173,7 +172,7 @@ def select_pytorch_optimizer(
                                       ),
                                       eps=additional_configuration.used_optim.epsilon)
         elif optimizer_name == "adamW":
-            if verbose > 1:
+            if verbose > 0:
                 print('Adam optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'betas=({additional_configuration.used_optim.beta1},{additional_configuration.used_optim.beta2})')
@@ -189,7 +188,7 @@ def select_pytorch_optimizer(
                                      weight_decay=additional_configuration.used_optim.decay,
                                      eps=additional_configuration.used_optim.epsilon)
         elif optimizer_name == "sgd":
-            if verbose > 1:
+            if verbose > 0:
                 print('sgd optimizer has been selected')
                 print(f'lr={learning_rate}')
                 print(f'momentum={additional_configuration.used_optim.momentum}')
@@ -317,13 +316,13 @@ def select_tensorflow_lr_schedule(
     """
     if lr_scheduler_name == "OneCycle":
         steps = data_len * num_epochs
-        if verbose > 1:
+        if verbose > 0:
             print('OneCycle scheduler has been selected')
             print(f'lr={learning_rate}')
             print(f'steps={steps}')
         return custom_callbacks.OneCycleScheduler(learning_rate, steps)
     elif lr_scheduler_name == "ReduceOnPlateau":
-        if verbose > 1:
+        if verbose > 0:
             print('ReduceLROnPlateau scheduler has been selected')
             print(f'factor={additional_configuration.used_sched.factor}')
             print(f'patience={additional_configuration.used_sched.patience}')
@@ -339,7 +338,7 @@ def select_tensorflow_lr_schedule(
         )
     elif lr_scheduler_name == "CosineDecay":
         decay_steps = data_len * num_epochs
-        if verbose > 1:
+        if verbose > 0:
             print('CosineDecay scheduler has been selected')
             print(f'decay_steps={decay_steps}')
             print(f'lr={learning_rate}')
@@ -349,7 +348,7 @@ def select_tensorflow_lr_schedule(
     elif lr_scheduler_name == "MultiStepScheduler":
         total_steps = data_len * num_epochs
         lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
-        if verbose > 1:
+        if verbose > 0:
             print('MultiStepScheduler scheduler has been selected')
             print(f'lr={learning_rate}')
             print(f'lr_steps={lr_steps}')
@@ -398,7 +397,7 @@ def select_pytorch_lr_schedule(
         Exception: If the provided learning rate scheduler is not available.
     """
     if lr_scheduler_name == "OneCycle":
-        if verbose > 1:
+        if verbose > 0:
             print('OneCycle scheduler has been selected')
             print(f'lr={learning_rate}')
             print(f'steps_per_epoch={data_len // frequency}')
@@ -407,24 +406,28 @@ def select_pytorch_lr_schedule(
                 learning_rate,
                 epochs=num_epochs,
                 steps_per_epoch=data_len // frequency,
+                verbose=verbose
             )
 
     elif lr_scheduler_name == "ReduceOnPlateau":
-        if verbose > 1:
+        if verbose > 0:
             print('ReduceLROnPlateau scheduler has been selected')
+            print(f'threshold={additional_configuration.used_sched.threshold}')
             print(f'factor={additional_configuration.used_sched.factor}')
             print(f'patience={additional_configuration.used_sched.patience}')
             print(f'min_lr={(learning_rate / 10)}')
         return torch.optim.lr_scheduler.ReduceLROnPlateau(
                 optimizer,
                 mode="min",
+                threshold=additional_configuration.used_sched.threshold,
                 factor=additional_configuration.used_sched.factor,
                 patience=additional_configuration.used_sched.patience,
                 min_lr=(learning_rate / 10),
+                verbose=verbose
             )
     
     elif lr_scheduler_name == "CosineDecay":
-        if verbose > 1:
+        if verbose > 0:
             print('CosineDecay scheduler has been selected')
             print(f'T_max={data_len * num_epochs}')
             print(f'eta_min={learning_rate / 10}')
@@ -432,21 +435,26 @@ def select_pytorch_lr_schedule(
                 optimizer,
                 T_max=data_len * num_epochs,
                 eta_min=(learning_rate / 10),
+                verbose=verbose
             )
     elif lr_scheduler_name == "MultiStepScheduler":
         total_steps = num_epochs
         lr_steps = [int(total_steps*i) for i in [0.5, 0.7, 0.8, 0.9]]
-        if verbose > 1:
+        if verbose > 0:
             print('MultiStepScheduler scheduler has been selected')
             print(f'milestones={lr_steps}')
             print(f'gamma={additional_configuration.used_sched.lr_rate_decay}')
-        return torch.optim.lr_scheduler.MultiStepLR(
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
                 optimizer,
                 milestones=lr_steps,
-                gamma=additional_configuration.used_sched.lr_rate_decay
+                gamma=additional_configuration.used_sched.lr_rate_decay,
+                verbose=verbose
             )
+        print(scheduler.milestones)
+        print(scheduler.get_lr())
+        return scheduler
     elif lr_scheduler_name is None or lr_scheduler_name == "Fixed":
-        if verbose > 1:
+        if verbose > 0:
             print('Fixed scheduler has been selected')
             print(f'Return None')
         return None

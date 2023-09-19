@@ -27,7 +27,7 @@ def my_app(cfg: DictConfig) -> None:
     # base_folder = ''
     
     dataset_name = 'ER'
-    saving_path = './RCAN_all_levels/epc30_btch8_lr0.001_optim-adam_lrsched-OneCycle_seed666_1'
+    saving_path = './RCAN_all_levels/epc200_btch8_lr0.001_optim-adam_lrsched-OneCycle_seed666_1'
                         
     actual_cfg = omegaconf.OmegaConf.load(os.path.join(saving_path, 'train_configuration.yaml'))
 

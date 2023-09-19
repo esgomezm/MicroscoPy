@@ -113,6 +113,7 @@ def select_model(
             ema=0.999,
             embedding_max_frequency=1000.0,
             embedding_dims=32,
+            verbose=verbose,
         )
 
     elif model_name == "wgan":

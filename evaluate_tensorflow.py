@@ -5,9 +5,10 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
-gpu_id = [3] #int(os.environ["CUDA_VISIBLE_DEVICES"])
+import tensorflow as tf
+print(tf.config.list_physical_devices('GPU'))
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -19,9 +20,9 @@ def load_path(dataset_root, dataset_name, folder):
 def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
-    model_combination = ["rcan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
+    model_combination = ["unet"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [8]
-    num_epochs_combination = [30,200]
+    num_epochs_combination = [30]
     lr_combination = [(0.001,0.001)]
     scheduler_combination = ['OneCycle'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
@@ -46,7 +47,7 @@ def my_app(cfg: DictConfig) -> None:
                         for scheduler in scheduler_combination:
                             for optimizer in optimizer_combination:
 
-                                base_folder = ''
+                                base_folder = 'prueba'
 
                                 cfg.model_name = model_name
                                 cfg.hyperparam.batch_size = batch_size
@@ -102,9 +103,8 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=0, # 0, 1 or 2
-                                    data_on_memory=0,
-                                    gpu_id=gpu_id
+                                    verbose=1, # 0, 1 or 2
+                                    data_on_memory=0
                                 )
                                 del model
 

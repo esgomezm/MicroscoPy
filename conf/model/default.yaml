@@ -7,6 +7,7 @@ optim:
   MultiStepScheduler:
     lr_rate_decay: 0.5
   ReduceOnPlateau:
+    threshold: 0.001
     factor: 0.5
     monitor: val_ssim_loss
     patience: 10

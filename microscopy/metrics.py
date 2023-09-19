@@ -11,8 +11,8 @@ lpips_alex = lpips.LPIPS(net="alex", version="0.1")
 lpips_vgg = lpips.LPIPS(net="vgg", version="0.1")
 
 # Nanopyx metrics: Error map (RSE and RSP) and decorrelation analysis 
-from nanopyx.core.transform.new_error_map import ErrorMap
-from nanopyx.core.analysis.decorr import DecorrAnalysis
+# from nanopyx.core.transform.new_error_map import ErrorMap
+# from nanopyx.core.analysis.decorr import DecorrAnalysis
 
 # ILNIQE (in a local file)
 from .ILNIQE import calculate_ilniqe
@@ -155,36 +155,36 @@ def obtain_metrics(gt_image_list, predicted_image_list, wf_image_list, test_metr
         #
         # Calculate the Nanopyx metrics
 
-        error_map = ErrorMap()
-        error_map.optimise(wf_image, gt_image)
-        metrics_dict["gt_rse"].append(
-            error_map.getRSE()
-        )
-        metrics_dict["gt_rsp"].append(
-            error_map.getRSP()
-        )
+        # error_map = ErrorMap()
+        # error_map.optimise(wf_image, gt_image)
+        # metrics_dict["gt_rse"].append(
+        #     error_map.getRSE()
+        # )
+        # metrics_dict["gt_rsp"].append(
+        #     error_map.getRSP()
+        # )
 
-        if not all_equals:
-            error_map = ErrorMap()
-            error_map.optimise(wf_image, predicted_image)
-            metrics_dict["pred_rse"].append(
-                error_map.getRSE()
-            )
-            metrics_dict["pred_rsp"].append(
-                error_map.getRSP()
-            )
-        else: 
-            metrics_dict["pred_rse"].append(np.nan)
-            metrics_dict["pred_rsp"].append(np.nan)
+        # if not all_equals:
+        #     error_map = ErrorMap()
+        #     error_map.optimise(wf_image, predicted_image)
+        #     metrics_dict["pred_rse"].append(
+        #         error_map.getRSE()
+        #     )
+        #     metrics_dict["pred_rsp"].append(
+        #         error_map.getRSP()
+        #     )
+        # else: 
+        #     metrics_dict["pred_rse"].append(np.nan)
+        #     metrics_dict["pred_rsp"].append(np.nan)
 
-        if not all_equals:
-            decorr_calculator_raw = DecorrAnalysis()
-            decorr_calculator_raw.run_analysis(predicted_image)
-            metrics_dict["decor"].append(
-                decorr_calculator_raw.resolution
-            )
-        else: 
-            metrics_dict["decor"].append(np.nan)
+        # if not all_equals:
+        #     decorr_calculator_raw = DecorrAnalysis()
+        #     decorr_calculator_raw.run_analysis(predicted_image)
+        #     metrics_dict["decor"].append(
+        #         decorr_calculator_raw.resolution
+        #     )
+        # else: 
+        #     metrics_dict["decor"].append(np.nan)
 
         #
         #####################################

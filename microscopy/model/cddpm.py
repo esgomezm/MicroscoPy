@@ -111,7 +111,6 @@ class DiffusionModel(tf.keras.Model):
         super().__init__()
         
         self.verbose = verbose
-
         # image shape must be a tuple with 3 values (h,w,c)
         self.image_shape = (
             image_shape[0] * scale_factor,
@@ -139,9 +138,13 @@ class DiffusionModel(tf.keras.Model):
 
         if self.verbose > 0:
             print('\n Called compile \n')
+            print(f'Eager mode: {tf.executing_eagerly()}')
 
         self.noise_loss_tracker = tf.keras.metrics.Mean(name="n_loss")
         self.image_loss_tracker = tf.keras.metrics.Mean(name="i_loss")
+        
+        if self.verbose > 0:
+            print('\n End compile \n')
 
     @property
     def metrics(self):
@@ -157,10 +160,13 @@ class DiffusionModel(tf.keras.Model):
         clipped_denorm_images = tf.clip_by_value(denorm_images, 0.0, 1.0)
 
         if self.verbose > 0:
-            print(f'images {images.shape} - min: {images.min()} max: {images.max()} mean: {images.mean()}')
-            print(f'norm_images {denorm_images.shape} - min: {denorm_images.min()} max: {denorm_images.max()} mean: {denorm_images.mean()}')
-            print(f'(return)clipped_denorm_images {clipped_denorm_images.shape} - min: {clipped_denorm_images.min()} max: {clipped_denorm_images.max()} mean: {clipped_denorm_images.mean()}')
+            print(f'images {images.shape} - min: {tf.reduce_max(images)} max: {tf.reduce_max(images)} mean: {tf.reduce_mean(images)}')
+            print(f'norm_images {denorm_images.shape} - min: {tf.reduce_max(denorm_images)} max: {tf.reduce_max(denorm_images)} mean: {tf.reduce_mean(denorm_images)}')
+            print(f'(return)clipped_denorm_images {clipped_denorm_images.shape} - min: {tf.reduce_max(clipped_denorm_images)} max: {tf.reduce_max(clipped_denorm_images)} mean: {tf.reduce_mean(clipped_denorm_images)}')
         
+        if self.verbose > 0:
+            print('\n End denormalize \n')
+
         return clipped_denorm_images
 
     def diffusion_schedule(self, diffusion_times):
@@ -180,9 +186,12 @@ class DiffusionModel(tf.keras.Model):
         # note that their squared sum is always: sin^2(x) + cos^2(x) = 1
 
         if self.verbose > 0:
-            print(f'(return) noise_rates {noise_rates.shape} - min: {noise_rates.min()} max: {noise_rates.max()} mean: {noise_rates.mean()}')
-            print(f'(return) signal_rates {signal_rates.shape} - min: {signal_rates.min()} max: {signal_rates.max()} mean: {signal_rates.mean()}')
+            print(f'(return) noise_rates {noise_rates.shape} - min: {tf.reduce_max(noise_rates)} max: {tf.reduce_max(noise_rates)} mean: {tf.reduce_mean(noise_rates)}')
+            print(f'(return) signal_rates {signal_rates.shape} - min: {tf.reduce_max(signal_rates)} max: {tf.reduce_max(signal_rates)} mean: {tf.reduce_mean(signal_rates)}')
         
+        if self.verbose > 0:
+            print('\n End diffusion_schedule \n')
+
         return noise_rates, signal_rates
 
     def denoise_conditioned(
@@ -191,8 +200,8 @@ class DiffusionModel(tf.keras.Model):
         
         if self.verbose > 0:
             print('\n Called denoise_conditioned \n')
-            print(f'(input) noisy_images {noisy_images.shape} - min: {noisy_images.min()} max: {noisy_images.max()} mean: {noisy_images.mean()}')
-            print(f'(input) lr_images {lr_images.shape} - min: {lr_images.min()} max: {lr_images.max()} mean: {lr_images.mean()}')
+            print(f'(input) noisy_images {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')
+            print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
         # the exponential moving average weights are used at evaluation
         if training:
@@ -207,15 +216,18 @@ class DiffusionModel(tf.keras.Model):
         input_data = tf.concat((tf.cast(noisy_images, lr_images.dtype), lr_images), -1)
 
         if self.verbose > 0:
-            print(f'input_data {input_data.shape} - min: {input_data.min()} max: {input_data.max()} mean: {input_data.mean()}')
+            print(f'input_data {input_data.shape} - min: {tf.reduce_max(input_data)} max: {tf.reduce_max(input_data)} mean: {tf.reduce_mean(input_data)}')
 
         # predict noise component and calculate the image component using it
         pred_noises = network([input_data, noise_rates**2], training=training)
         pred_images = (noisy_images - noise_rates * pred_noises) / signal_rates
 
         if self.verbose > 0:
-            print(f'(return) pred_noises {pred_noises.shape} - min: {pred_noises.min()} max: {pred_noises.max()} mean: {pred_noises.mean()}')
-            print(f'(return) noisy_images {noisy_images.shape} - min: {noisy_images.min()} max: {noisy_images.max()} mean: {noisy_images.mean()}')
+            print(f'(return) noisy_images {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')
+            print(f'(return) pred_noises {pred_noises.shape} - min: {tf.reduce_max(pred_noises)} max: {tf.reduce_max(pred_noises)} mean: {tf.reduce_mean(pred_noises)}')
+
+        if self.verbose > 0:
+            print('\n End denoise_conditioned \n')
 
         return pred_noises, pred_images
 
@@ -228,7 +240,7 @@ class DiffusionModel(tf.keras.Model):
         
         if self.verbose > 0:
             print('\n Called reverse_diffusion_conditioned \n')
-            print(f'(input) lr_images {lr_images.shape} - min: {lr_images.min()} max: {lr_images.max()} mean: {lr_images.mean()}')
+            print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
 
         # reverse diffusion = sampling
@@ -246,7 +258,7 @@ class DiffusionModel(tf.keras.Model):
             noisy_images = next_noisy_images
 
             if self.verbose > 0:
-                print(f'\t noisy_images {noisy_images.shape} - min: {noisy_images.min()} max: {noisy_images.max()} mean: {noisy_images.mean()}')
+                print(f'(return) noisy_images {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')
 
             # separate the current noisy image to its components
             diffusion_times = tf.ones((num_images, 1, 1, 1)) - step * step_size
@@ -257,8 +269,8 @@ class DiffusionModel(tf.keras.Model):
             # network used in eval mode
 
             if self.verbose > 0:
-                print(f'\t pred_noises {pred_noises.shape} - min: {pred_noises.min()} max: {pred_noises.max()} mean: {pred_noises.mean()}')
-                print(f'\t pred_images {pred_images.shape} - min: {pred_images.min()} max: {pred_images.max()} mean: {pred_images.mean()}')
+                print(f'\t pred_noises {pred_noises.shape} - min: {tf.reduce_max(pred_noises)} max: {tf.reduce_max(pred_noises)} mean: {tf.reduce_mean(pred_noises)}')
+                print(f'\t pred_images {pred_images.shape} - min: {tf.reduce_max(pred_images)} max: {tf.reduce_max(pred_images)} mean: {tf.reduce_mean(pred_images)}')
 
             # remix the predicted components using the next signal and noise rates
             next_diffusion_times = diffusion_times - step_size
@@ -271,7 +283,10 @@ class DiffusionModel(tf.keras.Model):
             # this new noisy image will be used in the next step
 
         if self.verbose > 0:
-            print(f'(return) pred_images {pred_images.shape} - min: {pred_images.min()} max: {pred_images.max()} mean: {pred_images.mean()}')
+            print(f'(return) pred_images {pred_images.shape} - min: {tf.reduce_max(pred_images)} max: {tf.reduce_max(pred_images)} mean: {tf.reduce_mean(pred_images)}')
+
+        if self.verbose > 0:
+            print('\n End reverse_diffusion_conditioned \n')
 
         return pred_images
 
@@ -287,6 +302,10 @@ class DiffusionModel(tf.keras.Model):
             lr_images, initial_noise, diffusion_steps
         )
         generated_images = self.denormalize(generated_images)
+        
+        if self.verbose > 0:
+            print('\n End predict \n')
+
         return generated_images
 
     def train_step(self, data):
@@ -298,20 +317,20 @@ class DiffusionModel(tf.keras.Model):
         
         if self.verbose > 0:
             print('\n Called denoise_conditioned \n')
-            print(f'(input) hr_images {hr_images.shape} - min: {hr_images.min()} max: {hr_images.max()} mean: {hr_images.mean()}')
-            print(f'(input) lr_images {lr_images.shape} - min: {lr_images.min()} max: {lr_images.max()} mean: {lr_images.mean()}')
+            print(f'(input) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
+            print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
         # LR images have to be upscaled to have the same shape as hr_images
         lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
         
         if self.verbose > 0:
-            print(f'(after resize) lr_images {lr_images.shape} - min: {lr_images.min()} max: {lr_images.max()} mean: {lr_images.mean()}')
+            print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
         
         # normalize images to have standard deviation of 1, like the noises
         hr_images = self.normalizer(hr_images, training=True)
 
         if self.verbose > 0:
-            print(f'(after normalize) hr_images {hr_images.shape} - min: {hr_images.min()} max: {hr_images.max()} mean: {hr_images.mean()}')
+            print(f'(after normalize) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
 
         noises = tf.random.normal(shape=(self.batch_size,) + self.image_shape)
 
@@ -342,6 +361,9 @@ class DiffusionModel(tf.keras.Model):
         for weight, ema_weight in zip(self.network.weights, self.ema_network.weights):
             ema_weight.assign(self.ema * ema_weight + (1 - self.ema) * weight)
 
+        if self.verbose > 0:
+            print('\n End train_step \n')
+
         # KID is not measured during the training phase for computational efficiency
         return {m.name: m.result() for m in self.metrics[:-1]}
 
@@ -350,31 +372,52 @@ class DiffusionModel(tf.keras.Model):
         if self.verbose > 0:
             print('\n Called test_step \n')
 
-        lr_images, hr_images = data
-        lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
+        # lr_images, hr_images = data
 
-        # normalize images to have standard deviation of 1, like the noises
-        hr_images = self.normalizer(hr_images, training=False)
-        noises = tf.random.normal(shape=(self.batch_size,) + self.image_shape)
+        # if self.verbose > 0:
+        #     print(f'(input) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
+        #     print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
-        # sample uniform random diffusion times
-        diffusion_times = tf.random.uniform(
-            shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
-        )
-        noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
-        # mix the images with noises accordingly
-        noisy_images = signal_rates * hr_images + noise_rates * noises
+        # lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
 
-        # use the network to separate noisy images to their components
-        pred_noises, pred_images = self.denoise_conditioned(
-            noisy_images, lr_images, noise_rates, signal_rates, training=False
-        )
+        # if self.verbose > 0:
+        #     print(f'(after resize) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
-        noise_loss = self.loss(noises, pred_noises)
-        image_loss = self.loss(hr_images, pred_images)
+        # # normalize images to have standard deviation of 1, like the noises
+        # hr_images = self.normalizer(hr_images, training=False)
+        # noises = tf.random.normal(shape=(self.batch_size,) + self.image_shape)
 
-        self.image_loss_tracker.update_state(image_loss)
-        self.noise_loss_tracker.update_state(noise_loss)
+        # # sample uniform random diffusion times
+        # diffusion_times = tf.random.uniform(
+        #     shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
+        # )
+        # noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
+        
+        # if self.verbose > 0:
+        #     print(f'(for noisy images) signal_rates {signal_rates.shape} - min: {tf.reduce_max(signal_rates)} max: {tf.reduce_max(signal_rates)} mean: {tf.reduce_mean(signal_rates)}')
+        #     print(f'(for noisy images) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
+        #     print(f'(for noisy images) noise_rates {noise_rates.shape} - min: {tf.reduce_max(noise_rates)} max: {tf.reduce_max(noise_rates)} mean: {tf.reduce_mean(noise_rates)}')
+        #     print(f'(for noisy images) noises {noises.shape} - min: {tf.reduce_max(noises)} max: {tf.reduce_max(noises)} mean: {tf.reduce_mean(noises)}')
+        
+        # # mix the images with noises accordingly
+        # noisy_images = signal_rates * hr_images + noise_rates * noises
 
-        return {m.name: m.result() for m in self.metrics}
+        # if self.verbose > 0:
+        #     print(f'(noisy_images = signal_rates * hr_images + noise_rates * noises) signal_rates {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')
+
+        # # use the network to separate noisy images to their components
+        # pred_noises, pred_images = self.denoise_conditioned(
+        #     noisy_images, lr_images, noise_rates, signal_rates, training=False
+        # )
+
+        # noise_loss = self.loss(noises, pred_noises)
+        # image_loss = self.loss(hr_images, pred_images)
+
+        # self.image_loss_tracker.update_state(image_loss)
+        # self.noise_loss_tracker.update_state(noise_loss)
+
+        # if self.verbose > 0:
+        #     print('\n End test_step \n')
+
+        # return {m.name: m.result() for m in self.metrics}
 

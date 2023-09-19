@@ -5,9 +5,8 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 os.environ["CUDA_VISIBLE_DEVICES"] = "1,2"
-
-gpu_id = [1] #int(os.environ["CUDA_VISIBLE_DEVICES"])
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -20,10 +19,10 @@ def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
     model_combination = ["wgan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
-    batch_size_combination = [8]
-    num_epochs_combination = [100]
-    lr_combination = [(0.0005,0.0005)]
-    scheduler_combination = ['Fixed', 'ReduceOnPlateau', 'MultiStepScheduler'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    batch_size_combination = [1]
+    num_epochs_combination = [10]
+    lr_combination = [(0.00005,0.00005)]
+    scheduler_combination = ['MultiStepScheduler'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
     
     
@@ -46,7 +45,7 @@ def my_app(cfg: DictConfig) -> None:
                         for scheduler in scheduler_combination:
                             for optimizer in optimizer_combination:
 
-                                base_folder = 'WGAN'
+                                base_folder = 'ESRGAN'
 
                                 cfg.model_name = model_name
                                 cfg.hyperparam.batch_size = batch_size
@@ -62,15 +61,19 @@ def my_app(cfg: DictConfig) -> None:
                                 cfg.model.optim.early_stop.patience = num_epochs
 
                                 if cfg.model_name in ["wgan", "esrganplus"]:
-                                    number_of_critic_steps = cfg.used_model.n_critic_steps
-                                    lambda_gp = cfg.used_model.lambda_gp
-                                    recloss = cfg.used_model.recloss
-                                    # number_of_critic_steps = 1
-                                    # cfg.used_model.n_critic_steps = number_of_critic_steps
-                                    # cfg.used_model.g_layers = 15
-                                    # cfg.used_model.lambda_gp = 0.5
-                                    # cfg.used_model.recloss = 0.5 # 100.0
-                                    base_folder=f"{base_folder}/cs_{number_of_critic_steps}-lgp_{lambda_gp}-rec_{recloss}"
+                                    if cfg.model_name == "wgan":
+                                        number_of_critic_steps = cfg.used_model.n_critic_steps
+                                        lambda_gp = cfg.used_model.lambda_gp
+                                        recloss = cfg.used_model.recloss
+                                        # number_of_critic_steps = 1
+                                        # cfg.used_model.n_critic_steps = number_of_critic_steps
+                                        # cfg.used_model.g_layers = 15
+                                        # cfg.used_model.lambda_gp = 0.5
+                                        # cfg.used_model.recloss = 0.5 # 100.0
+                                        base_folder=f"{base_folder}/cs_{number_of_critic_steps}-lgp_{lambda_gp}-rec_{recloss}"
+                                    else:
+                                        number_of_critic_steps = cfg.used_model.n_critic_steps
+                                        base_folder=f"{base_folder}/cs_{number_of_critic_steps}"
 
                                 save_folder = "scale" + str(cfg.used_dataset.scale)
                                 if cfg.hyperparam.additional_folder is not None:
@@ -102,9 +105,8 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=0, # 0, 1 or 2
-                                    data_on_memory=0,
-                                    gpu_id=gpu_id
+                                    verbose=1, # 0, 1 or 2
+                                    data_on_memory=0
                                 )
                                 del model
 

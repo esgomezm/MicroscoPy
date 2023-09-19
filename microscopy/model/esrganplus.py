@@ -134,7 +134,7 @@ class GaussianNoise(nn.Module):
         super().__init__()
         self.sigma = sigma
         self.is_relative_detach = is_relative_detach
-        self.noise = torch.tensor(0, dtype=torch.float).to(torch.device("cuda"))
+        self.noise = torch.tensor(0, dtype=torch.float)
 
     def forward(self, x):
         if self.training and self.sigma != 0:
@@ -588,8 +588,7 @@ class VGGFeatureExtractor(nn.Module):
         self,
         feature_layer=34,
         use_bn=False,
-        use_input_norm=True,
-        device=torch.device("cpu"),
+        use_input_norm=True
     ):
         super(VGGFeatureExtractor, self).__init__()
         if use_bn:
@@ -598,9 +597,9 @@ class VGGFeatureExtractor(nn.Module):
             model = torchvision.models.vgg19(pretrained=True)
         self.use_input_norm = use_input_norm
         if self.use_input_norm:
-            mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(device)
+            mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
             # [0.485-1, 0.456-1, 0.406-1] if input in range [-1,1]
-            std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(device)
+            std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
             # [0.229*2, 0.224*2, 0.225*2] if input in range [-1,1]
             self.register_buffer("mean", mean)
             self.register_buffer("std", std)
@@ -677,8 +676,6 @@ def define_G(scale):
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=0.1)
     netG.apply(weights_init_kaiming_)
 
-    if torch.cuda.is_available():
-        netG = nn.DataParallel(netG)
     return netG
 
 
@@ -693,24 +690,19 @@ def define_D():
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=1)
     netD.apply(weights_init_kaiming_)
 
-    if torch.cuda.is_available():
-        netD = nn.DataParallel(netD)
     return netD
 
 
 def define_F(use_bn=False):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if use_bn:
         feature_layer = 49
     else:
         feature_layer = 34
     netF = VGGFeatureExtractor(
-        feature_layer=feature_layer, use_bn=use_bn, use_input_norm=True, device=device
+        feature_layer=feature_layer, use_bn=use_bn, use_input_norm=True
     )
 
-    if torch.cuda.is_available():
-        netF = nn.DataParallel(netF)
     netF.eval()  # No need to train
     return netF
 
@@ -789,6 +781,8 @@ class ESRGANplus(LightningModule):
         self.D_update_ratio = 1
         self.D_init_iters = 0
 
+        self.mae = nn.L1Loss()
+
         if train_hr_path or train_lr_path:
             self.len_data = self.train_dataloader().__len__()
             self.total_iters = epochs * self.len_data
@@ -820,8 +814,8 @@ class ESRGANplus(LightningModule):
             os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
 
 
-        self.step_schedulers = ['CosineDecay', 'OneCycle']
-        self.epoch_schedulers = ['ReduceOnPlateau', 'MultiStepScheduler']
+        self.step_schedulers = ['CosineDecay', 'OneCycle', 'MultiStepScheduler']
+        self.epoch_schedulers = ['ReduceOnPlateau']
 
         if self.verbose > 1:
             print('\nVerbose: Model initialized (end)\n')
@@ -831,7 +825,7 @@ class ESRGANplus(LightningModule):
             torch.save(
                 {
                     "model_state_dict": self.generator.state_dict(),
-                    "optimizer_state_dict": self.optimizer_G.state_dict(),
+                    "optimizer_state_dict": self.opt_g.state_dict(),
                     "scale_factor": self.hparams.scale_factor,
                     "best_valid_loss": self.best_valid_loss,
                 },
@@ -850,7 +844,6 @@ class ESRGANplus(LightningModule):
 
     def training_step(self, batch, batch_idx):
         lr, hr = batch["lr"], batch["hr"]
-        fake_hr = self.generator(lr)
 
         # Extract the optimizers
         g_opt, d_opt = self.optimizers()
@@ -870,11 +863,13 @@ class ESRGANplus(LightningModule):
         if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
             if self.verbose > 1:
                 print(f'Generator updated on step {batch_idx + 1}')
-                
+
             # Optimize generator
             # toggle_optimizer(): Makes sure only the gradients of the current optimizer's parameters are calculated
             #                     in the training step to prevent dangling gradients in multiple-optimizer setup.
             self.toggle_optimizer(g_opt)
+
+            fake_hr = self.generator(lr)
 
             # pixel loss
             l_g_pix = self.l_pix_w * self.cri_pix(fake_hr, hr)
@@ -914,6 +909,8 @@ class ESRGANplus(LightningModule):
                 print(f'Discriminator  updated on step {batch_idx + 1}')
             # Optimize discriminator
             self.toggle_optimizer(d_opt)
+
+            fake_hr = self.generator(lr)
 
             pred_d_real = self.discriminator(hr)
             pred_d_fake = self.discriminator(fake_hr)  # detach to avoid BP to G
@@ -1080,27 +1077,37 @@ class ESRGANplus(LightningModule):
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
             print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
 
-        adv_loss = -1 * self.discriminator(generated).mean()
-        error = self.mae(generated, hr)
 
-        g_loss = adv_loss + error * self.hparams.recloss
+        l_g_total = 0
 
-        self.log("val_g_loss", g_loss)
-        self.log("val_g_l1", error)
+        # pixel loss
+        l_g_pix = self.l_pix_w * self.cri_pix(generated, hr)
+        
+        # feature loss
+        real_fea = self.netF(hr).detach()
+        fake_fea = self.netF(generated)
+        l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
+        
+        # G gan + cls loss
+        pred_g_fake = self.discriminator(generated)
+        #pred_d_real = self.discriminator(hr).detach()
+        pred_d_real = self.discriminator(hr)
 
-        real_logits = self.discriminator(hr).mean()
-        fake_logits = self.discriminator(generated).mean()
+        l_g_gan = self.l_gan_w * (self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False) +
+                                  self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)) / 2
+        l_g_total = l_g_pix + l_g_fea + l_g_gan
 
-        wasserstein = real_logits - fake_logits
-
-        self.log("val_d_wasserstein", wasserstein)
+        self.log('val_g_loss', l_g_total, prog_bar=True, on_epoch=True)
+        self.log('val_g_pixel_loss', l_g_pix, prog_bar=True, on_epoch=True)
+        self.log('val_g_features_loss', l_g_fea, prog_bar=True, on_epoch=True)
+        self.log('val_g_adversarial_loss', l_g_gan, prog_bar=True, on_epoch=True)
 
         if self.verbose > 1:
-            print(f'g_loss: {g_loss}')
+            print(f'g_loss: {l_g_total}')
             print(f'self.best_valid_loss: {self.best_valid_loss}')
 
-        if g_loss < self.best_valid_loss:
-            self.best_valid_loss = g_loss
+        if l_g_total < self.best_valid_loss:
+            self.best_valid_loss = l_g_total
             self.save_model("best_checkpoint.pth")
 
         self.validation_step_lr.clear()  # free memory

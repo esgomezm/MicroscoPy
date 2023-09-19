@@ -257,8 +257,8 @@ class WGANGP(LightningModule):
             os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
 
 
-        self.step_schedulers = ['CosineDecay', 'OneCycle']
-        self.epoch_schedulers = ['ReduceOnPlateau', 'MultiStepScheduler']
+        self.step_schedulers = ['CosineDecay', 'OneCycle', 'MultiStepScheduler']
+        self.epoch_schedulers = ['ReduceOnPlateau']
 
         if self.verbose > 1:
             print('\nVerbose: Model initialized (end)\n')
@@ -277,11 +277,6 @@ class WGANGP(LightningModule):
 
         # Take a batch of data
         lr, hr = batch["lr"], batch["hr"]
-        # Predict the HR image
-        generated = self(lr)
-        # Evaluate the real and the fake HR images
-        real_logits = self.discriminator(hr).mean()
-        fake_logits = self.discriminator(generated).mean()
 
         # Extract the optimizers
         g_opt, d_opt = self.optimizers()
@@ -306,6 +301,12 @@ class WGANGP(LightningModule):
             # toggle_optimizer(): Makes sure only the gradients of the current optimizer's parameters are calculated
             #                     in the training step to prevent dangling gradients in multiple-optimizer setup.
             self.toggle_optimizer(g_opt)
+
+            # Predict the HR image
+            generated = self(lr)
+            # Evaluate the real and the fake HR images
+            real_logits = self.discriminator(hr).mean()
+            fake_logits = self.discriminator(generated).mean()
 
             if self.verbose > 1:
                 print('Generator step:')
@@ -342,6 +343,12 @@ class WGANGP(LightningModule):
                 
             # Optimize discriminator
             self.toggle_optimizer(d_opt)
+
+            # Predict the HR image
+            generated = self(lr)
+            # Evaluate the real and the fake HR images
+            real_logits = self.discriminator(hr).mean()
+            fake_logits = self.discriminator(generated).mean()
 
             if self.verbose > 1:
                 print('Discriminator step:')
