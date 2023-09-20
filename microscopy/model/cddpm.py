@@ -298,7 +298,7 @@ class DiffusionModel(tf.keras.Model):
         
         # noise -> images -> denormalized images
         initial_noise = tf.random.normal(shape=(num_images,) + self.image_shape)
-        lr_images = tf.image.resize(lr_images, size=[self.image_shape[0], self.image_shape[1]])
+        lr_images = tf.image.resize(lr_images, size=[self.image_shape[0], self.image_shape[1]], method='bicubic')
         generated_images = self.reverse_diffusion_conditioned(
             lr_images, initial_noise, diffusion_steps
         )
@@ -321,7 +321,7 @@ class DiffusionModel(tf.keras.Model):
             print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
         # LR images have to be upscaled to have the same shape as hr_images
-        lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
+        lr_images = tf.image.resize(lr_images, size=[self.image_shape[0], self.image_shape[1]], method='bicubic')
         
         if self.verbose > 0:
             print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
@@ -339,8 +339,15 @@ class DiffusionModel(tf.keras.Model):
             shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
         )
         noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
+
+        if self.verbose > 0:
+            print(f'(for noisy images) signal_rates {signal_rates.shape} - min: {tf.reduce_max(signal_rates)} max: {tf.reduce_max(signal_rates)} mean: {tf.reduce_mean(signal_rates)}')
+            print(f'(for noisy images) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
+            print(f'(for noisy images) noise_rates {noise_rates.shape} - min: {tf.reduce_max(noise_rates)} max: {tf.reduce_max(noise_rates)} mean: {tf.reduce_mean(noise_rates)}')
+            print(f'(for noisy images) noises {noises.shape} - min: {tf.reduce_max(noises)} max: {tf.reduce_max(noises)} mean: {tf.reduce_mean(noises)}')
+        
         # mix the images with noises accordingly
-        noisy_images = signal_rates * hr_images + noise_rates * noises
+        noisy_images = tf.math.multiply(signal_rates, hr_images) + tf.math.multiply(noise_rates, noises)
 
         with tf.GradientTape() as tape:
             # train the network to separate noisy images to their components
@@ -378,7 +385,7 @@ class DiffusionModel(tf.keras.Model):
             print(f'(input) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
             print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
 
-        lr_images = tf.image.resize(lr_images, size=hr_images[0, :, :, 0].shape)
+        lr_images = tf.image.resize(lr_images, size=[self.image_shape[0], self.image_shape[1]], method='bicubic')
 
         if self.verbose > 0:
             print(f'(after resize) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
@@ -400,7 +407,7 @@ class DiffusionModel(tf.keras.Model):
             print(f'(for noisy images) noises {noises.shape} - min: {tf.reduce_max(noises)} max: {tf.reduce_max(noises)} mean: {tf.reduce_mean(noises)}')
         
         # mix the images with noises accordingly
-        noisy_images = signal_rates * hr_images + noise_rates * noises
+        noisy_images = tf.math.multiply(signal_rates, hr_images) + tf.math.multiply(noise_rates, noises)
 
         if self.verbose > 0:
             print(f'(noisy_images = signal_rates * hr_images + noise_rates * noises) signal_rates {noisy_images.shape} - min: {tf.reduce_max(noisy_images)} max: {tf.reduce_max(noisy_images)} mean: {tf.reduce_mean(noisy_images)}')

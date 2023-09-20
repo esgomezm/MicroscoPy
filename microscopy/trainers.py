@@ -21,6 +21,8 @@ from . import model_utils
 from . import optimizer_scheduler_utils
 from . import custom_callbacks
 
+import torch
+
 #######
 
 
@@ -857,6 +859,8 @@ class PytorchTrainer(ModelsTrainer):
             logger=logger,
             callbacks=callbacks,
         )
+
+        torch.cuda.empty_cache()
 
         print(trainer.strategy)
 
