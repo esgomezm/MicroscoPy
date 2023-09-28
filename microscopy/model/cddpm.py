@@ -1,7 +1,9 @@
 # Taken from: https://keras.io/examples/generative/ddim/
  
 import tensorflow as tf
+import numpy as np
 import math
+import os
 
 def sinusoidal_embedding(embedding_max_frequency, embedding_dims):
     def sinusoidal_embedding_function(x):
@@ -118,7 +120,7 @@ class DiffusionModel(tf.keras.Model):
             image_shape[2],
         )
 
-        self.normalizer = tf.keras.layers.experimental.preprocessing.Normalization()
+        self.normalizer = tf.keras.layers.Normalization()
         self.network = get_network(
             self.image_shape,
             widths,
@@ -130,7 +132,6 @@ class DiffusionModel(tf.keras.Model):
 
         self.min_signal_rate = min_signal_rate
         self.max_signal_rate = max_signal_rate
-        self.batch_size = batch_size
         self.ema = ema
 
     def compile(self, **kwargs):
@@ -215,7 +216,7 @@ class DiffusionModel(tf.keras.Model):
             network = self.ema_network
 
         input_data = tf.concat((tf.cast(noisy_images, lr_images.dtype), lr_images), -1)
-
+        
         if self.verbose > 0:
             print(f'input_data {input_data.shape} - min: {tf.reduce_max(input_data)} max: {tf.reduce_max(input_data)} mean: {tf.reduce_mean(input_data)}')
 
@@ -242,7 +243,6 @@ class DiffusionModel(tf.keras.Model):
         if self.verbose > 0:
             print('\n Called reverse_diffusion_conditioned \n')
             print(f'(input) lr_images {lr_images.shape} - min: {tf.reduce_max(lr_images)} max: {tf.reduce_max(lr_images)} mean: {tf.reduce_mean(lr_images)}')
-
 
         # reverse diffusion = sampling
         num_images = initial_noise.shape[0]
@@ -291,13 +291,13 @@ class DiffusionModel(tf.keras.Model):
 
         return pred_images
 
-    def predict(self, lr_images, num_images, diffusion_steps):
+    def predict(self, lr_images, diffusion_steps):
 
         if self.verbose > 0:
             print('\n Called predict \n')
         
         # noise -> images -> denormalized images
-        initial_noise = tf.random.normal(shape=(num_images,) + self.image_shape)
+        initial_noise = tf.random.normal(shape=(tf.shape(lr_images)[0],) + self.image_shape)
         lr_images = tf.image.resize(lr_images, size=[self.image_shape[0], self.image_shape[1]], method='bicubic')
         generated_images = self.reverse_diffusion_conditioned(
             lr_images, initial_noise, diffusion_steps
@@ -332,11 +332,11 @@ class DiffusionModel(tf.keras.Model):
         if self.verbose > 0:
             print(f'(after normalize) hr_images {hr_images.shape} - min: {tf.reduce_max(hr_images)} max: {tf.reduce_max(hr_images)} mean: {tf.reduce_mean(hr_images)}')
 
-        noises = tf.random.normal(shape=(self.batch_size,) + self.image_shape)
+        noises = tf.random.normal(shape=(tf.shape(hr_images)[0],) + self.image_shape)
 
         # sample uniform random diffusion times
         diffusion_times = tf.random.uniform(
-            shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
+            shape=(tf.shape(hr_images)[0], 1, 1, 1), minval=0.0, maxval=1.0
         )
         noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
 
@@ -392,11 +392,11 @@ class DiffusionModel(tf.keras.Model):
 
         # normalize images to have standard deviation of 1, like the noises
         hr_images = self.normalizer(hr_images, training=False)
-        noises = tf.random.normal(shape=(self.batch_size,) + self.image_shape)
+        noises = tf.random.normal(shape=(tf.shape(hr_images)[0],) + self.image_shape)
 
         # sample uniform random diffusion times
         diffusion_times = tf.random.uniform(
-            shape=(self.batch_size, 1, 1, 1), minval=0.0, maxval=1.0
+            shape=(tf.shape(hr_images)[0], 1, 1, 1), minval=0.0, maxval=1.0
         )
         noise_rates, signal_rates = self.diffusion_schedule(diffusion_times)
         
@@ -428,3 +428,43 @@ class DiffusionModel(tf.keras.Model):
 
         return {m.name: m.result() for m in self.metrics}
 
+    def load_weights(self, file_path, skip_mismatch=False, by_name=False, options=None):
+
+        file_path_head = os.path.split(file_path)[0]
+        file_path_tail = os.path.split(file_path)[1]
+
+        self.network.load_weights(filepath=os.path.join(file_path_head, file_path_tail),
+                                  by_name=by_name,
+                                  skip_mismatch=skip_mismatch,
+                                  options=options,
+                                 )
+        self.ema_network.load_weights(filepath=os.path.join(file_path_head, 'ema_' + file_path_tail),
+                                      by_name=by_name,
+                                      skip_mismatch=skip_mismatch,
+                                      options=options,
+                                     )
+
+        self.normalizer = tf.keras.layers.Normalization(
+            mean=np.load(os.path.join(file_path_head, 'mean.npy')), 
+            variance=np.load(os.path.join(file_path_head, 'variance.npy'))
+        )
+        self.normalizer.build(self.image_shape)
+
+    def save_weights(self, file_path, overwrite=True, save_format=None, options=None):
+
+        file_path_head = os.path.split(file_path)[0]
+        file_path_tail = os.path.split(file_path)[1]
+
+        self.network.save_weights(filepath=os.path.join(file_path_head, file_path_tail),
+                                  overwrite=overwrite,
+                                  save_format=save_format,
+                                  options=options,
+                                 )
+        self.ema_network.save_weights(filepath=os.path.join(file_path_head, 'ema_' + file_path_tail),
+                                      overwrite=overwrite,
+                                      save_format=save_format,
+                                      options=options,
+                                     )
+        
+        np.save(os.path.join(file_path_head, 'mean.npy'), self.normalizer.mean.numpy().flatten()[0])
+        np.save(os.path.join(file_path_head, 'variance.npy'), self.normalizer.variance.numpy().flatten()[0])

@@ -572,7 +572,7 @@ class Discriminator_VGG_128(nn.Module):
 
         # classifier
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 8 * 8, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
+            nn.Linear(512 * 4 * 4, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
         )
 
     def forward(self, x):

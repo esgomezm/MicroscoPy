@@ -27,7 +27,7 @@ def my_app(cfg: DictConfig) -> None:
     # base_folder = ''
     
     dataset_name = 'ER'
-    saving_path = './RCAN_all_levels/epc200_btch8_lr0.001_optim-adam_lrsched-OneCycle_seed666_1'
+    saving_path = './prueba_old_loss/cs_5-lgp_1-rec_100.0/ER/wgan/scaleNone/epc50_btch1_lr5e-05_optim-adam_lrsched-MultiStepScheduler_seed666_1'
                         
     actual_cfg = omegaconf.OmegaConf.load(os.path.join(saving_path, 'train_configuration.yaml'))
 
@@ -42,26 +42,20 @@ def my_app(cfg: DictConfig) -> None:
     test_lr_path = load_path(dataset_root, dataset_name, test_lr)
     test_hr_path = load_path(dataset_root, dataset_name, test_hr)
 
-    test_metric_path = os.path.join(saving_path, "test_metrics")
-    if (
-        os.path.exists(test_metric_path)
-        and len(os.listdir(test_metric_path)) > 0
-    ):
-        model = predict_configuration(
-            config=actual_cfg,
-            train_lr_path=train_lr_path,
-            train_hr_path=train_hr_path,
-            val_lr_path=val_lr_path,
-            val_hr_path=val_hr_path,
-            test_lr_path=test_lr_path,
-            test_hr_path=test_hr_path,
-            saving_path=saving_path,
-            verbose=0,
-        )
-        del model
-        gc.collect()
-    else:
-        print(f"{saving_path} - model combination is not trained, therefore the prediction cannot be done.")
+    
+    model = predict_configuration(
+        config=actual_cfg,
+        train_lr_path=train_lr_path,
+        train_hr_path=train_hr_path,
+        val_lr_path=val_lr_path,
+        val_hr_path=val_hr_path,
+        test_lr_path=test_lr_path,
+        test_hr_path=test_hr_path,
+        saving_path=saving_path,
+        verbose=0,
+    )
+    del model
+    gc.collect()
 
     # for dataset_name in dataset_combination: 
     #     cfg.dataset_name = dataset_name

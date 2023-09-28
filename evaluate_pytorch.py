@@ -5,7 +5,12 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2,3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
+
+import torch
+print(f'\ntorch.cuda.is_available(): {torch.cuda.is_available()}')
+print(f'torch.cuda.device_count(): {torch.cuda.device_count()}')
+print(f'torch.cuda.current_device(): {torch.cuda.current_device()}\n')
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -16,13 +21,13 @@ def load_path(dataset_root, dataset_name, folder):
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     
-    dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
+    dataset_combination = ["LiveFActinDataset"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
     model_combination = ["esrganplus"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [1]
-    num_epochs_combination = [10]
+    num_epochs_combination = [1]
     lr_combination = [(0.00005,0.00005)]
     scheduler_combination = ['MultiStepScheduler'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
-    optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
+    optimizer_combination = ['sgd']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
     
     
     for dataset_name in dataset_combination:  
@@ -44,7 +49,7 @@ def my_app(cfg: DictConfig) -> None:
                         for scheduler in scheduler_combination:
                             for optimizer in optimizer_combination:
 
-                                base_folder = 'ESRGAN'
+                                base_folder = 'prueba_old_loss'
 
                                 cfg.model_name = model_name
                                 cfg.hyperparam.batch_size = batch_size
@@ -104,7 +109,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=1, # 0, 1 or 2
+                                    verbose=0, # 0, 1 or 2
                                     data_on_memory=0
                                 )
                                 del model

@@ -17,7 +17,7 @@ ER:
   - train/training_gt
   - val/validate_wf
   - val/validate_gt
-  - test/test_wf/level_01
+  - test/test_wf/level_02
   - test/test_gt/level_06
   patch_size_x: 128
   patch_size_y: 128
@@ -29,7 +29,7 @@ F-actin:
   - train/training_gt
   - val/validate_wf
   - val/validate_gt
-  - test/test_wf/level_01
+  - test/test_wf/level_02
   - test/test_gt
   patch_size_x: 128
   patch_size_y: 128
@@ -53,7 +53,7 @@ MT:
   - train/training_gt
   - val/validate_wf
   - val/validate_gt
-  - test/test_wf/level_01
+  - test/test_wf/level_02
   - test/test_gt
   patch_size_x: 128
   patch_size_y: 128

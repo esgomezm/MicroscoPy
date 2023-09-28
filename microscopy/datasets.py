@@ -567,7 +567,8 @@ def TFDataset(
 
     # Map the preprocessing function
     dataset = dataset.map(
-        lambda x, y: prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip)
+        lambda x, y: prerpoc_func(x, y, rotation, horizontal_flip, vertical_flip),
+        num_parallel_calls=tf.data.AUTOTUNE
     )
     # Batch the data
     dataset = dataset.batch(batch_size)
@@ -830,7 +831,6 @@ def get_train_val_generators(X_data, Y_data, batch_size=32, seed=42, show_exampl
     Y_datagen.fit(Y_data, augment=True, seed=seed)
     X_data_augmented = X_datagen.flow(X_data, batch_size=batch_size, shuffle=True, seed=seed)
     Y_data_augmented = Y_datagen.flow(Y_data, batch_size=batch_size, shuffle=True, seed=seed)
-
 
     # combine generators into one which yields image and masks
     train_generator = zip(X_data_augmented, Y_data_augmented)

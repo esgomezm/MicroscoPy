@@ -3,6 +3,8 @@ import time
 import csv
 import os
 
+import gc
+
 from skimage import io
 
 import tensorflow as tf
@@ -490,7 +492,7 @@ class TensorflowTrainer(ModelsTrainer):
 
         model_checkpoint = tf_ModelCheckpoint(
             os.path.join(self.saving_path, "weights_best.h5"),
-            monitor="val_loss",
+            monitor="val_loss" if self.model_name!="cddpm" else "val_n_loss",
             verbose=self.verbose,
             save_best_only=True,
             save_weights_only=True,
@@ -545,7 +547,7 @@ class TensorflowTrainer(ModelsTrainer):
         start = time.time()
 
         print("Training is going to start:")
-        
+
         if self.data_on_memory:
             history = model.fit(
                 self.train_generator,
@@ -686,7 +688,10 @@ class TensorflowTrainer(ModelsTrainer):
             # Load old weights
             model.load_weights(os.path.join(self.saving_path, "weights_best.h5"))
 
-            aux_prediction = model.predict(lr_images, batch_size=1)
+            if self.model_name == "cddpm":
+                aux_prediction = model.predict(lr_images, diffusion_steps=50)
+            else:
+                aux_prediction = model.predict(lr_images, batch_size=1)
 
             if self.model_name == "unet":
                 aux_prediction = utils.remove_padding_for_Unet(
@@ -847,23 +852,24 @@ class PytorchTrainer(ModelsTrainer):
         #     data["lr"], data["hr"], plt_saving_path, frequency=10
         # )
         # callbacks.append(plot_callback)
-        
 
         os.makedirs(self.saving_path + "/Quality Control", exist_ok=True)
         logger = CSVLogger(self.saving_path + "/Quality Control", name="Logger")
 
         trainer = Trainer(
-            accelerator="gpu",
-            devices="1",
+            accelerator="gpu", 
+            devices=[0,1,2],
+            strategy="auto",
             max_epochs=self.num_epochs,
             logger=logger,
             callbacks=callbacks,
         )
 
-        torch.cuda.empty_cache()
-
+        print('\n')
+        print(trainer.accelerator)
         print(trainer.strategy)
-
+        print('\n')
+        
         print("Training is going to start:")
         start = time.time()
 
@@ -923,6 +929,10 @@ class PytorchTrainer(ModelsTrainer):
         self.history = []
         print("Train information saved.")
 
+        
+        del model, trainer
+        gc.collect()
+
     def predict_images(self, result_folder_name=""):
         utils.set_seed(self.seed)
         model = model_utils.select_model(
@@ -936,7 +946,15 @@ class PytorchTrainer(ModelsTrainer):
             verbose=self.verbose
         )
 
-        trainer = Trainer(accelerator="gpu", devices=-1)
+        trainer = Trainer(
+                            accelerator="gpu", 
+                            devices="auto",
+                         )
+
+        print('\n')
+        print(trainer.accelerator)
+        print(trainer.strategy)
+        print('\n')
 
         dataset = datasets.PytorchDataset(
             hr_data_path=self.test_hr_path,

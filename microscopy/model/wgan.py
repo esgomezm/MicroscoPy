@@ -359,8 +359,10 @@ class WGANGP(LightningModule):
             gradient_penalty = self.compute_gradient_penalty(hr.data, generated.data)
 
             wasserstein = real_logits - fake_logits
-
             d_loss = - wasserstein + self.hparams.lambda_gp * gradient_penalty
+
+            # wasserstein = fake_logits - real_logits
+            # d_loss = wasserstein + self.hparams.lambda_gp * gradient_penalty
 
             # Log the losses
             self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)

@@ -21,10 +21,10 @@ def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
     model_combination = ["cddpm"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
-    batch_size_combination = [8]
-    num_epochs_combination = [30]
+    batch_size_combination = [4]
+    num_epochs_combination = [2001]
     lr_combination = [(0.001,0.001)]
-    scheduler_combination = ['OneCycle'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    scheduler_combination = ['Fixed'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
     
     
@@ -47,7 +47,7 @@ def my_app(cfg: DictConfig) -> None:
                         for scheduler in scheduler_combination:
                             for optimizer in optimizer_combination:
 
-                                base_folder = 'prueba'
+                                base_folder = 'prueba_CDDPM'
 
                                 cfg.model_name = model_name
                                 cfg.hyperparam.batch_size = batch_size
@@ -90,6 +90,7 @@ def my_app(cfg: DictConfig) -> None:
                                     cfg.hyperparam.seed
                                 )
 
+
                                 test_metric_path = os.path.join(saving_path, "test_metrics")
                                 if (os.path.exists(test_metric_path) and len(os.listdir(test_metric_path)) > 0):
                                     saving_path = saving_path[:-1] + str(int(saving_path[-1]) + 1) 
@@ -103,7 +104,7 @@ def my_app(cfg: DictConfig) -> None:
                                     test_lr_path=test_lr_path,
                                     test_hr_path=test_hr_path,
                                     saving_path=saving_path,
-                                    verbose=1, # 0, 1 or 2
+                                    verbose=0, # 0, 1 or 2
                                     data_on_memory=0
                                 )
                                 del model
