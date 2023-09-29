@@ -11,10 +11,9 @@ import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint as tf_ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping
 
-from pytorch_lightning.callbacks import LearningRateMonitor, ModelCheckpoint
-from pytorch_lightning.trainer import Trainer
-from pytorch_lightning.loggers import CSVLogger
-from torch.utils.data import DataLoader
+import lightning as L
+from lightning.pytorch.callbacks import LearningRateMonitor, ModelCheckpoint
+from lightning.pytorch.loggers import CSVLogger
 
 from . import datasets
 from . import utils
@@ -23,7 +22,6 @@ from . import model_utils
 from . import optimizer_scheduler_utils
 from . import custom_callbacks
 
-import torch
 
 #######
 
@@ -122,6 +120,8 @@ class ModelsTrainer:
         self.verbose = verbose
         self.data_on_memory = data_on_memory
 
+        self.already_trained = False
+
         save_folder = "scale" + str(self.scale_factor)
 
         if self.additional_folder:
@@ -151,7 +151,7 @@ class ModelsTrainer:
             crappifier_name=self.crappifier_method,
             lr_patch_shape=(self.lr_patch_size_x, self.lr_patch_size_y),
             datagen_sampling_pdf=self.datagen_sampling_pdf,
-            validation_split=0.1,
+            validation_split=0.0,
             batch_size=self.batch_size,
             rotation=self.rotation,
             horizontal_flip=self.horizontal_flip,
@@ -208,21 +208,6 @@ class ModelsTrainer:
     def launch(self):
         self.prepare_data()
         self.train_model()
-
-        # if self.data_name in ['ER', 'MT', 'F-actin']:
-        #     dataset_levels = {'ER':6, 'MT':9, 'F-actin':12}
-        #     levels = dataset_levels[self.data_name]
-        #     for i in range(1, levels):
-        #         level_folder = f"level_{i:02d}"
-        #         if "level" in self.test_lr_path:
-        #             self.test_lr_path = os.path.join(self.test_lr_path[:-9], level_folder)
-        #         else:
-        #             self.test_lr_path = os.path.join(self.test_lr_path, level_folder)
-        #         self.predict_images(result_folder_name=level_folder)
-        #         self.eval_model(result_folder_name=level_folder)
-        # else:
-        #     self.predict_images()
-        #     self.eval_model()
 
         self.predict_images()
         self.eval_model()
@@ -610,7 +595,7 @@ class TensorflowTrainer(ModelsTrainer):
             ground_truths.append(hr_images[0, ...])
             widefields.append(lr_images[0, ...])
             
-            if self.model_name == "unet":
+            if self.model_name == "unet" or self.model_name == "cddpm":
                 if self.verbose > 0:
                     print("Padding will be added to the images.")
                     print("LR images before padding:")
@@ -620,12 +605,21 @@ class TensorflowTrainer(ModelsTrainer):
                         )
                     )
 
-                height_padding, width_padding = utils.calculate_pad_for_Unet(
-                    lr_img_shape=lr_images[0].shape,
-                    depth_Unet=self.config.used_model.depth,
-                    is_pre=True,
-                    scale=self.scale_factor,
-                )
+                if self.model_name == "unet":
+                    height_padding, width_padding = utils.calculate_pad_for_Unet(
+                        lr_img_shape=lr_images[0].shape,
+                        depth_Unet=self.config.used_model.depth,
+                        is_pre=True,
+                        scale=self.scale_factor,
+                    )
+                else:
+                    height_padding, width_padding = utils.calculate_pad_for_Unet(
+                        lr_img_shape=lr_images[0].shape,
+                        depth_Unet=self.config.used_model.block_depth,
+                        is_pre=True,
+                        scale=self.scale_factor,
+                    )
+                    
 
                 if self.verbose > 0 and (
                     height_padding == (0, 0) and width_padding == (0, 0)
@@ -774,6 +768,25 @@ class PytorchTrainer(ModelsTrainer):
         self.library_name = "pytorch"
 
     def prepare_data(self):
+        
+        self.data_module = datasets.PytorchDataModuler(
+            lr_patch_size_x=self.lr_patch_size_x,
+            lr_patch_size_y=self.lr_patch_size_y,
+            batch_size=self.batch_size,
+            scale_factor=self.scale_factor,
+            datagen_sampling_pdf=self.datagen_sampling_pdf,
+            train_hr_path=self.train_hr_path,
+            train_lr_path=self.train_lr_path,
+            train_filenames=self.train_filenames,
+            val_hr_path=self.val_hr_path,
+            val_lr_path=self.val_lr_path,
+            val_filenames=self.val_filenames,
+            test_hr_path=self.test_hr_path,
+            test_lr_path=self.test_lr_path,
+            test_filenames=self.test_filenames,
+            crappifier_method=self.crappifier_method,
+            verbose=self.verbose,
+        )
 
         utils.update_yaml(
             os.path.join(self.saving_path, "train_configuration.yaml"),
@@ -789,12 +802,15 @@ class PytorchTrainer(ModelsTrainer):
     def train_model(self):
         utils.set_seed(self.seed)
 
-        model = model_utils.select_model(
+        self.data_len = self.input_data_shape[0] // self.batch_size + int(self.input_data_shape[0] % self.batch_size != 0)
+
+        self.model = model_utils.select_model(
             model_name=self.model_name,
             input_shape=None,
             output_channels=None,
             scale_factor=self.scale_factor,
             batch_size=self.batch_size,
+            data_len=self.data_len,
             lr_patch_size_x=self.lr_patch_size_x,
             lr_patch_size_y=self.lr_patch_size_y,
             datagen_sampling_pdf=self.datagen_sampling_pdf,
@@ -817,16 +833,6 @@ class PytorchTrainer(ModelsTrainer):
             verbose=self.verbose,
         )
         
-        # Take one batch of data
-        data = next(iter(model.train_dataloader()))
-        
-        if self.verbose > 0:
-            print("LR patch shape: {}".format(data["lr"][0][0].shape))
-            print("HR patch shape: {}".format(data["hr"][0][0].shape))
-
-            utils.print_info("train_model() - lr", data["lr"])
-            utils.print_info("train_model() - hr", data["hr"])
-
         # Let's define the callbacks that will be used during training
         callbacks = [] 
         
@@ -845,35 +851,27 @@ class PytorchTrainer(ModelsTrainer):
         )
         callbacks.append(checkpoints)
 
-        # Saving plots during training to see the evolution on the performance
-        # plt_saving_path = os.path.join(self.saving_path, "training_images")
-        # os.makedirs(plt_saving_path, exist_ok=True)
-        # plot_callback = custom_callbacks.PerformancePlotCallback_Pytorch(
-        #     data["lr"], data["hr"], plt_saving_path, frequency=10
-        # )
-        # callbacks.append(plot_callback)
-
         os.makedirs(self.saving_path + "/Quality Control", exist_ok=True)
         logger = CSVLogger(self.saving_path + "/Quality Control", name="Logger")
 
-        trainer = Trainer(
+        self.trainer = L.Trainer(
             accelerator="gpu", 
-            devices=[0,1,2],
-            strategy="auto",
+            devices=-1,
+            strategy="ddp_find_unused_parameters_true",
             max_epochs=self.num_epochs,
             logger=logger,
             callbacks=callbacks,
         )
 
         print('\n')
-        print(trainer.accelerator)
-        print(trainer.strategy)
+        print(self.trainer.accelerator)
+        print(self.trainer.strategy)
         print('\n')
         
         print("Training is going to start:")
         start = time.time()
 
-        trainer.fit(model)
+        self.trainer.fit(self.model, datamodule=self.data_module)
 
         # Displaying the time elapsed for training
         dt = time.time() - start
@@ -929,60 +927,42 @@ class PytorchTrainer(ModelsTrainer):
         self.history = []
         print("Train information saved.")
 
-        
-        del model, trainer
-        gc.collect()
+        self.already_trained = True
 
     def predict_images(self, result_folder_name=""):
         utils.set_seed(self.seed)
-        model = model_utils.select_model(
-            model_name=self.model_name,
-            scale_factor=self.scale_factor,
-            batch_size=self.batch_size,
-            save_basedir=self.saving_path,
-            model_configuration=self.config,
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
-            checkpoint=os.path.join(self.saving_path, "best_checkpoint.pth"),
-            verbose=self.verbose
-        )
 
-        trainer = Trainer(
-                            accelerator="gpu", 
-                            devices="auto",
-                         )
+        if not self.already_trained:
+
+            self.model = model_utils.select_model(
+                model_name=self.model_name,
+                scale_factor=self.scale_factor,
+                batch_size=self.batch_size,
+                save_basedir=self.saving_path,
+                model_configuration=self.config,
+                datagen_sampling_pdf=self.datagen_sampling_pdf,
+                checkpoint=os.path.join(self.saving_path, "best_checkpoint.pth"),
+                verbose=self.verbose
+            )
+
+            self.trainer = L.Trainer(
+                                accelerator="gpu", 
+                                devices="auto",
+                            )
 
         print('\n')
-        print(trainer.accelerator)
-        print(trainer.strategy)
+        print(self.trainer.accelerator)
+        print(self.trainer.strategy)
         print('\n')
-
-        dataset = datasets.PytorchDataset(
-            hr_data_path=self.test_hr_path,
-            lr_data_path=self.test_lr_path,
-            filenames=self.test_filenames,
-            scale_factor=self.scale_factor,
-            crappifier_name=self.crappifier_method,
-            lr_patch_shape=None,
-            transformations=datasets.ToTensor(),
-            datagen_sampling_pdf=self.datagen_sampling_pdf,
-        )
-
-        dataloader = DataLoader(dataset, batch_size=1, shuffle=False)
 
         print("Prediction is going to start:")
-        predictions = trainer.predict(model, dataloaders=dataloader)
+        predictions = self.trainer.predict(self.model, dataloaders=self.data_module)
         predictions = np.array(
             [
                 np.expand_dims(np.squeeze(e.detach().numpy()), axis=-1)
                 for e in predictions
             ]
         )
-
-        if self.verbose > 0:
-            data = next(iter(dataloader))
-            utils.print_info("predict_images() - lr", data["lr"])
-            utils.print_info("predict_images() - hr", data["hr"])
-            utils.print_info("predict_images() - predictions", predictions)
 
         os.makedirs(os.path.join(self.saving_path, "predicted_images"), exist_ok=True)
 

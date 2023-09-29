@@ -3,14 +3,6 @@
 import numpy as np
 import os
 
-from skimage import transform
-from skimage import filters
-from skimage import io
-from skimage.util import random_noise
-from skimage.util import img_as_ubyte
-
-from scipy.ndimage.interpolation import zoom as npzoom
-
 from collections import OrderedDict
 
 import math
@@ -24,17 +16,12 @@ from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 import torch
 from torch import nn
 from torch.nn import init
-from torch.utils.data import Dataset, DataLoader
 
 import torchvision
 
-from pytorch_lightning.core import LightningModule
+import lightning as L
 
-from ..datasets import PytorchDataset, ToTensor
-from ..datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
 from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
-
-from matplotlib import pyplot as plt
 
 ####################
 # Basic blocks
@@ -572,7 +559,8 @@ class Discriminator_VGG_128(nn.Module):
 
         # classifier
         self.classifier = nn.Sequential(
-            nn.Linear(512 * 4 * 4, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
+            # nn.Linear(512 * 4 * 4, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
+            nn.Linear(512 * 8 * 8, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
         )
 
     def forward(self, x):
@@ -719,34 +707,22 @@ def define_F(use_bn=False):
 
 
 
-class ESRGANplus(LightningModule):
+class ESRGANplus(L.LightningModule):
     def __init__(
         self,
-        batchsize: int = 8,
-        lr_patch_size_x: int = 128,
-        lr_patch_size_y: int = 128,
-        scale_factor: int = 2,
         datagen_sampling_pdf: int = 1,
+        n_critic_steps: int = 5,
+        data_len: int = 8,
+        epochs: int = 151,
+        scale_factor: int = 2,
         learning_rate_d: float = 0.0001,
         learning_rate_g: float = 0.0001,
-        n_critic_steps: int = 5,
-        epochs: int = 151,
-        rotation: bool = True,
-        horizontal_flip: bool = True,
-        vertical_flip: bool = True,
-        train_hr_path: str = "",
-        train_lr_path: str = "",
-        train_filenames: list = [],
-        val_hr_path: str = "",
-        val_lr_path: str = "",
-        val_filenames: list = [],
-        save_basedir: str = None,
-        crappifier_method: str = None,
-        gen_checkpoint: str = None,
         g_optimizer: str = None,
         d_optimizer: str = None,
         g_scheduler: str = None,
         d_scheduler: str = None,
+        save_basedir: str = None,
+        gen_checkpoint: str = None,
         additonal_configuration: dict = {},
         verbose: int = 0,
     ):
@@ -795,9 +771,7 @@ class ESRGANplus(LightningModule):
 
         self.mae = nn.L1Loss()
 
-        if train_hr_path or train_lr_path:
-            self.len_data = self.train_dataloader().__len__()
-            self.total_iters = epochs * self.len_data
+        self.data_len = self.hparams.data_len
 
         if self.verbose > 0:
             print(
@@ -1125,7 +1099,7 @@ class ESRGANplus(LightningModule):
         sched_g = select_lr_schedule(
             library_name="pytorch",
             lr_scheduler_name=self.hparams.g_scheduler,
-            data_len=self.len_data,
+            data_len=self.data_len,
             num_epochs=self.hparams.epochs,
             learning_rate=self.hparams.learning_rate_g,
             monitor_loss="val_g_loss",
@@ -1139,7 +1113,7 @@ class ESRGANplus(LightningModule):
         sched_d = select_lr_schedule(
             library_name="pytorch",
             lr_scheduler_name=self.hparams.d_scheduler,
-            data_len=self.len_data,
+            data_len=self.data_len,
             num_epochs=self.hparams.epochs,
             learning_rate=self.hparams.learning_rate_d,
             monitor_loss="val_g_loss",
@@ -1156,136 +1130,3 @@ class ESRGANplus(LightningModule):
             scheduler_list = [sched_g, sched_d]
 
         return [self.opt_g, self.opt_d], scheduler_list
-
-    def train_dataloader(self):
-        
-        if self.verbose > 0:
-            print('\nVerbose: train_dataloader (begining)\n')
-
-        transformations = []
-
-        if self.hparams.horizontal_flip:
-            transformations.append(RandomHorizontalFlip())
-        if self.hparams.vertical_flip:
-            transformations.append(RandomVerticalFlip())
-        if self.hparams.rotation:
-            transformations.append(RandomRotate())
-
-        transformations.append(ToTensor())
-
-        if self.verbose > 0:
-            print(f'Transformations: {transformations}')
-
-        transf = torchvision.transforms.Compose(transformations)
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=False,
-                verbose=self.verbose
-            )
-
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                verbose=self.verbose
-            )
-
-        if self.verbose > 0:
-
-            print(f'hr_data_path: {dataset.hr_data_path}')
-            print(f'lr_data_path: {dataset.lr_data_path}')
-            print(f'filenames[:3]: {dataset.filenames[:3]}')
-            print(f'transformations: {dataset.transformations}')
-            print(f'scale_factor: {dataset.scale_factor}')
-            print(f'crappifier_name: {dataset.crappifier_name}')
-            print(f'lr_patch_shape: {dataset.lr_patch_shape}')
-            print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
-            print(f'actual_scale_factor: {dataset.actual_scale_factor}')
-
-        if self.verbose > 0:
-            print('\nVerbose: train_dataloader (end)\n')
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=0
-        )
-
-    def val_dataloader(self):
- 
-        if self.verbose > 0:
-            print('\nVerbose: val_dataloader (begining)\n')
-
-        transf = ToTensor()
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=True,
-                verbose=self.verbose
-            )
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.val_hr_path,
-                lr_data_path=self.hparams.val_lr_path,
-                filenames=self.hparams.val_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                verbose=self.verbose
-            )
-
-        if self.verbose > 0:
-
-            print(f'hr_data_path: {dataset.hr_data_path}')
-            print(f'lr_data_path: {dataset.lr_data_path}')
-            print(f'filenames[:3]: {dataset.filenames[:3]}')
-            print(f'transformations: {dataset.transformations}')
-            print(f'scale_factor: {dataset.scale_factor}')
-            print(f'crappifier_name: {dataset.crappifier_name}')
-            print(f'lr_patch_shape: {dataset.lr_patch_shape}')
-            print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
-            print(f'actual_scale_factor: {dataset.actual_scale_factor}')
-
-        if self.verbose > 0:
-            print('\nVerbose: val_dataloader (end)\n')
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0
-        )
