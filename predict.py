@@ -4,9 +4,11 @@ import omegaconf
 import hydra
 import gc
 import os
+import shutil
+import numpy as np
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -26,12 +28,12 @@ def my_app(cfg: DictConfig) -> None:
     # optimizer_combination = ['adam', 'adamW' 'adamax', 'rms_prop', 'sgd']  #'adam', 'adamW' 'adamax', 'rms_prop', 'sgd'
     # base_folder = ''
     
-    dataset_name = 'ER'
-    saving_path = './prueba_old_loss/cs_5-lgp_1-rec_100.0/ER/wgan/scaleNone/epc50_btch1_lr5e-05_optim-adam_lrsched-MultiStepScheduler_seed666_1'
-                        
+    dataset_name = 'EM'
+    saving_path = './multiple_predictions/EM/cddpm/scale4/epc2001_btch8_lr0.0005_optim-adam_lrsched-CosineDecay_seed666_1'
+
     actual_cfg = omegaconf.OmegaConf.load(os.path.join(saving_path, 'train_configuration.yaml'))
 
-    cfg.dataset_name = dataset_name
+    actual_cfg.dataset_name = dataset_name
     train_lr, train_hr, val_lr, val_hr, test_lr, test_hr = actual_cfg.used_dataset.data_paths
 
     dataset_root = "datasets" if os.path.exists("datasets") else "../datasets"
@@ -42,20 +44,32 @@ def my_app(cfg: DictConfig) -> None:
     test_lr_path = load_path(dataset_root, dataset_name, test_lr)
     test_hr_path = load_path(dataset_root, dataset_name, test_hr)
 
+    # cfg.hyperparam.seed = 666
     
-    model = predict_configuration(
-        config=actual_cfg,
-        train_lr_path=train_lr_path,
-        train_hr_path=train_hr_path,
-        val_lr_path=val_lr_path,
-        val_hr_path=val_hr_path,
-        test_lr_path=test_lr_path,
-        test_hr_path=test_hr_path,
-        saving_path=saving_path,
-        verbose=0,
-    )
-    del model
-    gc.collect()
+    for i in range(1, 10):
+        random_seed = np.random.randint(0, 1000)
+        actual_cfg.hyperparam.seed = random_seed
+        folder_name = f'{i:02d}_seed_{random_seed}' # same_seed' #
+
+        print(folder_name)
+
+        model = predict_configuration(
+            config=actual_cfg,
+            train_lr_path=train_lr_path,
+            train_hr_path=train_hr_path,
+            val_lr_path=val_lr_path,
+            val_hr_path=val_hr_path,
+            test_lr_path=test_lr_path,
+            test_hr_path=test_hr_path,
+            saving_path=saving_path,
+            verbose=0,
+        )
+        del model
+        gc.collect()
+
+        os.makedirs(os.path.join(saving_path, folder_name))
+        shutil.move(os.path.join(saving_path, 'test_metrics'), os.path.join(saving_path, folder_name))
+        shutil.move(os.path.join(saving_path, 'predicted_images'), os.path.join(saving_path, folder_name))
 
     # for dataset_name in dataset_combination: 
     #     cfg.dataset_name = dataset_name

@@ -291,14 +291,24 @@ class DiffusionModel(tf.keras.Model):
 
         return pred_images
 
-    def predict(self, lr_images, diffusion_steps):
+    def predict(self, lr_images, diffusion_steps, seed):
 
         if self.verbose > 0:
             print('\n Called predict \n')
         
         # noise -> images -> denormalized images
-        initial_noise = tf.random.normal(shape=(tf.shape(lr_images)[0],) + self.image_shape)
+        initial_noise = tf.random.normal(shape=(tf.shape(lr_images)[0],) + self.image_shape, seed=seed)
         lr_images = tf.image.resize(lr_images, size=[self.image_shape[0], self.image_shape[1]], method='bicubic')
+
+        input_folder = os.path.join("self.saving_path", f"prediction_cddpm_seed{seed}", "input")
+        output_folder = os.path.join("self.saving_path", f"prediction_cddpm_seed{seed}", "output")
+
+        os.makedirs(os.path.join("self.saving_path", f"prediction_cddpm_seed{seed}"), exist_ok=True)
+        os.makedirs(input_folder, exist_ok=True)
+        os.makedirs(output_folder, exist_ok=True)
+        
+        np.save(os.path.join(input_folder, f"{len(os.listdir(input_folder))}.npy"), np.concatenate((initial_noise, lr_images), axis=0))
+
         generated_images = self.reverse_diffusion_conditioned(
             lr_images, initial_noise, diffusion_steps
         )
@@ -306,6 +316,8 @@ class DiffusionModel(tf.keras.Model):
         
         if self.verbose > 0:
             print('\n End predict \n')
+
+        np.save(os.path.join(output_folder, f"{len(os.listdir(input_folder))}.npy"), generated_images)
 
         return generated_images
 

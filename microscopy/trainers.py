@@ -191,6 +191,7 @@ class ModelsTrainer:
         print("\tTest wf path: {}".format(test_lr_path))
         print("\tTest gt path: {}".format(test_hr_path))
         print("Preprocessing info:")
+        print("\tScale factor: {}".format(self.seed))
         print("\tScale factor: {}".format(self.scale_factor))
         print("\tCrappifier method: {}".format(self.crappifier_method))
         print("\tPatch size: {} x {}".format(self.lr_patch_size_x, self.lr_patch_size_y))
@@ -325,6 +326,8 @@ class TensorflowTrainer(ModelsTrainer):
         else:
             print('Data will be loaded on the fly, each batch new data will be loaded..')
 
+            utils.set_seed(self.seed)
+
             train_generator, train_input_shape,train_output_shape, actual_scale_factor = datasets.TFDataset(
                 filenames=self.train_filenames,
                 hr_data_path=self.train_hr_path,
@@ -344,10 +347,10 @@ class TensorflowTrainer(ModelsTrainer):
             self.input_data_shape = train_input_shape
             self.output_data_shape = train_output_shape
 
-            # training_images_path = os.path.join(self.saving_path, "special_folder")
+            # training_images_path = os.path.join(self.saving_path, f'special_folder_{actual_scale_factor}')
             # os.makedirs(training_images_path, exist_ok=True)
             # cont = 0
-            # for hr_img, lr_img in train_generator:
+            # for lr_img, hr_img in train_generator:
             #     for i in range(hr_img.shape[0]):
             #         io.imsave(os.path.join(training_images_path, "hr" + str(cont) + ".tif"), np.array(hr_img[i,...]))
             #         io.imsave(os.path.join(training_images_path, "lr" + str(cont) + ".tif"), np.array(lr_img[i,...]))
@@ -573,12 +576,15 @@ class TensorflowTrainer(ModelsTrainer):
     def predict_images(self, result_folder_name=""):
 
         utils.set_seed(self.seed)
+        print(f'Using seed: {self.seed}')
+
         ground_truths = []
         widefields = []
         predictions = []
         print(f"Prediction of {self.model_name} is going to start:")
         for test_filename in self.test_filenames:
             
+            utils.set_seed(self.seed)
             lr_images, hr_images, _ = datasets.extract_random_patches_from_folder(
                 hr_data_path=self.test_hr_path,
                 lr_data_path=self.test_lr_path,
@@ -591,6 +597,15 @@ class TensorflowTrainer(ModelsTrainer):
 
             hr_images = np.expand_dims(hr_images, axis=-1)
             lr_images = np.expand_dims(lr_images, axis=-1)
+
+            tf.keras.preprocessing.image.save_img(
+                os.path.join(self.saving_path, result_folder_name, "lr_img_from_dataset.tif"),
+                lr_images[0]
+            )
+            tf.keras.preprocessing.image.save_img(
+                os.path.join(self.saving_path, result_folder_name, "hr_img_from_dataset.tif"),
+                hr_images[0]
+            )
 
             ground_truths.append(hr_images[0, ...])
             widefields.append(lr_images[0, ...])
@@ -630,6 +645,23 @@ class TensorflowTrainer(ModelsTrainer):
                     lr_imgs=lr_images,
                     height_padding=height_padding,
                     width_padding=width_padding,
+                )
+
+                print(f'Before paddins: {hr_images.shape}')
+                hr_images = utils.add_padding_for_Unet(
+                    lr_imgs=hr_images,
+                    height_padding=(height_padding[0]*self.scale_factor, height_padding[1]*self.scale_factor),
+                    width_padding=(width_padding[0]*self.scale_factor, width_padding[1]*self.scale_factor),
+                )
+                print(f'After paddins: {hr_images.shape}')
+
+                tf.keras.preprocessing.image.save_img(
+                os.path.join(self.saving_path, result_folder_name, "lr_img_after_padding.tif"),
+                lr_images[0]
+                )
+                tf.keras.preprocessing.image.save_img(
+                    os.path.join(self.saving_path, result_folder_name, "hr_img_after_padding.tif"),
+                    hr_images[0]
                 )
 
             if self.verbose > 0:
@@ -683,20 +715,37 @@ class TensorflowTrainer(ModelsTrainer):
             model.load_weights(os.path.join(self.saving_path, "weights_best.h5"))
 
             if self.model_name == "cddpm":
-                aux_prediction = model.predict(lr_images, diffusion_steps=50)
+                aux_prediction = model.predict(lr_images, diffusion_steps=50, seed=self.seed)
             else:
                 aux_prediction = model.predict(lr_images, batch_size=1)
 
-            if self.model_name == "unet":
+            tf.keras.preprocessing.image.save_img(
+                os.path.join(self.saving_path, result_folder_name, "aux_prediction.tif"),
+                aux_prediction[0]
+            )
+
+            if self.model_name == "unet" or self.model_name == "cddpm":
+                print(f'Before removing padding: {aux_prediction.shape}')
                 aux_prediction = utils.remove_padding_for_Unet(
                     pad_hr_imgs=aux_prediction,
                     height_padding=height_padding,
                     width_padding=width_padding,
                     scale=self.scale_factor,
                 )
+                print(f'After removing padding: {aux_prediction.shape}')
+
+            tf.keras.preprocessing.image.save_img(
+                os.path.join(self.saving_path, result_folder_name, "aux_prediction_after_removing_padding.tif"),
+                aux_prediction[0]
+            )
 
             # aux_prediction = datasets.normalization(aux_prediction)
             aux_prediction = np.clip(aux_prediction, a_min=0.0, a_max=1.0)
+
+            tf.keras.preprocessing.image.save_img(
+                os.path.join(self.saving_path, result_folder_name, "aux_prediction_after_clip.tif"),
+                aux_prediction[0]
+            )
 
             if len(aux_prediction.shape) == 4:
                 predictions.append(aux_prediction[0, ...])

@@ -5,7 +5,9 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+# os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb=128'
 
 import torch
 print(f'\ntorch.cuda.is_available(): {torch.cuda.is_available()}')
@@ -18,16 +20,18 @@ def load_path(dataset_root, dataset_name, folder):
     else:
         return None
 
+
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def my_app(cfg: DictConfig) -> None:
     
-    dataset_combination = ["LiveFActinDataset"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
+    dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
     model_combination = ["esrganplus"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [1]
-    num_epochs_combination = [1]
-    lr_combination = [(0.00005,0.00005)]
-    scheduler_combination = ['MultiStepScheduler'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
-    optimizer_combination = ['sgd']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
+    num_epochs_combination = [10]
+    lr_combination = [(0.0001,0.0001)]
+    scheduler_combination = ['OneCycle'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    optimizer_combination = ['rms_prop']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
     
     
     for dataset_name in dataset_combination:  
@@ -49,7 +53,7 @@ def my_app(cfg: DictConfig) -> None:
                         for scheduler in scheduler_combination:
                             for optimizer in optimizer_combination:
 
-                                base_folder = 'prueba_old_loss'
+                                base_folder = 'ESRGAN'
 
                                 cfg.model_name = model_name
                                 cfg.hyperparam.batch_size = batch_size
@@ -69,7 +73,7 @@ def my_app(cfg: DictConfig) -> None:
                                         number_of_critic_steps = cfg.used_model.n_critic_steps
                                         lambda_gp = cfg.used_model.lambda_gp
                                         recloss = cfg.used_model.recloss
-                                        # number_of_critic_steps = 1
+                                        number_of_critic_steps = 20
                                         # cfg.used_model.n_critic_steps = number_of_critic_steps
                                         # cfg.used_model.g_layers = 15
                                         # cfg.used_model.lambda_gp = 0.5

@@ -9,7 +9,6 @@ from skimage.metrics import structural_similarity, peak_signal_noise_ratio
 
 from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
 
-from matplotlib import pyplot as plt
 import os
 
 class ResidualBlock(nn.Module):
@@ -150,6 +149,9 @@ class WGANGP(L.LightningModule):
         # Important: This property activates manual optimization.
         self.automatic_optimization = False
 
+        # Free cuda memory
+        torch.cuda.empty_cache()
+
         # Initialize generator and load the checkpoint in case is given
         if gen_checkpoint is None:
             self.generator = GeneratorUpsample(
@@ -233,7 +235,7 @@ class WGANGP(L.LightningModule):
 
         # The generator is updated every self.hparams.n_critic_steps
         if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
-            if self.verbose > 1:
+            if self.verbose > 0:
                 print(f'Generator updated on step {batch_idx + 1}')
 
             # Optimize generator
@@ -277,7 +279,7 @@ class WGANGP(L.LightningModule):
 
         # The discriminator is updated every step
         if (batch_idx + 1) % 1 == 0:
-            if self.verbose > 1:
+            if self.verbose > 0:
                 print(f'Discriminator  updated on step {batch_idx + 1}')
                 
             # Optimize discriminator
@@ -297,11 +299,8 @@ class WGANGP(L.LightningModule):
 
             gradient_penalty = self.compute_gradient_penalty(hr.data, generated.data)
 
-            # wasserstein = real_logits - fake_logits
-            # d_loss = - wasserstein + self.hparams.lambda_gp * gradient_penalty
-
-            wasserstein = fake_logits - real_logits
-            d_loss = wasserstein + self.hparams.lambda_gp * gradient_penalty
+            wasserstein = real_logits - fake_logits
+            d_loss = - wasserstein + self.hparams.lambda_gp * gradient_penalty
 
             # Log the losses
             self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)
@@ -339,7 +338,7 @@ class WGANGP(L.LightningModule):
 
         true = hr.cpu().numpy()
         fake = generated.cpu().numpy()
-        xlr = lr.cpu().numpy()
+        # xlr = lr.cpu().numpy()
 
         for i in range(lr.size(0)):
             ssim = structural_similarity(
@@ -357,32 +356,13 @@ class WGANGP(L.LightningModule):
         self.validation_step_hr.append(hr)
         self.validation_step_pred.append(generated)
 
-        if batch_idx < 3 and self.verbose > 1:
-            plt.figure(figsize=(15, 5))
-            plt.subplot(1, 4, 1)
-            plt.title("Input LR image")
-            plt.imshow(xlr[0,0], "gray")
-            plt.subplot(1, 4, 2)
-            plt.title("Ground truth")
-            plt.imshow(true[0,0], "gray")
-            plt.subplot(1, 4, 3)
-            plt.title("Prediction")
-            plt.imshow(fake[0,0], "gray")
-            plt.subplot(1, 4, 4)
-            plt.title(f"SSIM: {ssim:.3f}")
-            plt.imshow(true[0,0] - fake[0,0], "inferno")
-
-            plt.tight_layout()
-            plt.savefig(f"{self.hparams.save_basedir}/training_images/{self.current_epoch}_{batch_idx}.png")
-            plt.close()
-
         if self.verbose > 1:
             print('\nVerbose: validation_step (end)\n')
 
-        return lr, hr, generated
+        del lr, hr, generated
 
     def on_validation_epoch_end(self):
-
+       
         if self.verbose > 1:
             print('\nVerbose: on_validation_epoch_end (begining)\n')
 
@@ -528,16 +508,23 @@ class WGANGP(L.LightningModule):
 
         Source: https://github.com/nocotan/pytorch-lightning-gans"""
         # Random weight term for interpolation between real and fake samples
-        alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1, 1))).to(
-            self.device
-        )
+        # alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1, 1))).to(
+        #     self.device
+        # )
+        alpha = torch.rand(real_samples.size(0), 1, 1, 1, device=self.device)
+
         # Get random interpolation between real and fake samples
-        interpolates = (
-            alpha * real_samples + ((1 - alpha) * fake_samples)
-        ).requires_grad_(True)
-        interpolates = interpolates.to(self.device)
+        # interpolates = (
+        #     alpha * real_samples + ((1 - alpha) * fake_samples)
+        # ).requires_grad_(True)
+        # interpolates = interpolates.to(self.device)
+
+        interpolates = alpha * real_samples + ((1 - alpha) * fake_samples)
+        interpolates.requires_grad = True
+
         d_interpolates = self.discriminator(interpolates)
-        fake = torch.Tensor(d_interpolates.shape).fill_(1.0).to(self.device)
+        fake = torch.ones_like(d_interpolates, device=self.device) 
+
         # Get gradient w.r.t. interpolates
         gradients = torch.autograd.grad(
             outputs=d_interpolates,
@@ -547,14 +534,18 @@ class WGANGP(L.LightningModule):
             retain_graph=True,
             only_inputs=True,
         )
+
         # print("Interpolates", interpolates.shape)
         # print("d_interpolates", d_interpolates.shape)
         # print("gradients", len(gradients))
         gradients = gradients[0]
         # print("gradients", gradients.shape)
 
-        gradients = gradients.view(gradients.size(0), -1).to(self.device)
+        # gradients = gradients.view(gradients.size(0), -1).to(self.device)
+        
+        gradients = gradients.view(gradients.size(0), -1)
         gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        
         return gradient_penalty
 
     def save_model(self, filename):

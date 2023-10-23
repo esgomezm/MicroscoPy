@@ -114,23 +114,33 @@ def sequential(*args):
         elif isinstance(module, nn.Module):
             modules.append(module)
     return nn.Sequential(*modules)
-
-
+    
 class GaussianNoise(nn.Module):
-    def __init__(self, sigma=0.1, is_relative_detach=False):
+    """Gaussian noise regularizer.
+
+    Args:
+        sigma (float, optional): relative standard deviation used to generate the
+            noise. Relative means that it will be multiplied by the magnitude of
+            the value your are adding the noise to. This means that sigma can be
+            the same regardless of the scale of the vector.
+        is_relative_detach (bool, optional): whether to detach the variable before
+            computing the scale of the noise. If `False` then the scale of the noise
+            won't be seen as a constant but something to optimize: this will bias the
+            network to generate vectors with smaller values.
+    """
+    def __init__(self, sigma=0.1, is_relative_detach=True):
         super().__init__()
         self.sigma = sigma
         self.is_relative_detach = is_relative_detach
-        self.noise = torch.tensor(0, dtype=torch.float).to(torch.device("cuda"))
+        self.register_buffer('noise', torch.tensor(0))
 
     def forward(self, x):
         if self.training and self.sigma != 0:
-            scale = (
-                self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
-            )
-            sampled_noise = self.noise.repeat(*x.size()).normal_() * scale
+            scale = self.sigma * x.detach() if self.is_relative_detach else self.sigma * x
+            sampled_noise = self.noise.expand(*x.size()).float().normal_() * scale
             x = x + sampled_noise
-        return x
+        return x 
+
 
 
 def conv_block(
@@ -458,7 +468,7 @@ class RRDBNet(nn.Module):
 # VGG style Discriminator with input size 128*128
 class Discriminator_VGG_128(nn.Module):
     def __init__(
-        self, in_nc, base_nf, norm_type="batch", act_type="leakyrelu", mode="CNA"
+        self, in_nc, base_nf, input_size, norm_type="batch", act_type="leakyrelu", mode="CNA"
     ):
         super(Discriminator_VGG_128, self).__init__()
         # features
@@ -560,7 +570,7 @@ class Discriminator_VGG_128(nn.Module):
         # classifier
         self.classifier = nn.Sequential(
             # nn.Linear(512 * 4 * 4, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
-            nn.Linear(512 * 8 * 8, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
+            nn.Linear(base_nf * 8 * (input_size//16)**2, 100), nn.LeakyReLU(0.2, True), nn.Linear(100, 1)
         )
 
     def forward(self, x):
@@ -574,36 +584,75 @@ class Discriminator_VGG_128(nn.Module):
 class VGGFeatureExtractor(nn.Module):
     def __init__(
         self,
-        feature_layer=34,
-        use_bn=False,
         use_input_norm=True,
-        device=torch.device("cpu"),
+        feature_layer=28,
+        use_bn=False,
+        # use_input_norm=True,
     ):
         super(VGGFeatureExtractor, self).__init__()
         if use_bn:
-            model = torchvision.models.vgg19_bn(pretrained=True)
+            model = torchvision.models.vgg16_bn(pretrained=True)
         else:
-            model = torchvision.models.vgg19(pretrained=True)
-        self.use_input_norm = use_input_norm
-        if self.use_input_norm:
-            mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1).to(device)
-            # [0.485-1, 0.456-1, 0.406-1] if input in range [-1,1]
-            std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1).to(device)
-            # [0.229*2, 0.224*2, 0.225*2] if input in range [-1,1]
-            self.register_buffer("mean", mean)
-            self.register_buffer("std", std)
+            model = torchvision.models.vgg16(pretrained=True)
+
         self.features = nn.Sequential(
-            *list(model.features.children())[: (feature_layer + 1)]
+            *(list(model.features.children())[:(28 + 1)])
         )
+
+        del model
+
         # No need to BP to variable
         for k, v in self.features.named_parameters():
             v.requires_grad = False
 
     def forward(self, x):
-        if self.use_input_norm:
-            x = (x - self.mean) / self.std
+        x = torch.cat([x, x, x], dim=1) # Convert into 3 channels
         output = self.features(x)
         return output
+
+
+# # Assume input range is [0, 1]
+# class VGGFeatureExtractor(nn.Module):
+#     def __init__(
+#         self,
+#         feature_layer=34,
+#         use_bn=False,
+#         use_input_norm=True,
+#     ):
+#         super(VGGFeatureExtractor, self).__init__()
+#         if use_bn:
+#             model = torchvision.models.vgg19_bn(pretrained=True)
+#         else:
+#             model = torchvision.models.vgg19(pretrained=True)
+        
+#         # self.use_input_norm = use_input_norm
+#         # if self.use_input_norm:
+#         #     mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
+#         #     # [0.485-1, 0.456-1, 0.406-1] if input in range [-1,1]
+#         #     std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
+#         #     # [0.229*2, 0.224*2, 0.225*2] if input in range [-1,1]
+#         #     self.register_buffer("mean", mean)
+#         #     self.register_buffer("std", std)
+
+#         self.features = nn.Sequential(
+#             *(list(model.features.children())[:(feature_layer + 1)])
+#         )
+
+#         del model
+
+#         # No need to BP to variable
+#         for k, v in self.features.named_parameters():
+#             v.requires_grad = False
+
+#     def forward(self, x):
+        
+#         x = torch.cat([x, x, x], dim=1) # Convert into 3 channels
+
+#         # if self.use_input_norm:
+#         #     x = (x - self.mean) / self.std
+
+#         output = self.features(x)
+#         return output
 
 
 # Define GAN loss
@@ -645,13 +694,13 @@ def weights_init_kaiming(m, scale=1):
 
 
 # Generator
-def define_G(scale):
+def define_G(scale, nf=64, nb=23, gc=32):
     netG = RRDBNet(
         in_nc=1,
         out_nc=1,
-        nf=64,
-        nb=23,
-        gc=32,
+        nf=nf,
+        nb=nb,
+        gc=gc,
         upscale=scale,
         norm_type=None,
         act_type="leakyrelu",
@@ -665,15 +714,15 @@ def define_G(scale):
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=0.1)
     netG.apply(weights_init_kaiming_)
 
-    if torch.cuda.is_available():
-        netG = nn.DataParallel(netG)
+    # if torch.cuda.is_available():
+    #     netG = nn.DataParallel(netG)
     return netG
 
 
 # Discriminator
-def define_D():
+def define_D(base_nf=64, input_size=128):
     netD = Discriminator_VGG_128(
-        in_nc=1, base_nf=64, norm_type="batch", mode="CNA", act_type="leakyrelu"
+        in_nc=1, base_nf=base_nf, input_size=input_size, norm_type="batch", mode="CNA", act_type="leakyrelu"
     )
     # netD = Discriminator_VGG_128(in_nc=3, base_nf=64, norm_type="batch",
     #                             mode="CNA", act_type="leakyrelu")
@@ -681,31 +730,27 @@ def define_D():
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=1)
     netD.apply(weights_init_kaiming_)
 
-    if torch.cuda.is_available():
-        netD = nn.DataParallel(netD)
+    # if torch.cuda.is_available():
+    #     netD = nn.DataParallel(netD)
     return netD
 
 
 def define_F(use_bn=False):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     if use_bn:
         feature_layer = 49
     else:
         feature_layer = 34
     netF = VGGFeatureExtractor(
-        feature_layer=feature_layer, use_bn=use_bn, use_input_norm=True, device=device
+        feature_layer=feature_layer, use_bn=use_bn, use_input_norm=True
     )
 
-    if torch.cuda.is_available():
-        netF = nn.DataParallel(netF)
+    # if torch.cuda.is_available():
+    #     netF = nn.DataParallel(netF)
     netF.eval()  # No need to train
     return netF
 
-
 ###
-
-
 
 class ESRGANplus(L.LightningModule):
     def __init__(
@@ -727,6 +772,7 @@ class ESRGANplus(L.LightningModule):
         verbose: int = 0,
     ):
         super(ESRGANplus, self).__init__()
+        self.save_hyperparameters()
 
         self.verbose = verbose
         print('self.verbose: {}'.format(self.verbose))
@@ -734,21 +780,29 @@ class ESRGANplus(L.LightningModule):
         if self.verbose > 0:
             print('\nVerbose: Model initialized (begining)\n')
 
-        self.save_hyperparameters()
-
         # Important: This property activates manual optimization.
         self.automatic_optimization = False
 
-        if gen_checkpoint is not None:
+        # Free cuda memory
+        torch.cuda.empty_cache()
+    
+        number_of_features = 32
+        number_of_blocks = 8
+        growth_channel = 8
+
+        # Initialize generator and load the checkpoint in case is given
+        if gen_checkpoint is None:
+            self.generator = define_G(scale_factor, nf=number_of_features, nb=number_of_blocks, gc=growth_channel)
+            self.best_valid_loss = float("inf")
+        else:
             checkpoint = torch.load(gen_checkpoint)
-            self.generator = define_G(checkpoint["scale_factor"])
+            self.generator = define_G(checkpoint["scale_factor"], nf=number_of_features, nb=number_of_blocks, gc=growth_channel)
             self.generator.load_state_dict(checkpoint["model_state_dict"])
             self.best_valid_loss = checkpoint["best_valid_loss"]
-        else:
-            self.generator = define_G(scale_factor)
-            self.best_valid_loss = float("inf")
 
-        self.discriminator = define_D()
+        # self.discriminator = define_D(base_nf=64)
+        self.discriminator = define_D(base_nf=number_of_features,
+                                      input_size=self.hparams.additonal_configuration.used_dataset.patch_size_x)
 
         # Generator pixel loss
         self.cri_pix = nn.L1Loss()
@@ -805,22 +859,6 @@ class ESRGANplus(L.LightningModule):
 
         if self.verbose > 0:
             print('\nVerbose: Model initialized (end)\n')
-
-    def save_model(self, filename):
-        if self.hparams.save_basedir is not None:
-            torch.save(
-                {
-                    "model_state_dict": self.generator.state_dict(),
-                    "optimizer_state_dict": self.opt_g.state_dict(),
-                    "scale_factor": self.hparams.scale_factor,
-                    "best_valid_loss": self.best_valid_loss,
-                },
-                self.hparams.save_basedir + "/" + filename,
-            )
-        else:
-            raise Exception(
-                "No save_basedir was specified in the construction of the WGAN object."
-            )
 
     def forward(self, x):
         if isinstance(x, dict):
@@ -962,25 +1000,6 @@ class ESRGANplus(L.LightningModule):
         self.validation_step_hr.append(hr)
         self.validation_step_pred.append(generated)
 
-        if batch_idx < 3 and self.verbose > 0:
-            plt.figure(figsize=(15, 5))
-            plt.subplot(1, 4, 1)
-            plt.title("Input LR image")
-            plt.imshow(xlr[0,0], "gray")
-            plt.subplot(1, 4, 2)
-            plt.title("Ground truth")
-            plt.imshow(true[0,0], "gray")
-            plt.subplot(1, 4, 3)
-            plt.title("Prediction")
-            plt.imshow(fake[0,0], "gray")
-            plt.subplot(1, 4, 4)
-            plt.title(f"SSIM: {ssim:.3f}")
-            plt.imshow(true[0,0] - fake[0,0], "inferno")
-
-            plt.tight_layout()
-            plt.savefig(f"{self.hparams.save_basedir}/training_images/{self.current_epoch}_{batch_idx}.png")
-            plt.close()
-
         if self.verbose > 0:
             print('\nVerbose: validation_step (end)\n')
 
@@ -1038,7 +1057,6 @@ class ESRGANplus(L.LightningModule):
         self.validation_step_lr.clear()  # free memory
         self.validation_step_hr.clear()  # free memory
         self.validation_step_pred.clear()  # free memory
-
 
         # Extract the schedulers
         if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
@@ -1130,3 +1148,20 @@ class ESRGANplus(L.LightningModule):
             scheduler_list = [sched_g, sched_d]
 
         return [self.opt_g, self.opt_d], scheduler_list
+    
+    
+    def save_model(self, filename):
+        if self.hparams.save_basedir is not None:
+            torch.save(
+                {
+                    "model_state_dict": self.generator.state_dict(),
+                    "optimizer_state_dict": self.opt_g.state_dict(),
+                    "scale_factor": self.hparams.scale_factor,
+                    "best_valid_loss": self.best_valid_loss,
+                },
+                self.hparams.save_basedir + "/" + filename,
+            )
+        else:
+            raise Exception(
+                "No save_basedir was specified in the construction of the WGAN object."
+            )

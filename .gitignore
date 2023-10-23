@@ -24,3 +24,9 @@ prueba/*
 prueba_CDDPM/*
 prueba_old_loss/*
 prueba_new_loss/*
+multiple_predictions/*
+self.saving_path/*
+EM_downsample_only/*
+WGAN_LR/*
+results_64x64/*
+Visualization_notebooks/*

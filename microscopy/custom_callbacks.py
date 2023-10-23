@@ -48,7 +48,7 @@ class PerformancePlotCallback(tf_callback):
         if epoch % self.frequency == 0:
             if self.is_cddpm:
                 y_pred = self.model.predict(lr_images=self.x_test, 
-                                            diffusion_steps=50)
+                                            diffusion_steps=50, seed=42)
             else:
                 y_pred = self.model.predict(self.x_test)
 
