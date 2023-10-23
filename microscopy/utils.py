@@ -50,6 +50,8 @@ def set_seed(seed_value=42):
     seedValue (int, optional): seed value.
     """
 
+    print(f'Setting seed to {seed_value}')
+
     # Set the seed for the random module
     random.seed(seed_value)
 

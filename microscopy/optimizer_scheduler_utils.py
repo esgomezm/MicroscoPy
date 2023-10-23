@@ -450,8 +450,6 @@ def select_pytorch_lr_schedule(
                 gamma=additional_configuration.used_sched.lr_rate_decay,
                 verbose=verbose
             )
-        print(scheduler.milestones)
-        print(scheduler.get_lr())
         return scheduler
     elif lr_scheduler_name is None or lr_scheduler_name == "Fixed":
         if verbose > 0:

@@ -1,11 +1,15 @@
 import numpy as np
 import os
-import torch
-from torch.utils.data import Dataset
 from skimage import io
 import tensorflow as tf
 
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
+
+import torch
+from torch.utils.data import Dataset
+import lightning.pytorch as pl
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
 from . import crappifiers
 from .utils import min_max_normalization as normalization
@@ -1005,5 +1009,199 @@ class PytorchDataset(Dataset):
 
         return sample
 
+class PytorchDataModuler(pl.LightningDataModule):
+    def __init__(
+            self, 
+            lr_patch_size_x: int = 128,
+            lr_patch_size_y: int = 128,
+            batch_size: int = 8,
+            scale_factor: int = 2,
+            datagen_sampling_pdf: int = 1,
+            rotation: bool = True,
+            horizontal_flip: bool = True,
+            vertical_flip: bool = True,
+            train_hr_path: str = "",
+            train_lr_path: str = "",
+            train_filenames: list = [],
+            val_hr_path: str = "",
+            val_lr_path: str = "",
+            val_filenames: list = [],
+            test_hr_path: str = "",
+            test_lr_path: str = "",
+            test_filenames: list = [],
+            crappifier_method: str = "downsampleonly",
+            verbose: int = 0,
+            ):
+        #Define required parameters here
+        super().__init__()
+
+        self.lr_patch_size_x = lr_patch_size_x 
+        self.lr_patch_size_y = lr_patch_size_y
+        self.batch_size = batch_size
+        self.scale_factor = scale_factor
+        self.datagen_sampling_pdf = datagen_sampling_pdf
+
+        self.rotation = rotation
+        self.horizontal_flip = horizontal_flip
+        self.vertical_flip = vertical_flip
+
+        self.train_hr_path = train_hr_path
+        self.train_lr_path = train_lr_path
+        self.train_filenames = train_filenames
+
+        self.val_hr_path = val_hr_path
+        self.val_lr_path = val_lr_path
+        self.val_filenames = val_filenames
+
+        self.test_hr_path = test_hr_path
+        self.test_lr_path = test_lr_path
+        self.test_filenames = test_filenames
+
+        self. crappifier_method = crappifier_method
+
+        self.verbose = verbose
+
+    
+    def prepare_data(self):
+        # Define steps that should be done
+        # on only one GPU, like getting data.
+        pass
+    
+    def setup(self, stage=None):
+        # Define steps that should be done on 
+        # every GPU, like splitting data, applying
+        # transform etc.
+
+        # Assign Train/val split(s) for use in Dataloaders
+        if stage == "fit":
+            train_transformations = []
+
+            if self.horizontal_flip:
+                train_transformations.append(RandomHorizontalFlip())
+            if self.vertical_flip:
+                train_transformations.append(RandomVerticalFlip())
+            if self.rotation:
+                train_transformations.append(RandomRotate())
+
+            train_transformations.append(ToTensor())
+
+            train_transf = transforms.Compose(train_transformations)
+            val_transf = ToTensor()
+            
+            if self.val_hr_path is None:
+                self.train_dataset = PytorchDataset(
+                    hr_data_path=self.train_hr_path,
+                    lr_data_path=self.train_lr_path,
+                    filenames=self.train_filenames,
+                    scale_factor=self.scale_factor,
+                    crappifier_name=self.crappifier_method,
+                    lr_patch_shape=(
+                        self.lr_patch_size_x,
+                        self.lr_patch_size_y,
+                    ),
+                    transformations=train_transf,
+                    datagen_sampling_pdf=self.datagen_sampling_pdf,
+                    val_split=0.1,
+                    validation=False,
+                    verbose=self.verbose
+                )
+
+                self.val_dataset = PytorchDataset(
+                    hr_data_path=self.train_hr_path,
+                    lr_data_path=self.train_lr_path,
+                    filenames=self.train_filenames,
+                    scale_factor=self.scale_factor,
+                    crappifier_name=self.crappifier_method,
+                    lr_patch_shape=(
+                        self.lr_patch_size_x,
+                        self.lr_patch_size_y,
+                    ),
+                    transformations=val_transf,
+                    datagen_sampling_pdf=self.datagen_sampling_pdf,
+                    val_split=0.1,
+                    validation=True,
+                    verbose=self.verbose
+                )
+
+            else:
+                self.train_dataset = PytorchDataset(
+                    hr_data_path=self.train_hr_path,
+                    lr_data_path=self.train_lr_path,
+                    filenames=self.train_filenames,
+                    scale_factor=self.scale_factor,
+                    crappifier_name=self.crappifier_method,
+                    lr_patch_shape=(
+                        self.lr_patch_size_x,
+                        self.lr_patch_size_y,
+                    ),
+                    transformations=train_transf,
+                    datagen_sampling_pdf=self.datagen_sampling_pdf,
+                    verbose=self.verbose
+                )
+                
+                self.val_dataset = PytorchDataset(
+                    hr_data_path=self.val_hr_path,
+                    lr_data_path=self.val_lr_path,
+                    filenames=self.val_filenames,
+                    scale_factor=self.scale_factor,
+                    crappifier_name=self.crappifier_method,
+                    lr_patch_shape=(
+                        self.lr_patch_size_x,
+                        self.lr_patch_size_y,
+                    ),
+                    transformations=val_transf,
+                    datagen_sampling_pdf=self.datagen_sampling_pdf,
+                    verbose=self.verbose
+                )
+
+        if stage == "test":        
+            self.test_dataset = PytorchDataset(
+                hr_data_path=self.test_hr_path,
+                lr_data_path=self.test_lr_path,
+                filenames=self.test_filenames,
+                scale_factor=self.scale_factor,
+                crappifier_name=self.crappifier_method,
+                lr_patch_shape=None,
+                transformations=ToTensor(),
+                datagen_sampling_pdf=self.datagen_sampling_pdf,
+            )
+
+        if stage == "predict":        
+            # Is the same as the test_dataset but it also needs to be defined
+            self.predict_dataset = PytorchDataset(
+                hr_data_path=self.test_hr_path,
+                lr_data_path=self.test_lr_path,
+                filenames=self.test_filenames,
+                scale_factor=self.scale_factor,
+                crappifier_name=self.crappifier_method,
+                lr_patch_shape=None,
+                transformations=ToTensor(),
+                datagen_sampling_pdf=self.datagen_sampling_pdf,
+            )
+    
+    def train_dataloader(self):
+        # Return DataLoader for Training Data here
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=32)
+    
+    def val_dataloader(self):
+        # Return DataLoader for Validation Data here
+        return DataLoader(self.val_dataset, batch_size=self.batch_size, num_workers=32)
+    
+    def test_dataloader(self):
+        # Return DataLoader for Testing Data here
+        return DataLoader(self.test_dataset, batch_size=1, num_workers=32)
+
+    def predict_dataloader(self):
+        # Return DataLoader for Predicting Data here
+        return DataLoader(self.predict_dataset, batch_size=1, num_workers=32)
+
+    def teardown(self, stage):
+        if stage == "fit":
+            del self.train_dataset
+            del self.val_dataset
+        if stage == "test":        
+            del self.test_dataset
+        if stage == "predict":        
+            del self.predict_dataset
 #
 #####################################

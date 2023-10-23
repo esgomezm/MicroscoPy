@@ -1,17 +1,14 @@
 import numpy as np
-import torchvision
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
 
-from pytorch_lightning.core import LightningModule
+import lightning as L
 
-from ..datasets import PytorchDataset, ToTensor
-from ..datasets import RandomHorizontalFlip, RandomVerticalFlip, RandomRotate
+from skimage.metrics import structural_similarity, peak_signal_noise_ratio
+
 from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
 
-from matplotlib import pyplot as plt
 import os
 
 class ResidualBlock(nn.Module):
@@ -81,47 +78,6 @@ class GeneratorUpsample(nn.Module):
         return torch.tanh(y)
 
 
-class GeneratorModule(LightningModule):
-    def __init__(self, n_residual=8, scale_factor=4, lr=0.001):
-        super(GeneratorModule, self).__init__()
-
-        self.save_hyperparameters()
-
-        self.generator = GeneratorUpsample(
-            n_residual=n_residual, scale_factor=scale_factor
-        )
-
-        self.l1loss = nn.L1Loss()
-
-    def forward(self, x):
-        y = self.generator(x)
-        return y
-
-    # def training_step(self, batch, batch_idx):
-    #     lr, hr = batch["lr"], batch["hr"]
-
-    #     fake = self(lr)
-
-    #     loss = self.l1loss(fake, hr)
-
-    #     return loss
-
-    # def configure_optimizers(self):
-    #     opt = torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
-
-    #     sched = {
-    #         "scheduler": torch.optim.lr_scheduler.OneCycleLR(
-    #             opt, 0.0001, epochs=5, steps_per_epoch=712
-    #         ),
-    #         "interval": "step",
-    #     }
-
-    #     return [opt], [sched]
-
-
-###
-
-
 class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
@@ -160,21 +116,15 @@ class Discriminator(nn.Module):
 
 ###
 
-from skimage.metrics import structural_similarity, peak_signal_noise_ratio
-
-
-class WGANGP(LightningModule):
+class WGANGP(L.LightningModule):
     def __init__(
         self,
         g_layers: int = 5,
         recloss: float = 10.0,
         lambda_gp: float = 10.0,
         n_critic_steps: int = 5,
-        lr_patch_size_x: int = 128,
-        lr_patch_size_y: int = 128,
-        batchsize: int = 8,
+        data_len: int = 8,
         scale_factor: int = 2,
-        datagen_sampling_pdf: int = 1,
         epochs: int = 151,
         learning_rate_d: float = 0.0001,
         learning_rate_g: float = 0.0001,
@@ -182,22 +132,13 @@ class WGANGP(LightningModule):
         d_optimizer: str = "Adam",
         g_scheduler: str = "OneCycle",
         d_scheduler: str = "OneCycle",
-        rotation: bool = True,
-        horizontal_flip: bool = True,
-        vertical_flip: bool = True,
-        train_hr_path: str = "",
-        train_lr_path: str = "",
-        train_filenames: list = [],
-        val_hr_path: str = "",
-        val_lr_path: str = "",
-        val_filenames: list = [],
-        crappifier_method: str = "downsampleonly",
         gen_checkpoint: str = None,
         save_basedir: str = None,
         additonal_configuration: dict = {},
         verbose: int = 0,
     ):
         super(WGANGP, self).__init__()
+        self.save_hyperparameters()
 
         self.verbose = verbose
         print('self.verbose: {}'.format(self.verbose))
@@ -205,20 +146,21 @@ class WGANGP(LightningModule):
         if self.verbose > 1:
             print('\nVerbose: Model initialized (begining)\n')
 
-        self.save_hyperparameters()
-
         # Important: This property activates manual optimization.
         self.automatic_optimization = False
 
+        # Free cuda memory
+        torch.cuda.empty_cache()
+
         # Initialize generator and load the checkpoint in case is given
         if gen_checkpoint is None:
-            self.generator = GeneratorModule(
+            self.generator = GeneratorUpsample(
                 n_residual=g_layers, scale_factor=scale_factor
             )
             self.best_valid_loss = float("inf")
         else:
             checkpoint = torch.load(gen_checkpoint)
-            self.generator = GeneratorModule(
+            self.generator = GeneratorUpsample(
                 n_residual=checkpoint["n_residuals"],
                 scale_factor=checkpoint["scale_factor"],
             )
@@ -244,8 +186,7 @@ class WGANGP(LightningModule):
         self.opt_g = None
         self.opt_d = None
 
-        if train_hr_path or train_lr_path:
-            self.len_data = self.train_dataloader().__len__()
+        self.data_len = self.hparams.data_len
 
         self.validation_step_lr = []
         self.validation_step_hr = []
@@ -294,7 +235,7 @@ class WGANGP(LightningModule):
 
         # The generator is updated every self.hparams.n_critic_steps
         if (batch_idx + 1) % self.hparams.n_critic_steps == 0:
-            if self.verbose > 1:
+            if self.verbose > 0:
                 print(f'Generator updated on step {batch_idx + 1}')
 
             # Optimize generator
@@ -338,7 +279,7 @@ class WGANGP(LightningModule):
 
         # The discriminator is updated every step
         if (batch_idx + 1) % 1 == 0:
-            if self.verbose > 1:
+            if self.verbose > 0:
                 print(f'Discriminator  updated on step {batch_idx + 1}')
                 
             # Optimize discriminator
@@ -360,9 +301,6 @@ class WGANGP(LightningModule):
 
             wasserstein = real_logits - fake_logits
             d_loss = - wasserstein + self.hparams.lambda_gp * gradient_penalty
-
-            # wasserstein = fake_logits - real_logits
-            # d_loss = wasserstein + self.hparams.lambda_gp * gradient_penalty
 
             # Log the losses
             self.log("d_loss", d_loss, prog_bar=True, on_epoch=True)
@@ -400,7 +338,7 @@ class WGANGP(LightningModule):
 
         true = hr.cpu().numpy()
         fake = generated.cpu().numpy()
-        xlr = lr.cpu().numpy()
+        # xlr = lr.cpu().numpy()
 
         for i in range(lr.size(0)):
             ssim = structural_similarity(
@@ -418,32 +356,13 @@ class WGANGP(LightningModule):
         self.validation_step_hr.append(hr)
         self.validation_step_pred.append(generated)
 
-        if batch_idx < 3 and self.verbose > 1:
-            plt.figure(figsize=(15, 5))
-            plt.subplot(1, 4, 1)
-            plt.title("Input LR image")
-            plt.imshow(xlr[0,0], "gray")
-            plt.subplot(1, 4, 2)
-            plt.title("Ground truth")
-            plt.imshow(true[0,0], "gray")
-            plt.subplot(1, 4, 3)
-            plt.title("Prediction")
-            plt.imshow(fake[0,0], "gray")
-            plt.subplot(1, 4, 4)
-            plt.title(f"SSIM: {ssim:.3f}")
-            plt.imshow(true[0,0] - fake[0,0], "inferno")
-
-            plt.tight_layout()
-            plt.savefig(f"{self.hparams.save_basedir}/training_images/{self.current_epoch}_{batch_idx}.png")
-            plt.close()
-
         if self.verbose > 1:
             print('\nVerbose: validation_step (end)\n')
 
-        return lr, hr, generated
+        del lr, hr, generated
 
     def on_validation_epoch_end(self):
-
+       
         if self.verbose > 1:
             print('\nVerbose: on_validation_epoch_end (begining)\n')
 
@@ -552,7 +471,7 @@ class WGANGP(LightningModule):
         sched_g = select_lr_schedule(
             library_name="pytorch",
             lr_scheduler_name=self.hparams.g_scheduler,
-            data_len=self.len_data,
+            data_len=self.data_len,
             num_epochs=self.hparams.epochs,
             learning_rate=self.hparams.learning_rate_g,
             monitor_loss="val_g_loss",
@@ -566,7 +485,7 @@ class WGANGP(LightningModule):
         sched_d = select_lr_schedule(
             library_name="pytorch",
             lr_scheduler_name=self.hparams.d_scheduler,
-            data_len=self.len_data,
+            data_len=self.data_len,
             num_epochs=self.hparams.epochs,
             learning_rate=self.hparams.learning_rate_d,
             monitor_loss="val_g_loss",
@@ -583,155 +502,29 @@ class WGANGP(LightningModule):
             scheduler_list = [sched_g, sched_d]
 
         return [self.opt_g, self.opt_d], scheduler_list
-    
-    def train_dataloader(self):
-        
-        if self.verbose > 1:
-            print('\nVerbose: train_dataloader (begining)\n')
 
-        transformations = []
-
-        if self.hparams.horizontal_flip:
-            transformations.append(RandomHorizontalFlip())
-        if self.hparams.vertical_flip:
-            transformations.append(RandomVerticalFlip())
-        if self.hparams.rotation:
-            transformations.append(RandomRotate())
-
-        transformations.append(ToTensor())
-
-        if self.verbose > 1:
-            print(f'Transformations: {transformations}')
-
-        transf = torchvision.transforms.Compose(transformations)
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=False,
-                verbose=self.verbose
-            )
-
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                verbose=self.verbose
-            )
-
-        if self.verbose > 1:
-
-            print(f'hr_data_path: {dataset.hr_data_path}')
-            print(f'lr_data_path: {dataset.lr_data_path}')
-            print(f'filenames[:3]: {dataset.filenames[:3]}')
-            print(f'transformations: {dataset.transformations}')
-            print(f'scale_factor: {dataset.scale_factor}')
-            print(f'crappifier_name: {dataset.crappifier_name}')
-            print(f'lr_patch_shape: {dataset.lr_patch_shape}')
-            print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
-            print(f'actual_scale_factor: {dataset.actual_scale_factor}')
-
-        if self.verbose > 1:
-            print('\nVerbose: train_dataloader (end)\n')
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=True, num_workers=0
-        )
-
-    def val_dataloader(self):
-
-        if self.verbose > 1:
-            print('\nVerbose: val_dataloader (begining)\n')
-
-        transf = ToTensor()
-
-        if self.hparams.val_hr_path is None:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.train_hr_path,
-                lr_data_path=self.hparams.train_lr_path,
-                filenames=self.hparams.train_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                val_split=0.1,
-                validation=True,
-                verbose=self.verbose
-            )
-        else:
-            dataset = PytorchDataset(
-                hr_data_path=self.hparams.val_hr_path,
-                lr_data_path=self.hparams.val_lr_path,
-                filenames=self.hparams.val_filenames,
-                scale_factor=self.hparams.scale_factor,
-                crappifier_name=self.hparams.crappifier_method,
-                lr_patch_shape=(
-                    self.hparams.lr_patch_size_x,
-                    self.hparams.lr_patch_size_y,
-                ),
-                transformations=transf,
-                datagen_sampling_pdf=self.hparams.datagen_sampling_pdf,
-                verbose=self.verbose
-            )
-
-        if self.verbose > 1:
-
-            print(f'hr_data_path: {dataset.hr_data_path}')
-            print(f'lr_data_path: {dataset.lr_data_path}')
-            print(f'filenames[:3]: {dataset.filenames[:3]}')
-            print(f'transformations: {dataset.transformations}')
-            print(f'scale_factor: {dataset.scale_factor}')
-            print(f'crappifier_name: {dataset.crappifier_name}')
-            print(f'lr_patch_shape: {dataset.lr_patch_shape}')
-            print(f'datagen_sampling_pdf: {dataset.datagen_sampling_pdf}')
-            print(f'actual_scale_factor: {dataset.actual_scale_factor}')
-
-        if self.verbose > 1:
-            print('\nVerbose: val_dataloader (end)\n')
-
-        return DataLoader(
-            dataset, batch_size=self.hparams.batchsize, shuffle=False, num_workers=0
-        )
-    
     def compute_gradient_penalty(self, real_samples, fake_samples):
         """Calculates the gradient penalty loss for WGAN GP
 
         Source: https://github.com/nocotan/pytorch-lightning-gans"""
         # Random weight term for interpolation between real and fake samples
-        alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1, 1))).to(
-            self.device
-        )
+        # alpha = torch.Tensor(np.random.random((real_samples.size(0), 1, 1, 1))).to(
+        #     self.device
+        # )
+        alpha = torch.rand(real_samples.size(0), 1, 1, 1, device=self.device)
+
         # Get random interpolation between real and fake samples
-        interpolates = (
-            alpha * real_samples + ((1 - alpha) * fake_samples)
-        ).requires_grad_(True)
-        interpolates = interpolates.to(self.device)
+        # interpolates = (
+        #     alpha * real_samples + ((1 - alpha) * fake_samples)
+        # ).requires_grad_(True)
+        # interpolates = interpolates.to(self.device)
+
+        interpolates = alpha * real_samples + ((1 - alpha) * fake_samples)
+        interpolates.requires_grad = True
+
         d_interpolates = self.discriminator(interpolates)
-        fake = torch.Tensor(d_interpolates.shape).fill_(1.0).to(self.device)
+        fake = torch.ones_like(d_interpolates, device=self.device) 
+
         # Get gradient w.r.t. interpolates
         gradients = torch.autograd.grad(
             outputs=d_interpolates,
@@ -741,14 +534,18 @@ class WGANGP(LightningModule):
             retain_graph=True,
             only_inputs=True,
         )
+
         # print("Interpolates", interpolates.shape)
         # print("d_interpolates", d_interpolates.shape)
         # print("gradients", len(gradients))
         gradients = gradients[0]
         # print("gradients", gradients.shape)
 
-        gradients = gradients.view(gradients.size(0), -1).to(self.device)
+        # gradients = gradients.view(gradients.size(0), -1).to(self.device)
+        
+        gradients = gradients.view(gradients.size(0), -1)
         gradient_penalty = ((gradients.norm(2, dim=1) - 1) ** 2).mean()
+        
         return gradient_penalty
 
     def save_model(self, filename):
