@@ -87,13 +87,17 @@ def wdsr(
     m = conv2d_weightnorm(
         out_channels * scale**2, 3, padding="same", name=f"conv2d_main_scale_{scale}"
     )(m)
-    m = Lambda(subpixel_conv2d(scale))(m)
+    
+    if scale > 1:
+        m = Lambda(subpixel_conv2d(scale))(m)
 
     # skip branch
     s = conv2d_weightnorm(
         out_channels * scale**2, 5, padding="same", name=f"conv2d_skip_scale_{scale}"
     )(x)
-    s = Lambda(subpixel_conv2d(scale))(s)
+    
+    if scale > 1:
+        s = Lambda(subpixel_conv2d(scale))(s)
 
     x = Add()([m, s])
     # final convolution with sigmoid activation ?
