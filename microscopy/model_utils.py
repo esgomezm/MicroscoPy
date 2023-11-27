@@ -157,6 +157,25 @@ def select_model(
             additonal_configuration=model_configuration,
             verbose=verbose
         )
+    
+    elif model_name == "srgan":
+        return model.srgan.SRGAN(
+            datagen_sampling_pdf=datagen_sampling_pdf,
+            n_critic_steps=model_configuration.used_model.n_critic_steps,
+            data_len=data_len,
+            epochs=epochs,
+            scale_factor=scale_factor,
+            learning_rate_d=learning_rate_d,
+            learning_rate_g=learning_rate_g,
+            save_basedir=save_basedir,
+            gen_checkpoint=checkpoint,
+            g_optimizer=g_optimizer,
+            d_optimizer=d_optimizer,
+            g_scheduler=g_scheduler,
+            d_scheduler=d_scheduler,
+            additonal_configuration=model_configuration,
+            verbose=verbose
+        )
 
     else:
         raise Exception("Not available model in TF configuration.")
