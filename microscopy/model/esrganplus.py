@@ -1,4 +1,4 @@
-# Model based on: https://github.com/ncarraz/ESRGANpluss
+# Model based on: https://github.com/ncarraz/ESRGANplus
 
 import numpy as np
 import os
@@ -11,15 +11,14 @@ import logging
 
 logger = logging.getLogger("base")
 
-from skimage.metrics import structural_similarity, peak_signal_noise_ratio
-
 import torch
 from torch import nn
 from torch.nn import init
 
-import torchvision
+from torchvision.models.vgg import vgg19
 
 import lightning as L
+from torchmetrics.image import StructuralSimilarityIndexMeasure, PeakSignalNoiseRatio
 
 from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
 
@@ -580,81 +579,6 @@ class Discriminator_VGG_128(nn.Module):
         return x
 
 
-# Assume input range is [0, 1]
-class VGGFeatureExtractor(nn.Module):
-    def __init__(
-        self,
-        use_input_norm=True,
-        feature_layer=28,
-        use_bn=False,
-        # use_input_norm=True,
-    ):
-        super(VGGFeatureExtractor, self).__init__()
-        if use_bn:
-            model = torchvision.models.vgg16_bn(pretrained=True)
-        else:
-            model = torchvision.models.vgg16(pretrained=True)
-
-        self.features = nn.Sequential(
-            *(list(model.features.children())[:(28 + 1)])
-        )
-
-        del model
-
-        # No need to BP to variable
-        for k, v in self.features.named_parameters():
-            v.requires_grad = False
-
-    def forward(self, x):
-        x = torch.cat([x, x, x], dim=1) # Convert into 3 channels
-        output = self.features(x)
-        return output
-
-
-# # Assume input range is [0, 1]
-# class VGGFeatureExtractor(nn.Module):
-#     def __init__(
-#         self,
-#         feature_layer=34,
-#         use_bn=False,
-#         use_input_norm=True,
-#     ):
-#         super(VGGFeatureExtractor, self).__init__()
-#         if use_bn:
-#             model = torchvision.models.vgg19_bn(pretrained=True)
-#         else:
-#             model = torchvision.models.vgg19(pretrained=True)
-        
-#         # self.use_input_norm = use_input_norm
-#         # if self.use_input_norm:
-#         #     mean = torch.Tensor([0.485, 0.456, 0.406]).view(1, 3, 1, 1)
-#         #     # [0.485-1, 0.456-1, 0.406-1] if input in range [-1,1]
-#         #     std = torch.Tensor([0.229, 0.224, 0.225]).view(1, 3, 1, 1)
-#         #     # [0.229*2, 0.224*2, 0.225*2] if input in range [-1,1]
-#         #     self.register_buffer("mean", mean)
-#         #     self.register_buffer("std", std)
-
-#         self.features = nn.Sequential(
-#             *(list(model.features.children())[:(feature_layer + 1)])
-#         )
-
-#         del model
-
-#         # No need to BP to variable
-#         for k, v in self.features.named_parameters():
-#             v.requires_grad = False
-
-#     def forward(self, x):
-        
-#         x = torch.cat([x, x, x], dim=1) # Convert into 3 channels
-
-#         # if self.use_input_norm:
-#         #     x = (x - self.mean) / self.std
-
-#         output = self.features(x)
-#         return output
-
-
 # Define GAN loss
 class GANLoss(nn.Module):
     def __init__(self, real_label_val=1.0, fake_label_val=0.0):
@@ -707,15 +631,10 @@ def define_G(scale, nf=64, nb=23, gc=32):
         mode="CNA",
         upsample_mode="upconv",
     )
-    # netG = RRDBNet(in_nc=3, out_nc=3, nf=64, nb=23, gc=32, upscale=4,
-    #               norm_type=None, act_type='leakyrelu', mode="CNA",
-    #               upsample_mode='upconv')
 
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=0.1)
     netG.apply(weights_init_kaiming_)
 
-    # if torch.cuda.is_available():
-    #     netG = nn.DataParallel(netG)
     return netG
 
 
@@ -724,31 +643,51 @@ def define_D(base_nf=64, input_size=128):
     netD = Discriminator_VGG_128(
         in_nc=1, base_nf=base_nf, input_size=input_size, norm_type="batch", mode="CNA", act_type="leakyrelu"
     )
-    # netD = Discriminator_VGG_128(in_nc=3, base_nf=64, norm_type="batch",
-    #                             mode="CNA", act_type="leakyrelu")
 
     weights_init_kaiming_ = functools.partial(weights_init_kaiming, scale=1)
     netD.apply(weights_init_kaiming_)
 
-    # if torch.cuda.is_available():
-    #     netD = nn.DataParallel(netD)
     return netD
 
+class GeneratorLoss(nn.Module):
+    def __init__(self):
+        super(GeneratorLoss, self).__init__()
 
-def define_F(use_bn=False):
+        # Perceptual/Feature loss
+        vgg = vgg19(pretrained=True)
+        loss_network = nn.Sequential(*list(vgg.features)[:34 + 1]).eval()
 
-    if use_bn:
-        feature_layer = 49
-    else:
-        feature_layer = 34
-    netF = VGGFeatureExtractor(
-        feature_layer=feature_layer, use_bn=use_bn, use_input_norm=True
-    )
+        for param in loss_network.parameters():
+            param.requires_grad = False
+        self.loss_network = loss_network
+        
+        self.cri_fea = nn.L1Loss()
+        self.l_fea_w = 1
 
-    # if torch.cuda.is_available():
-    #     netF = nn.DataParallel(netF)
-    netF.eval()  # No need to train
-    return netF
+        # Generator pixel loss
+        self.cri_pix = nn.L1Loss()
+        self.l_pix_w = 0.01
+
+        # GD gan loss
+        self.cri_gan = GANLoss(1.0, 0.0)
+        self.l_gan_w = 0.005
+    
+    def forward(self, out_labels, out_images, target_images):
+        # pixel loss
+        l_g_pix = self.l_pix_w * self.cri_pix(out_images, target_images)
+
+        # feature loss
+        out_images_3c = torch.cat([out_images, out_images, out_images], dim=1) # VGG16 needs a 3 channel input
+        target_images_3c = torch.cat([target_images, target_images, target_images], dim=1) # VGG16 needs a 3 channel input
+        with torch.no_grad():
+            fake_fea = self.loss_network(out_images_3c)
+            real_fea = self.loss_network(target_images_3c)
+            l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
+
+        # G gan + cls loss
+        l_g_gan = self.l_gan_w * self.cri_gan(out_labels, True)
+
+        return l_g_pix, l_g_fea, l_g_gan
 
 ###
 
@@ -803,29 +742,19 @@ class ESRGANplus(L.LightningModule):
         # self.discriminator = define_D(base_nf=64)
         self.discriminator = define_D(base_nf=number_of_features,
                                       input_size=self.hparams.additonal_configuration.used_dataset.patch_size_x)
+        
 
-        # Generator pixel loss
-        self.cri_pix = nn.L1Loss()
-        self.l_pix_w = 0.01
-
-        # G feature loss
-        self.cri_fea = nn.L1Loss()
-        self.l_fea_w = 1
-
-        # load VGG perceptual loss
-        self.netF = define_F(use_bn=False)
-
-        # GD gan loss
+        self.generator_loss = GeneratorLoss()
         self.cri_gan = GANLoss(1.0, 0.0)
-        self.l_gan_w = 0.005
 
-        # D_update_ratio and D_init_iters are for WGAN
-        self.D_update_ratio = 1
-        self.D_init_iters = 0
-
-        self.mae = nn.L1Loss()
+        self.ssim = StructuralSimilarityIndexMeasure(data_range=1.0)
+        self.psnr = PeakSignalNoiseRatio()
 
         self.data_len = self.hparams.data_len
+
+        self.val_g_loss = []
+        self.val_ssim = []
+
 
         if self.verbose > 0:
             print(
@@ -843,12 +772,6 @@ class ESRGANplus(L.LightningModule):
                     sum(p.numel() for p in self.netF.parameters())
                 )
             )
-        
-        self.validation_step_lr = []
-        self.validation_step_hr = []
-        self.validation_step_pred = []
-        
-        self.val_ssim = []
         
         if self.verbose > 0:
             os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
@@ -898,23 +821,9 @@ class ESRGANplus(L.LightningModule):
             self.toggle_optimizer(g_opt)
 
             fake_hr = self.generator(lr)
+            fake_out = self.discriminator(fake_hr).mean()
 
-            # pixel loss
-            l_g_pix = self.l_pix_w * self.cri_pix(fake_hr, hr)
-
-            # feature loss
-            real_fea = self.netF(hr)
-            fake_fea = self.netF(fake_hr)
-            l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
-
-            # G gan + cls loss
-            pred_g_fake = self.discriminator(fake_hr)
-            # pred_d_real = self.discriminator(hr)
-
-            l_g_gan = self.l_gan_w * self.cri_gan(pred_g_fake, True)
-            # l_g_gan = self.l_gan_w * (self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False) +
-            #                          self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)) / 2
-            
+            l_g_pix, l_g_fea, l_g_gan = self.generator_loss(out_labels=fake_out, out_images=fake_hr,target_images=hr)
             l_g_total = l_g_pix + l_g_fea + l_g_gan
 
             self.log("g_loss", l_g_total, prog_bar=True, on_epoch=True)
@@ -942,12 +851,10 @@ class ESRGANplus(L.LightningModule):
 
             pred_d_real = self.discriminator(hr)
             pred_d_fake = self.discriminator(fake_hr)  # detach to avoid BP to G
-            # l_d_real = self.cri_gan(pred_d_real - torch.mean(pred_d_fake), True)
-            # l_d_fake = self.cri_gan(pred_d_fake - torch.mean(pred_d_real), False)
+
             l_d_real = self.cri_gan(pred_d_real, True)
             l_d_fake = self.cri_gan(pred_d_fake, False)
 
-            # l_d_total = (l_d_real + l_d_fake) / 2
             l_d_total = l_d_real + l_d_fake
 
             self.log("d_loss", l_d_total, prog_bar=True, on_epoch=True)
@@ -973,90 +880,47 @@ class ESRGANplus(L.LightningModule):
             
         # Right now used for just plotting, might want to change it later
         lr, hr = batch["lr"], batch["hr"]
-        generated = self(lr)
+        fake_hr = self.generator(lr)
+        fake_out = self.discriminator(fake_hr).mean()
 
         if self.verbose > 0:
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
+            print(f'generated.shape: {fake_hr.shape} generated.min: {fake_hr.min()} generated.max: {fake_hr.max()}')
 
-        true = hr.cpu().numpy()
-        fake = generated.cpu().numpy()
-        xlr = lr.cpu().numpy()
+        # Calculate the loss for the generator
+        l_g_pix, l_g_fea, l_g_gan = self.generator_loss(out_labels=fake_out, out_images=fake_hr,target_images=hr)
 
-        for i in range(lr.size(0)):
-            ssim = structural_similarity(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_ssim", ssim)
-            self.val_ssim.append(ssim)
+        val_g_loss = l_g_pix + l_g_fea + l_g_gan
+        val_ssim = self.ssim(fake_hr, hr)
+        val_psnr = self.psnr(fake_hr, hr)
 
-            psnr = peak_signal_noise_ratio(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_psnr", psnr)
-            
-        self.validation_step_lr.append(lr)
-        self.validation_step_hr.append(hr)
-        self.validation_step_pred.append(generated)
+        self.val_g_loss.append(val_g_loss.cpu().numpy())
+        self.val_ssim.append(val_ssim.cpu().numpy())
 
         if self.verbose > 0:
             print('\nVerbose: validation_step (end)\n')
-
-        return lr, hr, generated
+    
+        self.log("val_g_loss", val_g_loss, prog_bar=True, on_epoch=True)
+        self.log("val_ssim", val_ssim, prog_bar=True, on_epoch=True)
+        self.log("val_psnr", val_psnr, prog_bar=False, on_epoch=True)
 
     def on_validation_epoch_end(self):
 
         if self.verbose > 0:
             print('\nVerbose: on_validation_epoch_end (begining)\n')
-
-        # Right now used for just plotting, might want to change it later
-        # lr, hr, generated = torch.stack(self.validation_step_outputs)
-        lr = torch.cat(self.validation_step_lr, 0)
-        hr = torch.cat(self.validation_step_hr, 0)
-        generated = torch.cat(self.validation_step_pred, 0)
         
-        if self.verbose > 0:
-            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()} values: {lr[0,0,0,:10]}')
-            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
-
-
-        l_g_total = 0
-
-        # pixel loss
-        l_g_pix = self.l_pix_w * self.cri_pix(generated, hr)
-        
-        # feature loss
-        real_fea = self.netF(hr).detach()
-        fake_fea = self.netF(generated)
-        l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
-        
-        # G gan + cls loss
-        pred_g_fake = self.discriminator(generated)
-        #pred_d_real = self.discriminator(hr).detach()
-        pred_d_real = self.discriminator(hr)
-
-        l_g_gan = self.l_gan_w * (self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False) +
-                                  self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)) / 2
-        l_g_total = l_g_pix + l_g_fea + l_g_gan
-
-        self.log('val_g_loss', l_g_total, prog_bar=True, on_epoch=True)
-        self.log('val_g_pixel_loss', l_g_pix, prog_bar=True, on_epoch=True)
-        self.log('val_g_features_loss', l_g_fea, prog_bar=True, on_epoch=True)
-        self.log('val_g_adversarial_loss', l_g_gan, prog_bar=True, on_epoch=True)
+        mean_val_g_loss = np.array(self.val_g_loss).mean()
 
         if self.verbose > 0:
-            print(f'g_loss: {l_g_total}')
+            print(f'g_loss: {mean_val_g_loss}')
             print(f'self.best_valid_loss: {self.best_valid_loss}')
 
-        if l_g_total < self.best_valid_loss:
-            self.best_valid_loss = l_g_total
+        if mean_val_g_loss < self.best_valid_loss:
+            self.best_valid_loss = mean_val_g_loss
             self.save_model("best_checkpoint.pth")
 
-        self.validation_step_lr.clear()  # free memory
-        self.validation_step_hr.clear()  # free memory
-        self.validation_step_pred.clear()  # free memory
+        self.val_g_loss.clear() # free memory
 
         # Extract the schedulers
         if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":

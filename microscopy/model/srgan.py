@@ -241,7 +241,6 @@ class SRGAN(L.LightningModule):
                 )
             )
         
-        
         if self.verbose > 0:
             os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
 
@@ -289,7 +288,7 @@ class SRGAN(L.LightningModule):
             self.toggle_optimizer(g_opt)
 
             fake_hr = self.generator(lr)
-            fake_out = self.discriminator(fake_hr).mean()
+            fake_out = self.discriminator(fake_hr)
 
             l_g_total = self.cri_gan(fake_out, fake_hr, hr)
 

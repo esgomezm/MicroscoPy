@@ -5,7 +5,7 @@ from torch import nn
 
 import lightning as L
 
-from skimage.metrics import structural_similarity, peak_signal_noise_ratio
+from torchmetrics.image import StructuralSimilarityIndexMeasure, PeakSignalNoiseRatio
 
 from ..optimizer_scheduler_utils import select_optimizer, select_lr_schedule
 
@@ -169,7 +169,18 @@ class WGANGP(L.LightningModule):
 
         self.discriminator = Discriminator()
 
-        if self.verbose > 1:
+        self.ssim = StructuralSimilarityIndexMeasure(data_range=1.0)
+        self.psnr = PeakSignalNoiseRatio()
+
+        self.mae = nn.L1Loss()
+
+        self.data_len = self.hparams.data_len
+
+        # Metric lists for validation
+        self.val_g_loss = []
+        self.val_ssim = []
+        
+        if self.verbose > 0:
             print(
                 "Generators parameters: {}".format(
                     sum(p.numel() for p in self.generator.parameters())
@@ -181,27 +192,13 @@ class WGANGP(L.LightningModule):
                 )
             )
 
-        self.mae = nn.L1Loss()
-
-        self.opt_g = None
-        self.opt_d = None
-
-        self.data_len = self.hparams.data_len
-
-        self.validation_step_lr = []
-        self.validation_step_hr = []
-        self.validation_step_pred = []
-        
-        self.val_ssim = []
-        
-        if self.verbose > 1:
+        if self.verbose > 0:
             os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
-
 
         self.step_schedulers = ['CosineDecay', 'OneCycle', 'MultiStepScheduler']
         self.epoch_schedulers = ['ReduceOnPlateau']
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: Model initialized (end)\n')
 
 
@@ -244,9 +241,8 @@ class WGANGP(L.LightningModule):
             self.toggle_optimizer(g_opt)
 
             # Predict the HR image
-            generated = self(lr)
+            generated = self.generator(lr)
             # Evaluate the real and the fake HR images
-            real_logits = self.discriminator(hr).mean()
             fake_logits = self.discriminator(generated).mean()
 
             if self.verbose > 1:
@@ -266,9 +262,6 @@ class WGANGP(L.LightningModule):
             self.log("g_l1", error, prog_bar=True, on_epoch=True)
             self.log("g_l1_recloss", error * self.hparams.recloss, prog_bar=True, on_epoch=True)
 
-            self.log("g_real", real_logits, prog_bar=False, on_epoch=True)
-            self.log("g_fake", fake_logits, prog_bar=False, on_epoch=True)
-
             # Optimize generator
             self.manual_backward(g_loss)
             g_opt.step()
@@ -287,7 +280,7 @@ class WGANGP(L.LightningModule):
             self.toggle_optimizer(d_opt)
 
             # Predict the HR image
-            generated = self(lr)
+            generated = self.generator(lr)
             # Evaluate the real and the fake HR images
             real_logits = self.discriminator(hr).mean()
             fake_logits = self.discriminator(generated).mean()
@@ -330,81 +323,46 @@ class WGANGP(L.LightningModule):
             
         # Right now used for just plotting, might want to change it later
         lr, hr = batch["lr"], batch["hr"]
-        generated = self(lr)
+        fake_hr = self.generator(lr)
 
         if self.verbose > 1:
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
+            print(f'generated.shape: {fake_hr.shape} generated.min: {fake_hr.min()} generated.max: {fake_hr.max()}')
 
-        true = hr.cpu().numpy()
-        fake = generated.cpu().numpy()
-        # xlr = lr.cpu().numpy()
+        adv_loss = -1 * self.discriminator(fake_hr).mean()
+        error = self.mae(fake_hr, hr)
+        val_g_loss = adv_loss + error * self.hparams.recloss
 
-        for i in range(lr.size(0)):
-            ssim = structural_similarity(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_ssim", ssim)
-            self.val_ssim.append(ssim)
+        val_ssim = self.ssim(fake_hr, hr)
+        val_psnr = self.psnr(fake_hr, hr)
 
-            psnr = peak_signal_noise_ratio(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_psnr", psnr)
-            
-        self.validation_step_lr.append(lr)
-        self.validation_step_hr.append(hr)
-        self.validation_step_pred.append(generated)
+        self.val_g_loss.append(val_g_loss.cpu().numpy())
+        self.val_ssim.append(val_ssim.cpu().numpy())
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: validation_step (end)\n')
-
-        del lr, hr, generated
+    
+        self.log("val_g_loss", val_g_loss, prog_bar=True, on_epoch=True)
+        self.log("val_ssim", val_ssim, prog_bar=True, on_epoch=True)
+        self.log("val_psnr", val_psnr, prog_bar=False, on_epoch=True)
 
     def on_validation_epoch_end(self):
        
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: on_validation_epoch_end (begining)\n')
 
-        # Right now used for just plotting, might want to change it later
-        # lr, hr, generated = torch.stack(self.validation_step_outputs)
-        lr = torch.cat(self.validation_step_lr, 0)
-        hr = torch.cat(self.validation_step_hr, 0)
-        generated = torch.cat(self.validation_step_pred, 0)
-        
-        if self.verbose > 1:
-            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()} values: {lr[0,0,0,:10]}')
-            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
+        mean_val_g_loss = np.array(self.val_g_loss).mean()
 
-        adv_loss = -1 * self.discriminator(generated).mean()
-        error = self.mae(generated, hr)
-
-        g_loss = adv_loss + error * self.hparams.recloss
-
-        self.log("val_g_loss", g_loss)
-        self.log("val_g_l1", error)
-
-        real_logits = self.discriminator(hr).mean()
-        fake_logits = self.discriminator(generated).mean()
-
-        wasserstein = real_logits - fake_logits
-
-        self.log("val_d_wasserstein", wasserstein)
-
-        if self.verbose > 1:
-            print(f'g_loss: {g_loss}')
+        if self.verbose > 0:
+            print(f'g_loss: {mean_val_g_loss}')
             print(f'self.best_valid_loss: {self.best_valid_loss}')
 
-        if g_loss < self.best_valid_loss:
-            self.best_valid_loss = g_loss
+        if mean_val_g_loss < self.best_valid_loss:
+            self.best_valid_loss = mean_val_g_loss
             self.save_model("best_checkpoint.pth")
 
-        self.validation_step_lr.clear()  # free memory
-        self.validation_step_hr.clear()  # free memory
-        self.validation_step_pred.clear()  # free memory
-
+        self.val_g_loss.clear() # free memory
 
         # Extract the schedulers
         if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
@@ -427,7 +385,7 @@ class WGANGP(L.LightningModule):
 
         self.val_ssim.clear() # free memory
 
-        if self.verbose > 1:
+        if self.verbose > 0:
             print('\nVerbose: on_validation_epoch_end (end)\n')
 
     def on_train_end(self):
