@@ -400,12 +400,12 @@ def select_pytorch_lr_schedule(
         if verbose > 0:
             print('OneCycle scheduler has been selected')
             print(f'lr={learning_rate}')
-            print(f'steps_per_epoch={data_len // frequency}')
+            print(f'steps_per_epoch={max(1, data_len // frequency)}')
         return torch.optim.lr_scheduler.OneCycleLR(
                 optimizer,
                 learning_rate,
                 epochs=num_epochs,
-                steps_per_epoch=data_len // frequency,
+                steps_per_epoch=max(1, data_len // frequency),
                 verbose=verbose
             )
 
