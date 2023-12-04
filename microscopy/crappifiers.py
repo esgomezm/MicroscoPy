@@ -138,6 +138,11 @@ def new_crap(x, scale=4):
 #
 # New crappifiers created by me.
 
+def em_old_crappify(img, scale):
+  img = filters.gaussian(img, sigma=3) + 1e-10
+  img = norm(img)
+  return transform.resize(img, (img.shape[0]//scale, img.shape[1]//scale), order=1)
+
 def em_poisson_crappify(img, scale, lam=1.0):
     img = transform.resize(img, (img.shape[0] // scale, img.shape[1] // scale), order=1)
 
@@ -159,6 +164,18 @@ def fluo_poisson_crappify(img, scale, lam=1.0):
 
 
 def em_gaussian_crappify(img, scale, mu=-0.1, sigma=0.15, scalar=0.9):
+    img = norm(npzoom(img, 1/scale, order=1))
+    noise = np.random.normal(mu, sigma, img.shape)
+    img = norm(img + scalar*noise)
+    return img
+
+def em_gaussian_crappify_s05(img, scale, mu=-0.1, sigma=0.15, scalar=0.5):
+    img = norm(npzoom(img, 1/scale, order=1))
+    noise = np.random.normal(mu, sigma, img.shape)
+    img = norm(img + scalar*noise)
+    return img
+
+def em_gaussian_crappify_s03(img, scale, mu=-0.1, sigma=0.15, scalar=0.3):
     img = norm(npzoom(img, 1/scale, order=1))
     noise = np.random.normal(mu, sigma, img.shape)
     img = norm(img + scalar*noise)
@@ -212,4 +229,7 @@ CRAPPIFIER_DICT = {
     "em_poisson_crappify": em_poisson_crappify,
     "fluo_poisson_crappify": fluo_poisson_crappify,
     "em_gaussian_crappify": em_gaussian_crappify,
+    "em_gaussian_crappify_s05": em_gaussian_crappify_s05,
+    "em_gaussian_crappify_s03": em_gaussian_crappify_s03,
+    "em_old_crappify": em_old_crappify
 }

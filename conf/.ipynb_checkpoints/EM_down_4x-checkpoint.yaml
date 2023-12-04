@@ -1,5 +1,5 @@
 defaults:
-- dataset: EMcrap.yaml
+- dataset: EM_down_4x.yaml
 - model: default.yaml
 - hyperparam: default.yaml
 - _self_

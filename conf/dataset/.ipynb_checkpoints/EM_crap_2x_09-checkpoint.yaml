@@ -1,15 +1,15 @@
 EM:
   crappifier: em_gaussian_crappify
   data_paths:
-  - train_lr
+  - null
   - train
   - null
   - null
-  - test_lr
+  - null
   - test
   patch_size_x: 64
   patch_size_y: 64
-  scale: 4
+  scale: 2
 ER:
   crappifier: downsampleonly
   data_paths:

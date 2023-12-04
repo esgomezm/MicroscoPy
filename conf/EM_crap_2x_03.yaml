@@ -1,0 +1,17 @@
+defaults:
+- dataset: EM_crap_2x_03.yaml
+- model: default.yaml
+- hyperparam: default.yaml
+- _self_
+
+model.optim.early_stop.patience: ${hyperparam.num_epochs}
+
+dataset_name: EM
+model_name: unet
+
+used_dataset: ${dataset.${dataset_name}}
+used_model: ${model.${model_name}}
+used_optim: ${model.optim.${hyperparam.optimizer}}
+used_optim_d: ${model.optim.${hyperparam.discriminator_optimizer}}
+used_sched: ${model.optim.${hyperparam.scheduler}}
+used_sched_d: ${model.optim.${hyperparam.discriminator_lr_scheduler}}
