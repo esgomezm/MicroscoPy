@@ -261,9 +261,10 @@ class WGANGP(L.LightningModule):
             g_loss = adv_loss + error * self.hparams.recloss
 
             # Log the losses
-            self.log("g_loss", adv_loss, prog_bar=True, on_epoch=True)
-            self.log("g_adv_loss", g_loss, prog_bar=True, on_epoch=True)
+            self.log("g_loss", g_loss, prog_bar=True, on_epoch=True)
+            self.log("g_adv_loss", adv_loss, prog_bar=True, on_epoch=True)
             self.log("g_l1", error, prog_bar=True, on_epoch=True)
+            self.log("g_l1_recloss", error * self.hparams.recloss, prog_bar=True, on_epoch=True)
 
             self.log("g_real", real_logits, prog_bar=False, on_epoch=True)
             self.log("g_fake", fake_logits, prog_bar=False, on_epoch=True)
