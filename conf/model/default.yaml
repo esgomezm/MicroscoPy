@@ -63,3 +63,5 @@ wgan:
   g_layers: 15
   lambda_gp: 1
   recloss: 100.0
+srgan:
+  n_critic_steps: 5

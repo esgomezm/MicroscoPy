@@ -1048,8 +1048,9 @@ class PytorchTrainer(ModelsTrainer):
             utils.print_info("predict_images() - self.predictions", self.predictions)
             utils.print_info("predict_images() - self.X_test", self.X_test)
 
-        # assert np.max(self.Y_test[0]) <= 1.0 and np.max(self.predictions[0]) <= 1.0
-        # assert np.min(self.Y_test[0]) >= 0.0 and np.min(self.predictions[0]) >= 0.0
+
+PYTORCH_MODELS = ["wgan", "esrganplus", "srgan"]
+TENSORFLOW_MODELS = ["rcan", "dfcan", "wdsr", "unet", "cddpm"]
 
 def get_model_trainer(
     config,
@@ -1060,7 +1061,7 @@ def get_model_trainer(
     verbose=0,
     data_on_memory=0,
 ):
-    if config.model_name in ["wgan", "esrganplus"]:
+    if config.model_name in PYTORCH_MODELS:
         model_trainer = PytorchTrainer(
             config,
             train_lr_path, train_hr_path,
@@ -1070,7 +1071,7 @@ def get_model_trainer(
             verbose=verbose,
             data_on_memory=data_on_memory,
         )
-    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+    elif config.model_name in TENSORFLOW_MODELS:
         model_trainer = TensorflowTrainer(
             config,
             train_lr_path, train_hr_path,
@@ -1094,7 +1095,7 @@ def train_configuration(
     verbose=0,
     data_on_memory=0,
 ):
-    if config.model_name in ["wgan", "esrganplus"]:
+    if config.model_name in PYTORCH_MODELS:
         model_trainer = PytorchTrainer(
             config,
             train_lr_path, train_hr_path,
@@ -1104,7 +1105,7 @@ def train_configuration(
             verbose=verbose,
             data_on_memory=data_on_memory,
         )
-    elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+    elif config.model_name in TENSORFLOW_MODELS:
         model_trainer = TensorflowTrainer(
             config,
             train_lr_path, train_hr_path,
@@ -1140,7 +1141,7 @@ def predict_configuration(
             else:
                 test_lr_path = os.path.join(test_lr_path, level_folder)
 
-            if config.model_name in ["wgan", "esrganplus"]:
+            if config.model_name in PYTORCH_MODELS:
                 model_trainer = PytorchTrainer(
                     config,
                     train_lr_path, train_hr_path,
@@ -1150,7 +1151,7 @@ def predict_configuration(
                     verbose=verbose,
                     data_on_memory=data_on_memory,
                 )
-            elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+            elif config.model_name in TENSORFLOW_MODELS:
                 model_trainer = TensorflowTrainer(
                     config,
                     train_lr_path, train_hr_path,
@@ -1166,7 +1167,7 @@ def predict_configuration(
             model_trainer.predict_images(result_folder_name=level_folder)
             model_trainer.eval_model(result_folder_name=level_folder)
     else:
-        if config.model_name in ["wgan", "esrganplus"]:
+        if config.model_name in PYTORCH_MODELS:
             model_trainer = PytorchTrainer(
                 config,
                 train_lr_path, train_hr_path,
@@ -1176,7 +1177,7 @@ def predict_configuration(
                 verbose=verbose,
                 data_on_memory=data_on_memory,
             )
-        elif config.model_name in ["rcan", "dfcan", "wdsr", "unet", "cddpm"]:
+        elif config.model_name in TENSORFLOW_MODELS:
             model_trainer = TensorflowTrainer(
                 config,
                 train_lr_path, train_hr_path,

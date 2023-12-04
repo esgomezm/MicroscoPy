@@ -6,8 +6,7 @@ import math
 import torch
 from torch import nn
 from torchvision.models.vgg import vgg16
-
-from skimage.metrics import structural_similarity, peak_signal_noise_ratio
+from torchmetrics.image import StructuralSimilarityIndexMeasure, PeakSignalNoiseRatio
 
 import lightning as L
 
@@ -31,7 +30,6 @@ class ResidualBlock(nn.Module):
 
         return x + residual
     
-
 class UpsampleBlock(nn.Module):
     def __init__(self, in_channels, up_scale):
         super(UpsampleBlock, self).__init__()
@@ -46,12 +44,12 @@ class UpsampleBlock(nn.Module):
         return x
 
 class Generator(nn.Module):
-    def __init__(self, scale_factor) -> None:
+    def __init__(self, in_channels, scale_factor) -> None:
         upsample_block_num = int(math.log(scale_factor, 2))
 
         super(Generator, self).__init__()
         self.block1 = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=9, padding=4), 
+            nn.Conv2d(in_channels, 64, kernel_size=9, padding=4), 
             nn.PReLU()
         )
         self.block2 = ResidualBlock(64)
@@ -64,7 +62,7 @@ class Generator(nn.Module):
             nn.BatchNorm2d(64)
         )
         block8 = [UpsampleBlock(64, 2) for _ in range(upsample_block_num)]
-        block8.append(nn.Conv2d(64, 3, kernel_size=9, padding=4))
+        block8.append(nn.Conv2d(64, in_channels, kernel_size=9, padding=4))
         self.block8 = nn.Sequential(*block8)
 
     def forward(self, x):
@@ -81,10 +79,10 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, in_channels) -> None:
         super(Discriminator, self).__init__()
         self.net = nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, padding=1), 
+            nn.Conv2d(in_channels, 64, kernel_size=3, padding=1), 
             nn.LeakyReLU(0.2), 
 
             nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1), 
@@ -137,11 +135,17 @@ class GeneratorLoss(nn.Module):
         self.tv_loss = TVLoss()
 
     def forward(self, out_labels, out_images, target_images):
+        
         # Adversarial Loss
         # we want real_out to be close 1, and fake_out to be close 0
         adversarial_loss = torch.mean(1 - out_labels)
+        
         # Perception Loss
-        perception_loss = self.mse_loss(self.loss_network(out_images), self.loss_network(target_images))
+        out_images_3c = torch.cat([out_images, out_images, out_images], dim=1) # VGG16 needs a 3 channel input
+        target_images_3c = torch.cat([target_images, target_images, target_images], dim=1) # VGG16 needs a 3 channel input
+        with torch.no_grad():
+            perception_loss = self.mse_loss(self.loss_network(out_images_3c), self.loss_network(target_images_3c))
+        
         # Image Loss
         image_loss = self.mse_loss(out_images, target_images)
         # TV Loss 
@@ -196,27 +200,29 @@ class SRGAN(L.LightningModule):
 
         # Initialize generator and load the checkpoint in case is given
         if gen_checkpoint is None:
-            self.generator = Generator(scale_factor)
+            self.generator = Generator(in_channels=1, scale_factor=scale_factor)
             self.best_valid_loss = float("inf")
         else:
             checkpoint = torch.load(gen_checkpoint)
-            self.generator = Generator(checkpoint["scale_factor"])
+            self.generator = Generator(in_channels=1, scale_factor=checkpoint["scale_factor"])
             self.generator.load_state_dict(checkpoint["model_state_dict"])
             self.best_valid_loss = checkpoint["best_valid_loss"]
 
         # self.discriminator = define_D(base_nf=64)
-        self.discriminator = Discriminator()
+        self.discriminator = Discriminator(in_channels=1)
 
         # GD gan loss
         self.cri_gan = GeneratorLoss()
 
-        # D_update_ratio and D_init_iters are for WGAN
-        self.D_update_ratio = 1
-        self.D_init_iters = 0
-
-        self.mae = nn.L1Loss()
+        self.ssim = StructuralSimilarityIndexMeasure(data_range=1.0)
+        self.psnr = PeakSignalNoiseRatio()
 
         self.data_len = self.hparams.data_len
+
+        # Metric lists for validation
+        self.val_g_loss = []
+        self.val_ssim = []
+        
 
         if self.verbose > 0:
             print(
@@ -235,11 +241,6 @@ class SRGAN(L.LightningModule):
                 )
             )
         
-        self.validation_step_lr = []
-        self.validation_step_hr = []
-        self.validation_step_pred = []
-        
-        self.val_ssim = []
         
         if self.verbose > 0:
             os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
@@ -340,89 +341,44 @@ class SRGAN(L.LightningModule):
             
         # Right now used for just plotting, might want to change it later
         lr, hr = batch["lr"], batch["hr"]
-        generated = self(lr)
+        fake_hr = self.generator(lr)
+        fake_out = self.discriminator(fake_hr).mean()
 
         if self.verbose > 0:
             print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()}')
             print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()}')
+            print(f'generated.shape: {fake_out.shape} generated.min: {fake_out.min()} generated.max: {fake_out.max()}')
 
-        true = hr.cpu().numpy()
-        fake = generated.cpu().numpy()
+        val_g_loss = self.cri_gan(fake_out, fake_hr, hr)
+        val_ssim = self.ssim(fake_hr, hr)
+        val_psnr = self.psnr(fake_hr, hr)
 
-        for i in range(lr.size(0)):
-            ssim = structural_similarity(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_ssim", ssim)
-            self.val_ssim.append(ssim)
-
-            psnr = peak_signal_noise_ratio(
-                true[i, 0, ...], fake[i, 0, ...], data_range=1.0
-            )
-            self.log("val_psnr", psnr)
-            
-        self.validation_step_lr.append(lr)
-        self.validation_step_hr.append(hr)
-        self.validation_step_pred.append(generated)
+        self.val_g_loss.append(val_g_loss.cpu().numpy())
+        self.val_ssim.append(val_ssim.cpu().numpy())
 
         if self.verbose > 0:
             print('\nVerbose: validation_step (end)\n')
-
-        return lr, hr, generated
+    
+        self.log("val_g_loss", val_g_loss, prog_bar=True, on_epoch=True)
+        self.log("val_ssim", val_ssim, prog_bar=True, on_epoch=True)
+        self.log("val_psnr", val_psnr, prog_bar=False, on_epoch=True)
 
     def on_validation_epoch_end(self):
 
         if self.verbose > 0:
             print('\nVerbose: on_validation_epoch_end (begining)\n')
 
-        # Right now used for just plotting, might want to change it later
-        # lr, hr, generated = torch.stack(self.validation_step_outputs)
-        lr = torch.cat(self.validation_step_lr, 0)
-        hr = torch.cat(self.validation_step_hr, 0)
-        generated = torch.cat(self.validation_step_pred, 0)
-        
-        if self.verbose > 0:
-            print(f'lr.shape: {lr.shape} lr.min: {lr.min()} lr.max: {lr.max()} values: {lr[0,0,0,:10]}')
-            print(f'hr.shape: {hr.shape} hr.min: {hr.min()} hr.max: {hr.max()} values: {hr[0,0,0,:10]}')
-            print(f'generated.shape: {generated.shape} generated.min: {generated.min()} generated.max: {generated.max()} values: {generated[0,0,0,:10]}')
-
-
-        l_g_total = 0
-
-        # pixel loss
-        l_g_pix = self.l_pix_w * self.cri_pix(generated, hr)
-        
-        # feature loss
-        real_fea = self.netF(hr).detach()
-        fake_fea = self.netF(generated)
-        l_g_fea = self.l_fea_w * self.cri_fea(fake_fea, real_fea)
-        
-        # G gan + cls loss
-        pred_g_fake = self.discriminator(generated)
-        #pred_d_real = self.discriminator(hr).detach()
-        pred_d_real = self.discriminator(hr)
-
-        l_g_gan = self.l_gan_w * (self.cri_gan(pred_d_real - torch.mean(pred_g_fake), False) +
-                                  self.cri_gan(pred_g_fake - torch.mean(pred_d_real), True)) / 2
-        l_g_total = l_g_pix + l_g_fea + l_g_gan
-
-        self.log('val_g_loss', l_g_total, prog_bar=True, on_epoch=True)
-        self.log('val_g_pixel_loss', l_g_pix, prog_bar=True, on_epoch=True)
-        self.log('val_g_features_loss', l_g_fea, prog_bar=True, on_epoch=True)
-        self.log('val_g_adversarial_loss', l_g_gan, prog_bar=True, on_epoch=True)
+        mean_val_g_loss = np.array(self.val_g_loss).mean()
 
         if self.verbose > 0:
-            print(f'g_loss: {l_g_total}')
+            print(f'g_loss: {mean_val_g_loss}')
             print(f'self.best_valid_loss: {self.best_valid_loss}')
 
-        if l_g_total < self.best_valid_loss:
-            self.best_valid_loss = l_g_total
+        if mean_val_g_loss < self.best_valid_loss:
+            self.best_valid_loss = mean_val_g_loss
             self.save_model("best_checkpoint.pth")
 
-        self.validation_step_lr.clear()  # free memory
-        self.validation_step_hr.clear()  # free memory
-        self.validation_step_pred.clear()  # free memory
+        self.val_g_loss.clear() # free memory
 
         # Extract the schedulers
         if self.hparams.g_scheduler == "Fixed" and self.hparams.d_scheduler != "Fixed":
