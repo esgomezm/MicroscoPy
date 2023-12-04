@@ -5,7 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb=128'
 
@@ -20,20 +20,31 @@ def load_path(dataset_root, dataset_name, folder):
     else:
         return None
 
+# EM_crap_2x_03
+# EM_crap_2x_05
+# EM_crap_2x_09
+# EM_crap_4x_03
+# EM_crap_4x_05
+# EM_crap_4x_09
+# EM_down_2x
+# EM_down_4x
+# EM_old_crap_4x
+
+config_name = "EM_down_4x"
 
 # @hydra.main(version_base=None, config_path="conf", config_name="config")
-@hydra.main(version_base=None, config_path="conf", config_name="config_EMcrap")
+@hydra.main(version_base=None, config_path="conf", config_name=config_name)
 def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["EM"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
     model_combination = ["wgan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [2]
-    num_epochs_combination = [100]
-    lr_combination = [(0.0001,0.0001), (0.0005,0.0005)]
-    scheduler_combination = ['Fixed'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    num_epochs_combination = [1000]
+    lr_combination = [(0.0001,0.0001)] 
+    scheduler_combination = ['OneCycle'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
     
-    for final_critic_steps in [100]:
+    for final_critic_steps in [5]:
 
         for dataset_name in dataset_combination:  
             cfg.dataset_name = dataset_name
@@ -54,7 +65,7 @@ def my_app(cfg: DictConfig) -> None:
                             for scheduler in scheduler_combination:
                                 for optimizer in optimizer_combination:
 
-                                    base_folder = 'WGAN_LR'
+                                    base_folder = f'different_results/WGAN_diff_crap/{config_name}'
 
                                     cfg.model_name = model_name
                                     cfg.hyperparam.batch_size = batch_size
@@ -78,7 +89,7 @@ def my_app(cfg: DictConfig) -> None:
                                             cfg.used_model.n_critic_steps = number_of_critic_steps
                                             # cfg.used_model.g_layers = 15
                                             # cfg.used_model.lambda_gp = 0.5
-                                            # cfg.used_model.recloss = 0.5 # 100.0
+                                            cfg.used_model.recloss = 100 # 100.0
                                             base_folder=f"{base_folder}/cs_{number_of_critic_steps}-lgp_{lambda_gp}-rec_{recloss}"
                                         else:
                                             number_of_critic_steps = 50 # cfg.used_model.n_critic_steps
