@@ -420,7 +420,7 @@ class RRDBNet(nn.Module):
             RRDB(
                 nf,
                 kernel_size=3,
-                gc=32,
+                gc=gc,
                 stride=1,
                 bias=True,
                 pad_type="zero",
@@ -442,12 +442,14 @@ class RRDBNet(nn.Module):
             raise NotImplementedError(
                 "upsample mode [{:s}] is not found".format(upsample_mode)
             )
+
         if upscale == 3:
-            upsampler = upsample_block(nf, nf, 3, act_type=act_type)
+            upsampler = upsample_block(in_nc=nf, out_nc=nf, upscale_factor=3, act_type=act_type)
         else:
             upsampler = [
-                upsample_block(nf, nf, act_type=act_type) for _ in range(n_upscale)
+                upsample_block(in_nc=nf, out_nc=nf, upscale_factor=2, act_type=act_type) for _ in range(n_upscale)
             ]
+
         HR_conv0 = conv_block(nf, nf, kernel_size=3, norm_type=None, act_type=act_type)
         HR_conv1 = conv_block(nf, out_nc, kernel_size=3, norm_type=None, act_type=None)
 
@@ -731,11 +733,11 @@ class ESRGANplus(L.LightningModule):
 
         # Initialize generator and load the checkpoint in case is given
         if gen_checkpoint is None:
-            self.generator = define_G(scale_factor, nf=number_of_features, nb=number_of_blocks, gc=growth_channel)
+            self.generator = define_G(scale=scale_factor, nf=number_of_features, nb=number_of_blocks, gc=growth_channel)
             self.best_valid_loss = float("inf")
         else:
             checkpoint = torch.load(gen_checkpoint)
-            self.generator = define_G(checkpoint["scale_factor"], nf=number_of_features, nb=number_of_blocks, gc=growth_channel)
+            self.generator = define_G(scale=checkpoint["scale_factor"], nf=number_of_features, nb=number_of_blocks, gc=growth_channel)
             self.generator.load_state_dict(checkpoint["model_state_dict"])
             self.best_valid_loss = checkpoint["best_valid_loss"]
 

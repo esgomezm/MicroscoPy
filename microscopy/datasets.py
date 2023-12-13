@@ -1057,7 +1057,7 @@ class PytorchDataModuler(pl.LightningDataModule):
         self.test_lr_path = test_lr_path
         self.test_filenames = test_filenames
 
-        self. crappifier_method = crappifier_method
+        self.crappifier_method = crappifier_method
 
         self.verbose = verbose
 
@@ -1071,6 +1071,8 @@ class PytorchDataModuler(pl.LightningDataModule):
         # Define steps that should be done on 
         # every GPU, like splitting data, applying
         # transform etc.
+
+        print(f'Dataset setup stage: {stage}')
 
         # Assign Train/val split(s) for use in Dataloaders
         if stage == "fit":
@@ -1192,7 +1194,7 @@ class PytorchDataModuler(pl.LightningDataModule):
         return DataLoader(self.test_dataset, batch_size=1, num_workers=32)
 
     def predict_dataloader(self):
-        # Return DataLoader for Predicting Data here
+        # Return DataLoader for Predicting Data here        
         return DataLoader(self.predict_dataset, batch_size=1, num_workers=32)
 
     def teardown(self, stage):

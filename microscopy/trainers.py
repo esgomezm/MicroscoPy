@@ -991,12 +991,14 @@ class PytorchTrainer(ModelsTrainer):
                 model_configuration=self.config,
                 datagen_sampling_pdf=self.datagen_sampling_pdf,
                 checkpoint=os.path.join(self.saving_path, "best_checkpoint.pth"),
-                verbose=self.verbose
+                verbose=self.verbose,
+                state='predict'
             )
 
             self.trainer = L.Trainer(
                                 accelerator="gpu", 
-                                devices="auto",
+                                devices=-1,
+                                strategy="ddp_find_unused_parameters_true",
                             )
 
         print('\n')
@@ -1006,9 +1008,10 @@ class PytorchTrainer(ModelsTrainer):
 
         print("Prediction is going to start:")
         predictions = self.trainer.predict(self.model, dataloaders=self.data_module)
+        print('prediction done')
         predictions = np.array(
             [
-                np.expand_dims(np.squeeze(e.detach().numpy()), axis=-1)
+                np.expand_dims(np.squeeze(e.cpu().detach().numpy()), axis=-1)
                 for e in predictions
             ]
         )
@@ -1164,6 +1167,7 @@ def predict_configuration(
             else:
                 raise Exception("Not available model.")
 
+            model_trainer.prepare_data()
             model_trainer.predict_images(result_folder_name=level_folder)
             model_trainer.eval_model(result_folder_name=level_folder)
     else:
@@ -1190,6 +1194,7 @@ def predict_configuration(
         else:
             raise Exception("Not available model.")
 
+    model_trainer.prepare_data()
     model_trainer.predict_images()
     model_trainer.eval_model()
 

@@ -8,7 +8,7 @@ import shutil
 import numpy as np
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "2"
 
 def load_path(dataset_root, dataset_name, folder):
     if folder is not None:
@@ -29,7 +29,7 @@ def my_app(cfg: DictConfig) -> None:
     # base_folder = ''
     
     dataset_name = 'EM'
-    saving_path = './multiple_predictions/EM/cddpm/scale4/epc2001_btch8_lr0.0005_optim-adam_lrsched-CosineDecay_seed666_1'
+    saving_path = './different_results/SRGAN_diff_crap/EM_down_4x/cs_5/EM/srgan/scale4/epc100_btch2_lr0.0001_optim-adam_lrsched-OneCycle_seed666_1'
 
     actual_cfg = omegaconf.OmegaConf.load(os.path.join(saving_path, 'train_configuration.yaml'))
 
@@ -46,7 +46,7 @@ def my_app(cfg: DictConfig) -> None:
 
     # cfg.hyperparam.seed = 666
     
-    for i in range(1, 10):
+    for i in range(1):
         random_seed = np.random.randint(0, 1000)
         actual_cfg.hyperparam.seed = random_seed
         folder_name = f'{i:02d}_seed_{random_seed}' # same_seed' #

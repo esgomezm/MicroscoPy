@@ -182,6 +182,7 @@ class SRGAN(L.LightningModule):
         gen_checkpoint: str = None,
         additonal_configuration: dict = {},
         verbose: int = 0,
+        state: str = 'train'
     ):
         super(SRGAN, self).__init__()
         self.save_hyperparameters()
@@ -208,47 +209,48 @@ class SRGAN(L.LightningModule):
             self.generator.load_state_dict(checkpoint["model_state_dict"])
             self.best_valid_loss = checkpoint["best_valid_loss"]
 
-        # self.discriminator = define_D(base_nf=64)
-        self.discriminator = Discriminator(in_channels=1)
+        if state == 'train':
+            # self.discriminator = define_D(base_nf=64)
+            self.discriminator = Discriminator(in_channels=1)
 
-        # GD gan loss
-        self.cri_gan = GeneratorLoss()
+            # GD gan loss
+            self.cri_gan = GeneratorLoss()
 
-        self.ssim = StructuralSimilarityIndexMeasure(data_range=1.0)
-        self.psnr = PeakSignalNoiseRatio()
+            self.ssim = StructuralSimilarityIndexMeasure(data_range=1.0)
+            self.psnr = PeakSignalNoiseRatio()
 
-        self.data_len = self.hparams.data_len
+            self.data_len = self.hparams.data_len
 
-        # Metric lists for validation
-        self.val_g_loss = []
-        self.val_ssim = []
-        
+            # Metric lists for validation
+            self.val_g_loss = []
+            self.val_ssim = []
+            self.val_psnr = []
 
-        if self.verbose > 0:
-            print(
-                "Generators parameters: {}".format(
-                    sum(p.numel() for p in self.generator.parameters())
+            if self.verbose > 0:
+                print(
+                    "Generators parameters: {}".format(
+                        sum(p.numel() for p in self.generator.parameters())
+                    )
                 )
-            )
-            print(
-                "Discriminators parameters: {}".format(
-                    sum(p.numel() for p in self.discriminator.parameters())
+                print(
+                    "Discriminators parameters: {}".format(
+                        sum(p.numel() for p in self.discriminator.parameters())
+                    )
                 )
-            )
-            print(
-                "self.netF parameters: {}".format(
-                    sum(p.numel() for p in self.netF.parameters())
+                print(
+                    "self.netF parameters: {}".format(
+                        sum(p.numel() for p in self.netF.parameters())
+                    )
                 )
-            )
-        
-        if self.verbose > 0:
-            os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
+            
+            if self.verbose > 0:
+                os.makedirs(f"{self.hparams.save_basedir}/training_images", exist_ok=True)
 
-        self.step_schedulers = ['CosineDecay', 'OneCycle', 'MultiStepScheduler']
-        self.epoch_schedulers = ['ReduceOnPlateau']
+            self.step_schedulers = ['CosineDecay', 'OneCycle', 'MultiStepScheduler']
+            self.epoch_schedulers = ['ReduceOnPlateau']
 
-        if self.verbose > 0:
-            print('\nVerbose: Model initialized (end)\n')
+            if self.verbose > 0:
+                print('\nVerbose: Model initialized (end)\n')
 
     def forward(self, x):
         if isinstance(x, dict):
@@ -322,11 +324,12 @@ class SRGAN(L.LightningModule):
             self.log("fake_out", fake_out, prog_bar=False, on_epoch=True)
  
             # Optimize discriminator/critic
+            # Optimize generator
             self.manual_backward(l_d_total)
             d_opt.step()
             d_opt.zero_grad()
             self.untoggle_optimizer(d_opt)
-
+            
             if self.hparams.d_scheduler in self.step_schedulers:
                 sched_d.step()
 
@@ -354,13 +357,14 @@ class SRGAN(L.LightningModule):
 
         self.val_g_loss.append(val_g_loss.cpu().numpy())
         self.val_ssim.append(val_ssim.cpu().numpy())
+        self.val_psnr.append(val_psnr.cpu().numpy())
 
         if self.verbose > 0:
             print('\nVerbose: validation_step (end)\n')
     
-        self.log("val_g_loss", val_g_loss, prog_bar=True, on_epoch=True)
-        self.log("val_ssim", val_ssim, prog_bar=True, on_epoch=True)
-        self.log("val_psnr", val_psnr, prog_bar=False, on_epoch=True)
+        self.log("val_g_loss", np.array(self.val_g_loss).mean(), prog_bar=True, on_epoch=True)
+        self.log("val_ssim", np.array(self.val_ssim).mean(), prog_bar=True, on_epoch=True)
+        self.log("val_psnr", np.array(self.val_psnr).mean(), prog_bar=False, on_epoch=True)
 
     def on_validation_epoch_end(self):
 
@@ -399,6 +403,7 @@ class SRGAN(L.LightningModule):
             sched_g.step(mean_val_ssim)
 
         self.val_ssim.clear() # free memory
+        self.val_psnr.clear()
 
         if self.verbose > 0:
             print('\nVerbose: on_validation_epoch_end (end)\n')
@@ -406,6 +411,52 @@ class SRGAN(L.LightningModule):
     def on_train_end(self):
         self.save_model("last_checkpoint.pth")
 
+    def predict_step(self, batch, batch_idx):
+        if isinstance(batch, dict):
+            input_data = batch["lr"]
+        else:
+            input_data = batch
+        
+        return self.generator(input_data)
+    
+        # # IMPORTANT: in the code bellow there is the assumption that the input batch size is 1 
+        # # and that the number of channels in the in the input image is also 1. This is, the 
+        # # shape of the input should be similar to (1,1,img_width, img_height).
+
+        # # Get the device of the input, to then assign it to the model input 
+        # device = input_data.get_device()
+
+        # # Get the initial shape of the input image
+        # initial_shape = input_data.shape
+        
+        # # Conver the input image into patches
+        # input_data = input_data.cpu().detach().numpy()
+        # input_data = input_data.squeeze()
+        # input_data = patchify(input_data, (64,64), step=64)
+
+        # # Get the shape of the patches for later
+        # patches_shape = input_data.shape
+
+        # # Reshape the input patches into (num_patches, 1, patch_shape, patch_shape)
+        # input_data = input_data.reshape(patches_shape[0] * patches_shape[1], 1, 1, patches_shape[2], patches_shape[3])
+
+        # # Predict patch by patch
+        # predictions = []
+        # for input_patch in input_data:
+        #     # Pass it again to a Pytorch tensor in the device (previously taken)
+        #     prediction_patch = self.generator(torch.from_numpy(input_patch).to(device))
+        #     predictions.append(prediction_patch)
+        # prediction = torch.cat(predictions)
+
+        # # Join the patches again
+        # prediction = prediction.cpu().detach().numpy()
+        # prediction = prediction.reshape(patches_shape[0], patches_shape[1], patches_shape[2]*self.hparams.scale_factor, patches_shape[3]*self.hparams.scale_factor)
+        # prediction = unpatchify(prediction, (initial_shape[2]*self.hparams.scale_factor, initial_shape[3]*self.hparams.scale_factor))
+        # prediction = prediction.reshape(1, 1, initial_shape[2]*self.hparams.scale_factor, initial_shape[3]*self.hparams.scale_factor)
+        
+        # # Rerun the patch in its Pytorch format
+        # return torch.from_numpy(prediction).to(device)
+    
     def configure_optimizers(self):
         
         if self.verbose > 0:
@@ -486,3 +537,5 @@ class SRGAN(L.LightningModule):
             raise Exception(
                 "No save_basedir was specified in the construction of the WGAN object."
             )
+
+from patchify import patchify, unpatchify

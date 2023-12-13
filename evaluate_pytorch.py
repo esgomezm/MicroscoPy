@@ -5,7 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 # os.environ['PYTORCH_CUDA_ALLOC_CONF'] = 'max_split_size_mb=128'
 
@@ -36,12 +36,12 @@ config_name = "config"
 @hydra.main(version_base=None, config_path="conf", config_name=config_name)
 def my_app(cfg: DictConfig) -> None:
     
-    dataset_combination = ["ER"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
-    model_combination = ["srgan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm", "srgan"
+    dataset_combination = ["MT"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
+    model_combination = ["wgan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm", "srgan"
     batch_size_combination = [2]
-    num_epochs_combination = [400]
-    lr_combination = [(0.0001,0.0001)] 
-    scheduler_combination = ['OneCycle'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    num_epochs_combination = [200]
+    lr_combination = [(0.001, 0.001),(0.0001, 0.0001)] 
+    scheduler_combination = ['Fixed', 'OneCycle', 'CosineDecay'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
     
     for final_critic_steps in [5]:
@@ -60,13 +60,15 @@ def my_app(cfg: DictConfig) -> None:
 
             for model_name in model_combination: 
                 for batch_size in batch_size_combination:  
-                    for num_epochs in num_epochs_combination:                  
+                    for num_epochs in num_epochs_combination:
                         for lr, discriminator_lr in lr_combination:
                             for scheduler in scheduler_combination:
                                 for optimizer in optimizer_combination:
+                                    
+                                    base_folder = 'results'
 
-                                    # base_folder = f'different_results/WGAN_diff_crap/{config_name}'
-                                    base_folder = f'different_results/ESRGAN+'
+                                    # base_folder = f'different_results/GAN_LR_0_001/{config_name}'
+                                    # base_folder = f'different_results/ESRGAN+'
 
                                     cfg.model_name = model_name
                                     cfg.hyperparam.batch_size = batch_size
@@ -81,7 +83,8 @@ def my_app(cfg: DictConfig) -> None:
 
                                     cfg.model.optim.early_stop.patience = num_epochs
 
-                                    if cfg.model_name in ["wgan", "esrganplus"]:
+                                    '''
+                                    if cfg.model_name in ["wgan", "esrganplus", "srgan"]:
                                         if cfg.model_name == "wgan":
                                             
                                             # cfg.used_model.g_layers = 15
@@ -99,10 +102,15 @@ def my_app(cfg: DictConfig) -> None:
                                             cfg.used_model.recloss = recloss # 100.0
 
                                             base_folder=f"{base_folder}/cs_{number_of_critic_steps}-lgp_{lambda_gp}-rec_{recloss}"
-                                        else:
-                                            number_of_critic_steps = 50 # cfg.used_model.n_critic_steps
+                                        elif cfg.model_name == "esrganplus":
+                                            number_of_critic_steps = final_critic_steps # cfg.used_model.n_critic_steps
                                             cfg.used_model.n_critic_steps = number_of_critic_steps
                                             base_folder=f"{base_folder}/cs_{number_of_critic_steps}"
+                                        elif cfg.model_name == "srgan":
+                                            number_of_critic_steps = final_critic_steps # cfg.used_model.n_critic_steps
+                                            cfg.used_model.n_critic_steps = number_of_critic_steps
+                                            base_folder=f"{base_folder}/cs_{number_of_critic_steps}"
+                                    '''
 
                                     save_folder = "scale" + str(cfg.used_dataset.scale)
                                     if cfg.hyperparam.additional_folder is not None:

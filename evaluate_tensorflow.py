@@ -5,7 +5,7 @@ import gc
 import os
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 import tensorflow as tf
 print(tf.config.list_physical_devices('GPU'))
@@ -16,17 +16,30 @@ def load_path(dataset_root, dataset_name, folder):
     else:
         return None
 
-@hydra.main(version_base=None, config_path="conf", config_name="config")
+# EM_crap_2x_03
+# EM_crap_2x_05
+# EM_crap_2x_09
+# EM_crap_4x_03
+# EM_crap_4x_05
+# EM_crap_4x_09
+# EM_down_2x
+# EM_down_4x
+# EM_old_crap_4x
+
+config_name = "config"
+
+@hydra.main(version_base=None, config_path="conf", config_name=config_name)
 def my_app(cfg: DictConfig) -> None:
     
     dataset_combination = ["LiveFActinDataset"] #"LiveFActinDataset", "EM", "F-actin", "ER", "MT", "MT-SMLM_registered"
-    model_combination = ["wdsr"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
+    model_combination = ["unet", "rcan", "wdsr", "dfcan"]  # "unet", "rcan", "dfcan", "wdsr", "wgan", "esrganplus", "cddpm"
     batch_size_combination = [4]
     num_epochs_combination = [200]
-    lr_combination = [(0.001, 0.001)]
-    scheduler_combination = ['Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
+    lr_combination = [(0.001, 0.001),(0.0001, 0.0001)]
+
+
+    scheduler_combination = ['Fixed', 'OneCycle', 'CosineDecay'] #'Fixed', 'ReduceOnPlateau', 'OneCycle', 'CosineDecay', 'MultiStepScheduler'
     optimizer_combination = ['adam']  #'adam', 'adamW', 'adamax', 'rms_prop', 'sgd'
-    
     
     for dataset_name in dataset_combination:  
         cfg.dataset_name = dataset_name
@@ -62,20 +75,11 @@ def my_app(cfg: DictConfig) -> None:
 
                                 cfg.model.optim.early_stop.patience = num_epochs
 
-                                if cfg.model_name in ["wgan", "esrganplus"]:
-                                    number_of_critic_steps = cfg.used_model.n_critic_steps
-                                    lambda_gp = cfg.used_model.lambda_gp
-                                    recloss = cfg.used_model.recloss
-                                    # number_of_critic_steps = 1
-                                    # cfg.used_model.n_critic_steps = number_of_critic_steps
-                                    # cfg.used_model.g_layers = 15
-                                    # cfg.used_model.lambda_gp = 0.5
-                                    # cfg.used_model.recloss = 0.5 # 100.0
-                                    base_folder=f"{base_folder}/cs_{number_of_critic_steps}-lgp_{lambda_gp}-rec_{recloss}"
-
                                 save_folder = "scale" + str(cfg.used_dataset.scale)
                                 if cfg.hyperparam.additional_folder is not None:
                                     save_folder += "_" + cfg.hyperparam.additional_folder
+                                
+                                # save_folder = save_folder + "/" + config_name
 
                                 saving_path = "./{}/{}/{}/{}/epc{}_btch{}_lr{}_optim-{}_lrsched-{}_seed{}_1".format(
                                     base_folder, 
@@ -93,7 +97,10 @@ def my_app(cfg: DictConfig) -> None:
 
                                 test_metric_path = os.path.join(saving_path, "test_metrics")
                                 if (os.path.exists(test_metric_path) and len(os.listdir(test_metric_path)) > 0):
-                                    saving_path = saving_path[:-1] + str(int(saving_path[-1]) + 1) 
+                                    # In case you want to skip existing configurations
+                                    continue
+                                    # In case you want to repeat existing configurations
+                                    # saving_path = saving_path[:-1] + str(int(saving_path[-1]) + 1) 
 
                                 model = train_configuration(
                                     config=cfg,
