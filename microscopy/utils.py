@@ -1,15 +1,8 @@
-import tensorflow as tf
 import numpy as np
 import os
 import random
 import torch
-
 import yaml
-
-from tensorflow.keras.applications.vgg19 import VGG19
-import tensorflow.keras.backend as K
-from tensorflow.keras.models import Model
-from omegaconf import OmegaConf
 
 #####################################
 #
@@ -49,7 +42,7 @@ def set_seed(seed_value=42):
     Args:
     seedValue (int, optional): seed value.
     """
-
+    import tensorflow as tf
     print(f'Setting seed to {seed_value}')
 
     # Set the seed for the random module
@@ -142,6 +135,7 @@ def save_yaml(dict_to_save, saving_path):
     Returns:
         None
     """
+    from omegaconf import OmegaConf
     with open(saving_path, "w") as file:
         OmegaConf.save(dict_to_save, file)
 
@@ -173,7 +167,7 @@ def ssim_loss(y_true, y_pred):
     # Printing the loss
     # tf.print('\nSSIM:')
     # tf.print(tf.image.ssim(y_true, y_pred, max_val=1.0))
-    
+    import tensorflow as tf
     return tf.image.ssim(y_true, y_pred, max_val=1.0)
 
 def vgg_loss(image_shape):
@@ -196,6 +190,10 @@ def vgg_loss(image_shape):
         vgg_loss = vgg_loss(image_shape=(256, 256))
         loss = vgg_loss(ground_truth_image, predicted_image)
     """
+    from tensorflow.keras.applications.vgg19 import VGG19
+    import tensorflow.keras.backend as K
+    from tensorflow.keras.models import Model
+    
     vgg19 = VGG19(
         include_top=False,
         weights="imagenet",
@@ -227,7 +225,7 @@ def perceptual_loss(image_shape, percp_coef=0.1):
             The function takes in two tensors, y_true and y_pred, and returns the sum of the mean absolute error loss
             and the product of the perceptual loss and the percp_coef.
     """
-
+    import tensorflow as tf
     mean_absolute_error = tf.keras.losses.MeanAbsoluteError()
     percp_loss = vgg_loss(image_shape)
 
