@@ -1,0 +1,9 @@
+scikit-image==0.21.0
+tqdm==4.65.0
+numpy==1.23.5
+torch==2.0.1
+matplotlib==3.7.1
+lpips==0.1.4
+opencv-python==4.7.0.72
+nanopyx==0.2.2
+
