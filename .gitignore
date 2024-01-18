@@ -31,3 +31,4 @@ WGAN_LR/*
 results_64x64/*
 Visualization_notebooks/*
 different_results/*
+.ipynb_checkpoints
